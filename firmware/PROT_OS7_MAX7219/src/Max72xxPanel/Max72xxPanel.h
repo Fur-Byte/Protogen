@@ -50,7 +50,7 @@ public:
 
   // Initialize SPI and the displays from setup(), after Teensy core startup.
   // Returns false for zero/over-255 tiles or failed allocation; no I/O in that case.
-  bool begin(uint32_t spiFrequency = 8000000UL);
+  bool begin(uint32_t spiFrequency = 4000000UL);
 
 	/*
 	 * Define how the displays are ordered. The first display (0)
@@ -114,7 +114,7 @@ public:
 private:
   uint8_t dirtyRows = 0xff; // One bit per MAX7219 digit register.
   bool initialized = false;
-  uint32_t spiClock = 8000000UL;
+  uint32_t spiClock = 4000000UL;
   byte SPI_CS; /* SPI chip selection */
 
   /* Send out a single command to the device */
@@ -131,5 +131,4 @@ private:
 };
 
 #endif	// Max72xxPanel_h
-
 

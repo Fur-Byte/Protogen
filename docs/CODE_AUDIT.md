@@ -1,5 +1,8 @@
 # Code audit — Teensy 4.0 — 2026-09-28, verified 2026-10-03
 
+> Historical notes for the pre-8.0 firmware. See [UPGRADE.md](UPGRADE.md) and
+> the root README for current behavior, settings, build evidence, and checks.
+
 The active firmware, bundled MAX7219 driver, build scripts, existing tests, and
 operating instructions were reviewed. Fixes are applied in place. The target is
 **Teensy 4.0 at 600 MHz, Serial USB, Faster optimization**, with the original

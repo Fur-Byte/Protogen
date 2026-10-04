@@ -1,5 +1,8 @@
 # Teensy 4.0 optimization — 2026-09-27
 
+> Historical notes for the pre-8.0 firmware. See [UPGRADE.md](UPGRADE.md) and
+> the root README for current behavior, settings, build evidence, and checks.
+
 Historical optimization record. See [the 2026-09-28 code audit](CODE_AUDIT.md)
 for subsequent corrections and current build/test results.
 

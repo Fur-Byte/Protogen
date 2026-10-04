@@ -5,12 +5,27 @@ This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work
 without them. Your manually mapped bitmap graphics are preserved.
 
+Firmware **8.0** adds expression transitions, natural blink timing, sleepy/wink
+expressions, buffered audio, runtime USB settings, and a local preview/configuration
+tool. See [the complete upgrade summary](docs/UPGRADE.md) for what changed and why.
+
+Preview the actual firmware without connecting a helmet:
+
+```sh
+python3 scripts/helmet-tool.py
+```
+
+Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teensy's
+serial device to configure the physical helmet. Changes apply temporarily until
+explicitly saved. Saved startup/settings override compiled defaults on reboot.
+
 ## Project layout
 
 - `firmware/PROT_OS7_MAX7219/`: the one active sketch, including its MAX7219 driver and license.
-- `docs/README_RECOVERY.md`: dependencies, actual Teensy pinout, feature configuration, and hardware checks.
-- `docs/CODE_AUDIT.md`: latest full audit, fixes, validation, and remaining hardware checks.
-- `docs/OPTIMIZATION.md`: current Teensy optimization changes, measurements, and tests.
+- `docs/UPGRADE.md`: current features, full change summary, USB protocol, configuration, and validation.
+- `tools/helmet/`, `scripts/helmet-tool.py`, `profiles/`: local Face Studio and named settings profiles.
+- `toolchain.lock.json`: pinned CLI, core, and library versions.
+- `docs/README_RECOVERY.md`, `docs/CODE_AUDIT.md`, `docs/OPTIMIZATION.md`: historical recovery, audit, and optimization notes.
 - `docs/FINAL_CHECK.md`: earlier recovery/build review.
 - `docs/historical/PROT_OS7_Nano_Schematic.png`: original Nano schematic; use the Teensy pinout below for this build.
 - `assets/head-model/`: both original head-model ZIP parts, including fabrication files and build instructions.
@@ -39,7 +54,7 @@ without them. Your manually mapped bitmap graphics are preserved.
    not show a serial port until it has been programmed.
 7. Wait for programming to finish and the board to reboot. Once the display supply
    is connected correctly, the face should start in the happy expression. The
-   expression button cycles happy → surprised → angry → vwv → happy on short release.
+   expression button cycles happy → surprised → angry → vwv → sleepy → wink → happy on short release.
 
 PJRC references: [Teensy installation](https://www.pjrc.com/teensy/td_download.html),
 [upload and program-button workflow](https://www.pjrc.com/teensy/td_usage.html).
@@ -60,7 +75,7 @@ PJRC references: [Teensy installation](https://www.pjrc.com/teensy/td_download.h
 
 Chain each module's DOUT to the next module's DIN, with clock, LOAD, and ground
 connected through the 14-module chain. Preserve your existing physical module
-order and orientations. The firmware uses low brightness (`Settings::Brightness = 1`).
+order and orientations. The default brightness is low (`Settings::Brightness = 1`); saved/runtime settings can override it.
 
 The MAX7219 modules need a suitably sized regulated supply, normally 5 V; do not
 power the 14 displays from the Teensy's 3.3 V pin. Teensy GPIO is **3.3 V only and
@@ -80,20 +95,24 @@ See [PJRC's Teensy 4.0 electrical and power details](https://www.pjrc.com/store/
 
 ## Button controls and settings
 
-- **Tap and release:** cycle happy → surprised → angry → vwv → happy.
+- **Tap and release:** cycle happy → surprised → angry → vwv → sleepy → wink → happy.
 - **Hold about 1.2 seconds:** put the display to sleep. Keep holding without repeats.
 - **Tap while asleep:** wake to the same expression. A hold can also wake it.
 - With a visor sensor enabled, the face stays off while the visor input is HIGH,
   even if you wake it with the button.
 
 Sleep switches the MAX7219 panels and RGB indicator off and pauses boop/microphone
-work. The Teensy remains running to detect the wake button. Sleep and the selected
-expression are not saved across power cycles.
+work. The Teensy remains running to detect the wake button. Sleep and the current
+expression are session-only; a saved startup expression is used after power cycling.
 
-Edit [Settings.h](firmware/PROT_OS7_MAX7219/Settings.h) to adjust brightness,
-startup expression, microphone sensitivity, boop thresholds, and animation/control
-timings. Defaults preserve the low brightness and existing animation intervals.
-The feature-enable switches remain at the top of the main `.ino`.
+Use Face Studio to adjust brightness, startup expression, microphone response,
+boop thresholds, transitions, and blink timing. **Apply** is temporary; **Save**
+persists the applied configuration. Quiet-room calibration can also be saved.
+Settings are validated and protected by alternating EEPROM records with a CRC.
+
+[Settings.h](firmware/PROT_OS7_MAX7219/Settings.h) supplies defaults and the
+compile-time control timings. Sensor-enable switches remain at the top of the
+main `.ino`. See [the upgrade guide](docs/UPGRADE.md) for all settings and controls.
 
 ## Enable sensors after the basic face works
 
@@ -111,8 +130,8 @@ the firmware must observe a released reading before the first boop. Verify its
 polarity against your sensor. The visor input uses a 3.3 V internal pull-up and
 supports open-drain sensors; an unconnected enabled visor input blanks the face.
 Remove or translate any sensor-module pull-up to 5 V before connecting its output.
-Microphone sensitivity starts at **65** and
-will need adjustment for microphone gain and helmet acoustics. For a MAX4466,
+Microphone sensitivity starts at **65**. Use quiet-room calibration and adjust
+the response for your microphone gain and helmet acoustics. For a MAX4466,
 use a supply/output configuration that stays within Teensy's input range.
 
 Test visor blanking and restoration, sensor reactions, every expression, blinking,
@@ -137,28 +156,31 @@ loading an already compiled image.
 
 ## Audit and regression checks
 
-See [the latest code audit](docs/CODE_AUDIT.md) for findings and validation, and
-[the earlier optimization report](docs/OPTIMIZATION.md) for historical measurements.
-Optional sensors remain disabled until you enable them.
+See [the current upgrade and validation guide](docs/UPGRADE.md). The earlier
+[independent audit](docs/INDEPENDENT_CODE_AUDIT.md) describes the preserved
+pre-upgrade baseline; its two sensor behavior findings are addressed in 8.0.
+Optional sensors remain disabled until enabled in the sketch.
 
 ```sh
-./scripts/test-firmware.sh       # Host simulation with address/undefined-behavior checks
-python3 scripts/check-features.py # Compile all eight sensor combinations in temporary copies
+./scripts/test-firmware.sh        # Sanitized host behavior + tooling/preview integration
+python3 scripts/check-features.py # All eight real Teensy sensor combinations
+./scripts/build.sh                # Selected features; export HEX + source manifest
 ```
 
-The host test requires Clang, Python 3, and the installed arduinoFFT source; set
-`ARDUINO_FFT_SRC` if it is outside `~/Documents/Arduino/libraries/arduinoFFT/src`.
-Feature builds use the same Arduino CLI installation as the normal build, with
-`ARDUINO_CLI` available as an executable-path or command-name override. Both checks
-set all eight sensor combinations in temporary copies, even if you have already
-enabled sensors in your sketch. Target build results are in `build/feature-results.json`
-and `build/feature-checks.log`. Neither check uploads firmware.
+Build scripts check the pinned dependencies in `toolchain.lock.json` and require
+zero compiler warnings. Every run records its sources, selected dependencies,
+commands, status, and memory metrics in `build/runs/`. The latest attempt is in
+`build/current-build.json` or `build/feature-results.json`; previous exported
+firmware retains its own manifest. No check uploads firmware.
 
-The 2026-09-28 audit was re-verified on 2026-10-03: all three checks pass, the
-exported HEX was rebuilt from current sources, and the recorded `Icons.h` digest
-and SPI clock were corrected. One item is still open and needs the helmet:
-`Settings::SpiFrequencyHz` is now **8 MHz** where the sketch previously used
-4 MHz. That is under the MAX7219 limit but leaves less timing margin across the
-14-module chain, and the host test still models 4 MHz. Check the assembled chain
-for display artifacts, or set it back to 4000000UL and rebuild. Details are in
-the [evidence-integrity section](docs/CODE_AUDIT.md#evidence-integrity-pass-2026-10-03).
+Host tests and preview require Clang/C++17, Python 3, and the installed arduinoFFT
+source; set `ARDUINO_FFT_SRC` if it is outside
+`~/Documents/Arduino/libraries/arduinoFFT/src`. `ARDUINO_CLI` overrides the CLI
+executable path or command, and `CXX` overrides the host compiler. Source feature
+flags are set in temporary copies for test coverage.
+
+SPI now defaults to **4 MHz**. Audio uses hardware-triggered ADC sampling with
+buffering and diagnostics; real interrupt latency and electrical behavior still
+need helmet validation. Test the new transitions, every expression, microphone
+response, visor restoration, and boop expiry on the assembled helmet. Compiling
+and simulation cannot verify the wiring, power supply, or physical appearance.

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Regression checks for configuration validation and reliable feature coverage."""
 import importlib.util
+import json
+import shutil
 import itertools
 import os
 from pathlib import Path
@@ -38,7 +40,7 @@ class FeatureChecks(unittest.TestCase):
 
     def test_explicit_missing_cli_does_not_fall_back(self):
         with patch.dict(os.environ, {"ARDUINO_CLI": "/missing/protogen/arduino-cli"}):
-            with self.assertRaises(SystemExit):
+            with self.assertRaises(RuntimeError):
                 features.find_cli()
 
     def test_cli_override_accepts_path_commands(self):
@@ -49,26 +51,86 @@ class FeatureChecks(unittest.TestCase):
             with patch.dict(os.environ, {"PATH": tmp, "ARDUINO_CLI": "custom-cli"}):
                 self.assertEqual(features.find_cli(), str(executable))
 
+    def make_project(self, root):
+        source = root / "firmware/PROT_OS7_MAX7219"
+        source.mkdir(parents=True)
+        (source / "PROT_OS7_MAX7219.ino").write_text(
+            "\n".join("// #define " + name for name in features.FEATURES))
+        (root / "scripts").mkdir()
+        for name in ("check-features.py", "build_support.py", "build.py"):
+            shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
+        shutil.copy2(ROOT / "toolchain.lock.json", root / "toolchain.lock.json")
+
+    def compiler(self, root, output, status):
+        locked = json.loads((ROOT / "toolchain.lock.json").read_text())
+        compiler = root / "fake-cli"
+        compiler.write_text(
+            "#!/bin/sh\ncase \"$1\" in\n" +
+            "version) printf '%s\\n' '" + json.dumps({"VersionString": locked["arduino_cli"]}) + "'; exit 0;;\n" +
+            "core) printf '%s\\n' '" + json.dumps({"platforms": [{"id": locked["platform"]["id"], "installed_version": locked["platform"]["version"]}]}) + "'; exit 0;;\n" +
+            "lib) printf '%s\\n' '" + json.dumps({"installed_libraries": [{"library": {"name": name, "version": version}} for name, version in locked["libraries"].items()]}) + "'; exit 0;;\n" +
+            "esac\nprintf '%s\\n' '" + output + "'\nexit " + str(status) + "\n")
+        compiler.chmod(0o755)
+        return compiler
+
     def test_failures_are_returned_even_with_optimization(self):
-        # A mock compiler reports either an error or a warning. Keep these tests'
-        # reports in a disposable project, without overwriting real build evidence.
         with tempfile.TemporaryDirectory(prefix="protogen-feature-result-") as tmp:
             root = Path(tmp)
-            source = root / "firmware/PROT_OS7_MAX7219"
-            source.mkdir(parents=True)
-            (source / "PROT_OS7_MAX7219.ino").write_text(
-                "\n".join("// #define " + name for name in features.FEATURES))
-            script = root / "scripts/check-features.py"
-            script.parent.mkdir()
-            script.write_bytes((ROOT / "scripts/check-features.py").read_bytes())
-            compiler = root / "fake-cli"
+            self.make_project(root)
             for output, status in (("error: simulated", 1), ("warning: simulated", 0)):
-                compiler.write_text(f"#!/bin/sh\nprintf '%s\\n' '{output}'\nexit {status}\n")
-                compiler.chmod(0o755)
+                compiler = self.compiler(root, output, status)
                 run = subprocess.run(
-                    [os.sys.executable, "-O", str(script)], capture_output=True, text=True,
+                    [os.sys.executable, "-O", str(root / "scripts/check-features.py")], capture_output=True, text=True,
                     env=dict(os.environ, ARDUINO_CLI=str(compiler)))
                 self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                report = json.loads((root / "build/feature-results.json").read_text())
+                self.assertEqual(report["state"], "failed")
+                self.assertEqual(len(report["results"]), 8)
+                self.assertTrue(report["source"]["sha256"])
+                self.assertTrue(report["toolchain"]["arduino_cli"])
+
+    def test_preflight_failures_replace_older_success_evidence(self):
+        with tempfile.TemporaryDirectory(prefix="protogen-feature-preflight-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            build = root / "build"
+            build.mkdir()
+            (build / "feature-results.json").write_text('{"state":"success"}')
+            source = root / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
+            source.write_text(source.read_text() + "\n#define Microphone\n")
+            run = subprocess.run([os.sys.executable, str(root / "scripts/check-features.py")], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 1)
+            report = json.loads((build / "feature-results.json").read_text())
+            self.assertEqual(report["state"], "failed")
+            self.assertEqual(report["results"], [])
+            self.assertIn("exactly one declaration", report["error"])
+
+    def test_warning_build_preserves_identified_previous_hex(self):
+        with tempfile.TemporaryDirectory(prefix="protogen-build-warning-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            output = root / "build/teensy40"
+            output.mkdir(parents=True)
+            (output / "original.hex").write_text("old firmware")
+            compiler = self.compiler(root, "warning: simulated", 0)
+            run = subprocess.run([os.sys.executable, str(root / "scripts/build.py")], capture_output=True, text=True,
+                                 env=dict(os.environ, ARDUINO_CLI=str(compiler)))
+            self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+            report = json.loads((root / "build/current-build.json").read_text())
+            self.assertEqual(report["state"], "failed")
+            self.assertEqual((output / "original.hex").read_text(), "old firmware")
+
+    def test_edit_during_run_invalidates_success(self):
+        with tempfile.TemporaryDirectory(prefix="protogen-source-change-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            run = features.BuildRun(root, "build")
+            run.snapshot()
+            run.record["results"] = [{"exit_code": 0, "warnings": 0}]
+            (root / "firmware/PROT_OS7_MAX7219/Settings.h").write_text("// Changed during build\n")
+            self.assertFalse(run.finish())
+            self.assertEqual(run.record["state"], "failed")
+            self.assertIn("Source changed", run.record["error"])
 
 
 class SettingsChecks(unittest.TestCase):
@@ -79,7 +141,7 @@ class SettingsChecks(unittest.TestCase):
                      ("BoopThreshold", "550"), ("MicrophoneSensitivity", "1024"),
                      ("ButtonHoldMs", "10")]
         intervals = re.findall(r"constexpr uint32_t (\w+Ms) =", source)
-        mutations += [(name, value) for name in intervals for value in ("0", "0xffffffffUL")]
+        mutations += [(name, value) for name in intervals for value in ("0", "0xffffffffUL") if not (value == "0" and name in ("TransitionMs", "BlinkJitterMs"))]
         for name, value in [(None, None)] + mutations:
             with self.subTest(setting=name, value=value):
                 text = source if name is None else re.sub(

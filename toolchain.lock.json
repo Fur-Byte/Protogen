@@ -1,0 +1,7 @@
+{
+  "arduino_cli": "1.5.1",
+  "fqbn": "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std",
+  "platform": {"id": "teensy:avr", "version": "1.62.0", "index_url": "https://www.pjrc.com/teensy/package_teensy_index.json"},
+  "libraries": {"arduinoFFT": "2.0.4", "Adafruit GFX Library": "1.12.6", "Adafruit BusIO": "1.17.4"},
+  "bundled_libraries": {"ADC": "9.1"}
+}

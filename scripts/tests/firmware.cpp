@@ -3,7 +3,7 @@
 // These steps exercise loop servicing, not instantaneous edges. ADC/SPI/FFT
 // duration remains a hardware-only measurement.
 static void runMs(uint32_t duration) {
-  for (uint32_t i = 0; i < duration; ++i) { fakeUs += 1000; loop(); }
+  for (uint32_t i = 0; i < duration; ++i) { advanceTime(1000); loop(); }
 }
 static void stableButton(int value) {
   buttonInput = value;
@@ -25,7 +25,9 @@ static bool sameMouth(const FakeSPI::Frame &left, const FakeSPI::Frame &right) {
 
 int main() {
   assert(!SPI.begun); // Constructors must not access Teensy SPI hardware.
-  setup(); loop();
+  setup();
+  config.transitionMs = 0; config.naturalBlinks = 0;
+  resetAnimations(millis()); loop();
   assert(pinModes[VisorPin] == INPUT_PULLUP);
   assert(state == Settings::StartupExpression && !sleeping && !SPI.shutdown);
   auto happy = SPI.display;
@@ -39,6 +41,22 @@ int main() {
   for (int i = 0; i < 100; ++i) loop();
   assert(pwmWrites == writes);
   assert(digitalReadsByPin == digitalReads); // Controls poll at most once per ms.
+
+  // Compare the new renderer against independent legacy drawing for all four
+  // original expressions, including exact mouth/nose positions and panel order.
+  for (uint8_t expression = 0; expression < 4; ++expression) {
+    matrix.fillScreen(0);
+    matrix.drawBitmap(MawLeft, 0, mawL, 32, 8, 1); matrix.drawBitmap(MawRight, 0, maw, 32, 8, 1);
+    matrix.drawBitmap(NoseLeft, 0, noseL, 8, 8, 1); matrix.drawBitmap(NoseRight, 0, nose, 8, 8, 1);
+    const uint8_t *left[] = {EyeL, SpookedL, AngryL, vwvL};
+    const uint8_t *right[] = {Eye, Spooked, Angry, vwv};
+    matrix.drawBitmap(EyeLeft, 0, left[expression], 16, 8, 1);
+    matrix.drawBitmap(EyeRight, 0, right[expression], 16, 8, 1); matrix.write();
+    const auto expected = SPI.display;
+    state = expression; frameValid = false; rising = true; loop();
+    assert(SPI.display == expected);
+  }
+  state = ExpressionHappy; frameValid = false; rising = true; loop();
 
   // Independently calculated tile mappings verify all 3,584 rotated pixels.
   for (int rot = 0; rot < 4; ++rot) {
@@ -65,10 +83,10 @@ int main() {
       matrix.setRotation(tile, 3);
     }
   }
-  rising = true; loop(); assert(SPI.display == happy);
-  fakeUs += (Settings::BlinkIntervalMs + 1) * 1000ULL;
-  loop(); assert(Step == 1);
-  for (int i = 0; i < 15; ++i) { fakeUs += (Settings::BlinkStepMs + 1) * 1000ULL; loop(); }
+  frameValid = false; rising = true; loop(); assert(SPI.display == happy);
+  advanceTime((config.blinkInterval + 1) * 1000ULL);
+  loop(); runMs(Settings::BlinkStepMs); assert(Step == 1);
+  for (int i = 0; i < 15; ++i) { advanceTime((Settings::BlinkStepMs + 1) * 1000ULL); loop(); }
   assert(Step == 0 && !blinkState && SPI.display == happy);
 
   // Contact chatter never becomes a press. Real presses act on release only.
@@ -78,7 +96,7 @@ int main() {
   assert(state == initialState && !sleeping);
   Step = 5; blinkState = true;
   stableButton(LOW); assert(state == initialState);
-  stableButton(HIGH); assert(state == 1 && Step == 0 && !blinkState);
+  stableButton(HIGH); runMs(16); assert(state == 1 && Step == 0 && !blinkState);
   const auto surprised = SPI.display;
 
   // A long hold sleeps once; continuing or releasing it cannot cycle/wake.
@@ -130,7 +148,7 @@ int main() {
   stableVisor(LOW);
   assert(!SPI.shutdown && SPI.display != angry && SPI.wakeFrames.back() == SPI.display);
   assert(SPI.hiddenDigitWrites > hiddenWrites);
-  shortPress(); shortPress(); shortPress();
+  selectExpression(ExpressionAngry, millis()); runMs(20);
   assert(state == 2 && SPI.display == angry);
 
   // Boop hysteresis rejects threshold jitter; timeouts require a real release.
@@ -141,7 +159,7 @@ int main() {
   runMs(Settings::BoopPollMs + 1); assert(boopActive);
   stableVisor(HIGH); stableVisor(LOW);
   assert(SPI.display == boop && SPI.wakeFrames.back() == boop);
-  boopInput = Settings::BoopReleaseThreshold; runMs(Settings::BoopPollMs + 1);
+  boopInput = Settings::BoopReleaseThreshold; runMs(20);
   assert(!boopActive && boopArmed);
   boopInput = (Settings::BoopThreshold + Settings::BoopReleaseThreshold) / 2;
   runMs(Settings::BoopPollMs + 1); assert(!boopActive);
@@ -156,15 +174,15 @@ int main() {
   boopInput = 1023; runMs(Settings::BoopPollMs + 1); assert(!boopActive);
 
   // Speech owns the mouth and postpones angry glitches.
-  fakeUs += (Settings::GlitchIntervalMs + 1) * 1000ULL;
+  advanceTime((Settings::GlitchIntervalMs + 1) * 1000ULL);
   speakingActive = true; speakingDelay = millis();
   loop(); assert(counter == 0);
   speakingActive = false;
-  fakeUs += (Settings::GlitchIntervalMs + 1) * 1000ULL;
+  advanceTime((Settings::GlitchIntervalMs + 1) * 1000ULL);
   loop(); assert(counter == 1);
-  fakeUs += (Settings::GlitchStepMs + 1) * 1000ULL;
+  advanceTime((Settings::GlitchStepMs + 1) * 1000ULL);
   loop(); assert(counter == 2);
-  fakeUs += (Settings::GlitchStepMs + 1) * 1000ULL;
+  advanceTime((Settings::GlitchStepMs + 1) * 1000ULL);
   loop(); assert(counter == 0 && sameMouth(SPI.display, angry));
 
   // Hold/debounce still work through the millis() wrap at 49.7 days.
@@ -176,37 +194,42 @@ int main() {
   loop(); stableVisor(HIGH); assert(SPI.shutdown);
   stableVisor(LOW); assert(!SPI.shutdown);
 
-  // One sample per deadline, none before it; missed periods restart a frame.
+  // Hardware sampling continues during main-loop and display work, with exact
+  // nominal cadence in this model. No callback is synthesized by microphone().
   pauseMicrophone(); fakeUs = 100000000;
-  reads = adcReads; microphone(); assert(adcReads == reads + 1);
-  microphone(); assert(adcReads == reads + 1);
-  fakeUs += 250; microphone(); assert(microphoneSampleCount == 2);
-  fakeUs += 1000; microphone(); assert(microphoneSampleCount == 1);
-  fakeUs += samplingPeriodUs * 2 - 1; microphone();
-  reads = adcReads;
-  fakeUs += 1; microphone(); assert(adcReads == reads); // No catch-up burst.
-  fakeUs += samplingPeriodUs - 1; microphone(); assert(adcReads == reads + 1);
-  pauseMicrophone(); assert(microphoneSampleCount == 0 && !microphoneSampling);
-  fakeUs = UINT32_MAX - 100; microphone();
-  fakeUs += 250; microphone(); assert(microphoneSampleCount == 2);
+  microphone(); assert(microphoneSampling);
+  reads = adcReadsByPin[A0];
+  microphone(); assert(adcReadsByPin[A0] == reads);
+  advanceTime(249); assert(adcReadsByPin[A0] == reads);
+  advanceTime(1); assert(adcReadsByPin[A0] == reads + 1);
+  advanceTime(1000); microphone(); assert(microphoneSampleCount == 5);
+  // A stalled consumer overflows a bounded buffer, reports it, and discards the gap.
+  advanceTime(200000); assert(audioDroppedSamples > 0);
+  microphone(); assert(microphoneSampleCount == 0 && audioRead == audioWrite);
+  pauseMicrophone(); assert(!microphoneSampling && sensorAdc->adc0->getTimerFrequency() == 0);
+  reads = adcReadsByPin[A0]; advanceTime(5000); assert(adcReadsByPin[A0] == reads);
 
-  // Loud synthetic input produces a spectrum, then silence restores the mouth.
-  pauseMicrophone();
-  for (int i = 0; i < 64; ++i) {
-    micInput = (i & 1) ? 310 : 710;
-    fakeUs += 250; microphone();
+  // Early and late six-ms sounds must both activate the mouth; frame alignment
+  // cannot change the detection outcome. Quiet DC changes do not activate it.
+  for (const int burstStart : {8, 40}) {
+    pauseMicrophone(); micInput = 510; noiseFloor = 0;
+    microphone();
+    for (int i = 0; i < 64; ++i) {
+      micInput = i >= burstStart && i < burstStart + 24 ? ((i & 1) ? 310 : 710) : 510;
+      advanceTime(250); microphone();
+    }
+    assert(speakingActive && microphoneSampleCount == 0);
+    micInput = 510;
+    for (int i = 0; i < 1200; ++i) { advanceTime(250); microphone(); }
+    assert(!speakingActive);
   }
-  assert(speakingActive && microphoneSampleCount == 0);
-  micInput = 510;
-  for (int i = 0; i < 1200; ++i) { fakeUs += 250; microphone(); }
-  assert(!speakingActive);
-
-  // Bias changes during a pause must not trigger speech when input is silent.
   for (const int bias : {900, 100, 510}) {
-    pauseMicrophone(); micInput = bias;
-    for (int i = 0; i < 128; ++i) { fakeUs += 250; microphone(); }
+    pauseMicrophone(); micInput = bias; microphone();
+    for (int i = 0; i < 128; ++i) { advanceTime(250); microphone(); }
     assert(!speakingActive && average == 0);
   }
+  pauseMicrophone(); fakeUs = UINT32_MAX - 100; microphone();
+  advanceTime(1000); microphone(); assert(microphoneSampleCount == 4);
 
   // Float + cached window matches an independently DC-corrected double FFT.
   double real64[64], imag64[64] = {};
@@ -247,27 +270,97 @@ int main() {
   for (int i = 0; i < 16; ++i)
     assert(!(fftIcon1[i] | fftIcon2[i] | fftIcon1L[i] | fftIcon2L[i]));
 
-  // Service the whole loop with modeled ADC and 4 MHz SPI cost. Audio must
-  // recover from rendering gaps while controls and blinking continue to work.
-  fakeUs = 1000000000;
-  pauseMicrophone(); state = 0; rising = true;
-  adcReadDurationUs = 10; spiByteDurationUs = 2; // Models 4 MHz; shipped rate is 8 MHz (1 µs/byte).
+  // Sampling survives full SPI frames, blinking, expression changes, and
+  // simultaneous boop ADC work. SPI wire cost is derived from selected clock.
+  pauseMicrophone(); fakeUs = 1000000000;
+  state = 0; rising = true; frameValid = false;
+  adcReadDurationUs = 10;
   syntheticMicrophone = recordMicrophoneTimes = true;
   loop();
-  blinkTime = millis() - Settings::BlinkIntervalMs;
+  microphoneTimes.clear();
+  blinkTime = millis() - config.blinkInterval;
   bool blinkSeen = false;
   const uint64_t end = fakeUs + 400000;
-  while (fakeUs < end) { fakeUs += 20; loop(); blinkSeen |= blinkState; }
+  while (fakeUs < end) { advanceTime(20); loop(); blinkSeen |= blinkState; }
   assert(speakingActive && microphoneTimes.size() > 1000 && blinkSeen && Step == 0);
+  assert(SPI.clock == Settings::SpiFrequencyHz);
   for (size_t i = 1; i < microphoneTimes.size(); ++i)
-    assert(microphoneTimes[i] - microphoneTimes[i-1] >= samplingPeriodUs);
-  stableButton(LOW); stableButton(HIGH);
-  assert(state == 1);
+    assert(microphoneTimes[i] - microphoneTimes[i-1] == samplingPeriodUs);
+  // A separate slow-transfer stress case models 1 MHz wire cost while the
+  // selected SPI clock stays at 4 MHz. Acquisition must remain independent.
+  spiByteDurationUs = 8; microphoneTimes.clear();
+  const auto dropsBeforeSlowSPI = audioDroppedSamples;
+  matrix.fillScreen(0); matrix.write(); frameValid = false; rising = true;
+  loop();
+  const uint64_t slowEnd = fakeUs + 120000;
+  while (fakeUs < slowEnd) { advanceTime(20); loop(); }
+  assert(speakingActive && microphoneTimes.size() > 400 && audioDroppedSamples == dropsBeforeSlowSPI);
+  for (size_t i = 1; i < microphoneTimes.size(); ++i)
+    assert(microphoneTimes[i] - microphoneTimes[i-1] == samplingPeriodUs);
+  stableButton(LOW); stableButton(HIGH); assert(state == 1);
   syntheticMicrophone = recordMicrophoneTimes = false;
-  adcReadDurationUs = spiByteDurationUs = 0;
-  std::cout << "PASS: 3584 pixel/rotation cases, idle SPI/PWM/control polling, blink, "
-               "button debounce/release/holds, sleep/wake shutdown ordering and quiet ADC, "
-               "visor debounce, boop hysteresis/timeout/rearm, speech/glitch priority, "
-               "millis/micros rollover, microphone cadence/recovery/bias/silence, "
-               "DC-corrected FFT, spectrum bounds, audio with modeled SPI/ADC costs\n";
+  adcReadDurationUs = spiByteDurationUs = 0; micInput = 510;
+
+  // A hidden visor cannot restart the original boop lifetime, including sleep.
+  boopInput = 1023; runMs(20);
+  boopInput = 100; runMs(20); assert(boopActive);
+  const uint32_t originalBoopTime = boopTime;
+  runMs(5500); stableVisor(HIGH); runMs(700);
+  assert(!boopActive && !boopArmed);
+  stableVisor(LOW); assert(!boopActive && boopTime == originalBoopTime);
+  stableVisor(HIGH); stableVisor(LOW); assert(!boopActive);
+  boopInput = 1023; runMs(20); boopInput = 100; runMs(20);
+  assert(boopActive);
+  sleeping = true; loop(); runMs(Settings::BoopDurationMs + 1);
+  sleeping = false; loop(); assert(!boopActive && !boopArmed);
+  boopInput = 1023; runMs(20);
+
+  // Transitions close the old eyes before opening the new expression, end on
+  // exact original artwork, and remain interruptible by sleep or another choice.
+  config.transitionMs = 160;
+  selectExpression(ExpressionHappy, millis()); runMs(200);
+  selectExpression(ExpressionAngry, millis()); assert(transitionActive);
+  runMs(80); assert(transitionActive);
+  for (int y = 0; y < 8; ++y) for (int x = 0; x < 16; ++x) {
+    assert(!Face::pixel(displayedFrame, Face::EyeLeft+x, y));
+    assert(!Face::pixel(displayedFrame, Face::EyeRight+x, y));
+  }
+  runMs(100); assert(!transitionActive && SPI.display == angry);
+  selectExpression(ExpressionSleepy, millis()); runMs(200); assert(state == 4 && SPI.display != happy);
+  selectExpression(ExpressionWink, millis()); runMs(200); assert(state == 5);
+  shortPress(); assert(state == 0); runMs(200); assert(SPI.display == happy);
+  selectExpression(ExpressionAngry, millis()); sleeping = true; loop();
+  assert(!transitionActive && SPI.shutdown); sleeping = false; loop();
+  assert(!SPI.shutdown && SPI.display == angry);
+
+  // Natural blink delays remain inside their bounds and actually vary.
+  config.naturalBlinks = 1; config.blinkJitter = 2000;
+  uint32_t firstDelay = 0; bool varied = false;
+  for (int i = 0; i < 100; ++i) {
+    scheduleBlink();
+    assert(nextBlinkInterval >= config.blinkInterval - config.blinkJitter);
+    assert(nextBlinkInterval <= config.blinkInterval + config.blinkJitter);
+    if (!i) firstDelay = nextBlinkInterval;
+    varied |= nextBlinkInterval != firstDelay;
+  }
+  assert(varied);
+
+  // Noise calibration learns a steady quiet environment, without speech, and
+  // the amplitude style responds with bounded, smoothed mouth openings.
+  config.mouthMode = 1; syntheticMicrophone = true;
+  assert(calibrateMicrophone()); runMs(550);
+  assert(!calibratingAudio && !speakingActive && noiseFloor > 0 && config.noiseFloor > 0);
+  assert(saveStoredConfig(config)); RuntimeConfig savedAudio;
+  assert(loadStoredConfig(savedAudio) && savedAudio.noiseFloor == config.noiseFloor);
+  syntheticMicrophone = false; micInput = 510;
+  noiseFloor = 0; pauseMicrophone(); runMs(20);
+  for (int i = 0; i < 128; ++i) { micInput = (i & 1) ? 310 : 710; advanceTime(250); loop(); }
+  assert(speakingActive && mouthAperture >= 1 && mouthAperture <= 3);
+  syntheticMicrophone = false; micInput = 510; pauseMicrophone();
+  const auto dropsBeforeWrap = audioDroppedSamples;
+  runMs(17000); // SPSC read/write sequence counters wrap at 16.384 seconds.
+  assert(audioDroppedSamples == dropsBeforeWrap && !speakingActive);
+  std::cout << "PASS: 3584 mapping cases, controls, sleep/wake, boop lifetime while hidden, "
+               "buffered hardware audio, burst detection, overruns, calibration, FFT, "
+               "animation transitions, new expressions, natural blinking, SPI cadence\n";
 }

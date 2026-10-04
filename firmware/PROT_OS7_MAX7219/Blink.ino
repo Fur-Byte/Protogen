@@ -1,26 +1,15 @@
-// Blink animation
-
+// Animation state only; FaceRenderer owns all pixels.
 void Blink(uint32_t now) {
-  if ((now - blinkTime >= blinkDelay) && (state != ExpressionVwv)) { // The blinking animation begins here
-    blinkState = true;
-    if (now - blinkSpeed >= Settings::BlinkStepMs) {
-      if (Step < 8) {
-        Step++;
-        matrix.fillRect(EyeRight, -8 + Step, 16, 8, LOW);
-        matrix.fillRect(EyeLeft, -8 + Step, 16, 8, LOW);
-      }
-      else {
-        Step++;
-        drawExpression();
-        matrix.fillRect(EyeRight, (Step - 8) * -1, 16, 8, LOW);
-        matrix.fillRect(EyeLeft, (Step - 8) * -1, 16, 8, LOW);
-      }
-      if (Step == 16) {
-        Step = 0;
-        blinkState = false;
-        blinkTime = now;
-      }
-      blinkSpeed = now;
-    }
+  if (transitionActive || state == ExpressionVwv) return;
+  if (!blinkState && now - blinkTime >= nextBlinkInterval) {
+    blinkState = true; Step = 0; blinkSpeed = now;
   }
+  if (!blinkState || now - blinkSpeed < Settings::BlinkStepMs) return;
+  // A triangular lid closes and opens without accumulating erased pixels.
+  static uint8_t phase = 0;
+  if (Step == 0) phase = 0;
+  ++phase;
+  Step = phase <= 8 ? phase : 16 - phase;
+  blinkSpeed = now;
+  if (phase == 16) { Step = 0; blinkState = false; blinkTime = now; scheduleBlink(); }
 }

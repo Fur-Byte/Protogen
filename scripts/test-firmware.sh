@@ -27,6 +27,16 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize=address,undefined
   "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-firmware"
 "$TEST_TEMP/test-firmware"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/matrix.cpp" -o "$TEST_TEMP/test-matrix"
+"${CXX:-clang++}" "${FLAGS[@]}" \
+  "$ROOT/scripts/tests/configuration.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-configuration"
+"$TEST_TEMP/test-configuration"
+"${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
+  "$ROOT/scripts/tests/configuration.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-configuration-sensors"
+"$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-matrix"
 for mask in {0..7}; do
   FEATURES=()
@@ -42,3 +52,4 @@ for mask in {0..7}; do
   "$TEST_TEMP/features-$mask"
 done
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-tools.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-helmet-tool.py"

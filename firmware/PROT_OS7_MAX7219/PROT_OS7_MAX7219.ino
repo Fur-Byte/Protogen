@@ -1,292 +1,209 @@
-/*
-  Version 7.0   Last update: 12-06-2022
-  This code is made for using the MAX7219 led matrices in protogen helmets.
-  Current features:
-  - Multiple expressions with a single button
-  - Visor detection by using a hall sensor
-  - Boop detection by using an infrared or linetracking sensor
-  - Mouth animation with sound detection by using the max4466 microphone from Adafruit
-
-  Repaired for Teensy 4.0. Setup, dependencies, pinout, and hardware checks are
-  documented in ../../docs/README_RECOVERY.md.
-  The bitmaps in Icons.h are manually mapped for this helmet and must be kept as-is.
-*/
-
+/* Protogen helmet controller: Teensy 4.0, original 14 MAX7219 modules.
+   Wiring and the manually mapped artwork in Icons.h are preserved.
+   See ../../docs/UPGRADE.md for controls, configuration, and validation. */
 #if !defined(ARDUINO_TEENSY40)
 #error "Select Teensy 4.0: this sketch's pinout and ADC settings target that board."
 #endif
-
 #include <SPI.h>
 #include <Adafruit_GFX.h>
+#include <EEPROM.h>
 #include "src/Max72xxPanel/Max72xxPanel.h"
 #include "Icons.h"
-#include "Settings.h"
+#include "Configuration.h"
+#include "ConfigStore.h"
+#include "FaceRenderer.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
 // #define VisorSensor  // Digital sensor on pin 3; HIGH blanks the display.
-// #define BoopSensor   // Analog boop/IR sensor on A7; thresholds are in Settings.h.
+// #define BoopSensor   // Analog boop/IR sensor on A7; runtime-calibrated thresholds.
 // #define Microphone   // Microphone with 0-3.3 V output on A0.
-
+#if defined(Microphone) || defined(BoopSensor)
+#include <ADC.h> // ADC 9.1 bundled with Teensy 1.62.0.
+ADC *sensorAdc = nullptr; // Construct during setup(), after Teensy core initialization.
+#endif
 #ifdef Microphone
 #include <arduinoFFT.h>
 #endif
 
-constexpr int pinCS = 8; // MAX7219 CS; hardware SPI uses MOSI=11 (DIN) and SCK=13 (CLK).
-constexpr int numberOfHorizontalDisplays = 14;
-constexpr int numberOfVerticalDisplays = 1;
-
-Max72xxPanel matrix = Max72xxPanel(pinCS, numberOfHorizontalDisplays, numberOfVerticalDisplays);
-
-// Expressions
-
-enum Expression : uint8_t {
-  ExpressionHappy = 0,
-  ExpressionSurprised = 1,
-  ExpressionAngry = 2,
-  ExpressionVwv = 3,
-  ExpressionCount = 4
-};
-
-struct RgbColor {
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-};
-
-constexpr RgbColor expressionColors[ExpressionCount] = {
-  {0, 8, 0}, // Happy: green
-  {0, 0, 8}, // Surprised: blue
-  {8, 0, 0}, // Angry: red
-  {4, 0, 4}  // vwv: purple
-};
-
-// I/O pins
-
-constexpr int ButtonPin = 2;
-constexpr int VisorPin = 3;
-constexpr int redPin = 5; // These pins are used for the expression indicating rgb LED.
-constexpr int greenPin = 9; //" "
-constexpr int bluePin = 10; // " "
+constexpr int pinCS = 8;
+constexpr int numberOfHorizontalDisplays = 14, numberOfVerticalDisplays = 1;
+constexpr int ButtonPin = 2, VisorPin = 3, redPin = 5, greenPin = 9, bluePin = 10;
 #ifdef BoopSensor
-constexpr int irPin = A7; // Analog input for infrared or 'boop' sensor
+constexpr int irPin = A7;
 #endif
 #ifdef Microphone
-constexpr int micPin = A0;  // Analog input for microphone
+constexpr int micPin = A0;
 #endif
+constexpr int16_t EyeLeft = Face::EyeLeft, EyeRight = Face::EyeRight;
+constexpr int16_t MawLeft = Face::MouthLeft, MawRight = Face::MouthRight;
+constexpr int16_t NoseLeft = Face::NoseLeft, NoseRight = Face::NoseRight;
+Max72xxPanel matrix(pinCS, numberOfHorizontalDisplays, numberOfVerticalDisplays);
+RuntimeConfig config;
+struct RgbColor { uint8_t r, g, b; };
+constexpr RgbColor expressionColors[ExpressionCount] = {
+  {0,8,0}, {0,0,8}, {8,0,0}, {4,0,4}, {0,4,6}, {4,6,0}
+};
 
-// Icon positions
-
-constexpr int16_t EyeLeft = 96; // Horizontal positions off the icons on the screens
-constexpr int16_t MawLeft = 64;
-constexpr int16_t NoseLeft = 56;
-constexpr int16_t NoseRight = 48;
-constexpr int16_t MawRight = 16;
-constexpr int16_t EyeRight = 0;
-
-inline void drawMouth(const uint8_t *left, const uint8_t *right) {
-  matrix.fillRect(MawLeft, 0, 32, 8, LOW);
-  matrix.fillRect(MawRight, 0, 32, 8, LOW);
-  matrix.drawBitmap(MawLeft, 0, left, 32, 8, HIGH);
-  matrix.drawBitmap(MawRight, 0, right, 32, 8, HIGH);
-}
-
-// Variables
-
-uint32_t glitchDelay = 0;
-uint32_t glitchSpeed = 0;
-uint32_t blinkTime = 0;
-uint32_t blinkSpeed = 0;
-uint32_t boopTime = 0;
-uint32_t speakingDelay = 0;
-uint32_t previousMillis = 0;
-
-
-bool visorVisible = true;
-bool sleeping = false;
-bool displayBlanked = false;
-bool boopState = false;
-bool boopArmed = false;
-bool boopActive = false;
-bool speakingActive = false;
-
-bool rising = true;
-byte state = Settings::StartupExpression;
-uint8_t Step = 0;
-uint8_t counter = 0;
-
-
-//Blink variables
-constexpr uint32_t blinkDelay = Settings::BlinkIntervalMs;
-bool blinkState = false;
-
+bool visorVisible = true, sleeping = false, displayBlanked = false, displayReady = false;
+bool boopState = false, boopArmed = false, boopActive = false, speakingActive = false;
+bool rising = true, blinkState = false, transitionActive = false;
+uint8_t state = Settings::StartupExpression, Step = 0, counter = 0, transitionFrom = 0;
+uint32_t blinkTime = 0, blinkSpeed = 0, nextBlinkInterval = Settings::BlinkIntervalMs;
+uint32_t glitchDelay = 0, glitchSpeed = 0, boopTime = 0, speakingDelay = 0;
+uint32_t previousMillis = 0, transitionStarted = 0, lastFrameTime = 0;
+uint32_t animationRandom = 0x84f035a7;
+int boopReading = 1023;
+Face::Frame displayedFrame;
+bool frameValid = false;
 
 #ifdef Microphone
-// Smoothing uses the same 4 kHz samples as the FFT.
-const uint8_t numReadings = 10;
-int readings[numReadings];      // the readings from the analog input
-int readIndex = 0;              // the index of the current reading
-int total = 0;                  // the running total
-int average = 0;                // the average
-float filterDCComponent = 0.0f;
+constexpr uint16_t samples = 64, audioBufferSize = 512;
+constexpr uint32_t samplingFrequencyHz = 4000UL, samplingPeriodUs = 250;
+static_assert((audioBufferSize & (audioBufferSize - 1)) == 0, "Audio ring must be a power of two.");
+volatile uint16_t audioBuffer[audioBufferSize];
+volatile uint16_t audioWrite = 0, audioRead = 0;
+volatile uint32_t audioDroppedSamples = 0;
+uint32_t handledAudioDrops = 0, audioFrames = 0;
 uint16_t microphoneSampleCount = 0;
-uint32_t nextSampleTime = 0;
-bool microphoneSampling = false;
-
-//FFT variables
-constexpr uint16_t samples = 64; // Must remain a power of two.
-constexpr uint32_t samplingFrequencyHz = 4000UL;
-constexpr uint32_t samplingPeriodUs = 1000000UL / samplingFrequencyHz;
-float vReal[samples];
-float vImag[samples];
-float hammingWindow[samples / 2];
+bool microphoneSampling = false, audioPriming = false, frameActivity = false;
+bool audioBiasReady = false, calibratingAudio = false;
+uint32_t calibrationSamples = 0;
+float calibrationTotal = 0, noiseFloor = 0, smoothedEnvelope = 0, audioGate = 65;
+float attackCoefficient = 0.0125f, releaseCoefficient = 0.002083333f;
+constexpr uint8_t numReadings = 10;
+int readings[numReadings] = {}, readIndex = 0, total = 0, average = 0;
+float filterDCComponent = 0;
+float vReal[samples], vImag[samples], hammingWindow[samples / 2];
 ArduinoFFT<float> FFT(vReal, vImag, samples, static_cast<float>(samplingFrequencyHz));
-static_assert(samples == 64, "The mouth renderer expects a 64-sample FFT.");
+uint8_t mouthAperture = 0;
 #endif
-
-// Setup runs once
 
 void setup() {
-  matrix.begin(Settings::SpiFrequencyHz);
-  matrix.setIntensity(Settings::Brightness);
-  analogReadResolution(10); // Preserve the 0..1023 sensor thresholds.
-  // Per-tile rotations match this helmet's wiring; the Icons.h bitmaps are manually mapped.
-  matrix.setRotation(0, 3); // Right eye
-  matrix.setRotation(1, 3); // Right eye
-  matrix.setRotation(2, 3); // Right mouth
-  matrix.setRotation(3, 3); // Right mouth
-  matrix.setRotation(4, 3); // Right mouth
-  matrix.setRotation(5, 3); // Right mouth
-  matrix.setRotation(6, 3); // Right nose
-  matrix.setRotation(7, 3); // Left nose
-  matrix.setRotation(8, 3); // Left mouth
-  matrix.setRotation(9, 3); // Left mouth
-  matrix.setRotation(10, 3); // Left mouth
-  matrix.setRotation(11, 3); // Left mouth
-  matrix.setRotation(12, 3); // Left eye
-  matrix.setRotation(13, 3); // Left eye
+  Serial.begin(115200); // USB is optional; startup never waits for a computer.
+  loadStoredConfig(config);
+  state = static_cast<uint8_t>(config.startupExpression);
+  displayReady = matrix.begin(Settings::SpiFrequencyHz);
+  matrix.shutdown(true);
+  matrix.setIntensity(static_cast<uint8_t>(config.brightness));
+  analogReadResolution(10);
+  for (uint8_t tile = 0; tile < 14; ++tile) matrix.setRotation(tile, 3);
   matrix.fillScreen(LOW);
-
   pinMode(ButtonPin, INPUT_PULLUP);
 #ifdef VisorSensor
-  pinMode(VisorPin, INPUT_PULLUP); // Also supports open-drain hall sensors.
+  pinMode(VisorPin, INPUT_PULLUP);
   visorVisible = digitalRead(VisorPin) == LOW;
 #endif
-  pinMode(redPin, OUTPUT);
-  pinMode(greenPin, OUTPUT);
-  pinMode(bluePin, OUTPUT);
-#ifdef BoopSensor
-  pinMode(irPin, INPUT);
-#endif
-#ifdef Microphone
-  pinMode(micPin, INPUT);
-  // Cache the symmetric Hamming window once instead of computing cosines per frame.
-  for (uint16_t i = 0; i < samples / 2; ++i) {
-    hammingWindow[i] = 0.54f - 0.46f * cosf(6.28318530718f * i / (samples - 1));
-  }
-#endif
+  pinMode(redPin, OUTPUT); pinMode(greenPin, OUTPUT); pinMode(bluePin, OUTPUT);
+  setupSensors();
   resetAnimations(millis());
+  displayBlanked = true; // Compose the first complete face before enabling panels.
 }
-
-// Main loop
 
 void loop() {
   const uint32_t now = millis();
-  updateControls(now); // Always service the wake button, including during sleep.
-
-  if (sleeping || !visorVisible) {
+  serviceSerial(now);
+  updateControls(now);
+  // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
+  if (boopActive && now - boopTime >= Settings::BoopDurationMs) {
+    boopActive = false; boopArmed = false; rising = true;
+  }
+  if (sleeping || !visorVisible || !displayReady) {
     if (!displayBlanked) {
-      matrix.shutdown(true);
-      setColor(0, 0, 0);
-      resetAnimations(now);
+      matrix.shutdown(true); setColor(0,0,0); resetAnimations(now);
       displayBlanked = true;
-      boopActive = false;
-      rising = true;
     }
-    return; // No ADC reads, FFT work, drawing, or repeated SPI commands while hidden.
-  }
-
-  const bool waking = displayBlanked;
-  if (waking) {
-    resetAnimations(now);
-    boopActive = false;
-    rising = true;
-  }
-  updateBoop(now, waking);
-
-  if (boopState && boopArmed) {
-    if (!boopActive) {
-      resetAnimations(now);
-      drawBaseFace();
-      matrix.drawBitmap(EyeLeft, 0, vwvL, 16, 8, HIGH);
-      matrix.drawBitmap(EyeRight, 0, vwv, 16, 8, HIGH);
-      setColor(16, 4, 0);
-      previousMillis = now;
-      boopTime = now;
-      boopActive = true;
-      rising = true; // Restore the selected expression after release or timeout.
-    }
-    if (now - boopTime >= Settings::BoopDurationMs) {
-      boopArmed = false; // A sustained obstruction must release before another boop.
-      boopActive = false;
-    }
-  }
-  else {
-    boopActive = false;
-  }
-
-  if (!boopActive) {
-    if (rising) {
-      resetAnimations(now);
-      drawBaseFace();
-      drawExpression();
-      if (state < ExpressionCount) {
-        setColor(expressionColors[state].r, expressionColors[state].g, expressionColors[state].b);
-      }
-      previousMillis = now;
-    }
-    microphone();
-    glitch(now);
-    Blink(now);
-  }
-  if (now - previousMillis >= Settings::IndicatorMs) {
-    setColor(0, 0, 0);
-  }
-  matrix.write();
-  if (waking) {
-    // Replace the retained frame while the panels are still off, then enable.
-    matrix.shutdown(false);
-    displayBlanked = false;
-  }
-}
-
-void drawBaseFace() {
-  matrix.fillScreen(LOW);
-  drawMouth(mawL, maw);
-  matrix.drawBitmap(NoseLeft, 0, noseL, 8, 8, HIGH);
-  matrix.drawBitmap(NoseRight, 0, nose, 8, 8, HIGH);
-}
-
-void resetAnimations(uint32_t now) {
-  Step = 0;
-  blinkState = false;
-  counter = 0;
-  blinkTime = blinkSpeed = now;
-  glitchDelay = glitchSpeed = now;
-  pauseMicrophone();
-}
-
-// RGB LED
-
-void setColor(int redValue, int greenValue, int blueValue) {
-  // Avoid reprogramming PWM on every loop once the indicator is already off.
-  static int previousRed = -1, previousGreen = -1, previousBlue = -1;
-  if (redValue == previousRed && greenValue == previousGreen && blueValue == previousBlue) {
     return;
   }
-  previousRed = redValue;
-  previousGreen = greenValue;
-  previousBlue = blueValue;
-  analogWrite(redPin, redValue);
-  analogWrite(greenPin, greenValue);
-  analogWrite(bluePin, blueValue);
+  const bool waking = displayBlanked;
+  if (waking) { resetAnimations(now); rising = true; frameValid = false; }
+  updateBoop(now, waking);
+  if (boopState && boopArmed && !boopActive) {
+    boopActive = true; boopTime = now; previousMillis = now;
+    resetAnimations(now); setColor(16,4,0); rising = true;
+  }
+  if (boopActive && !boopState) {
+    boopActive = false; resetAnimations(now); rising = true;
+  }
+  if (rising && !boopActive) {
+    setColor(expressionColors[state].r, expressionColors[state].g, expressionColors[state].b);
+    previousMillis = now;
+  }
+  if (boopActive) pauseMicrophone();
+  else { microphone(); glitch(now); Blink(now); }
+  if (now - previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
+  // At most 60-ish display frames per second; inputs/audio are serviced every loop.
+  if (waking || rising || now - lastFrameTime >= 16) {
+    renderFace(now); lastFrameTime = now; rising = false;
+  }
+  if (waking) { matrix.shutdown(false); displayBlanked = false; }
+}
+
+void renderFace(uint32_t now) {
+  Face::Pose pose;
+  pose.expression = state; pose.boop = boopActive;
+  pose.speaking = speakingActive; pose.glitch = counter; pose.closure = Step;
+  pose.mouthMode = static_cast<uint8_t>(config.mouthMode);
+#ifdef Microphone
+  pose.aperture = mouthAperture;
+#endif
+  if (transitionActive) {
+    const uint32_t elapsed = now - transitionStarted;
+    if (!config.transitionMs || elapsed >= config.transitionMs) transitionActive = false;
+    else {
+      const uint32_t half = config.transitionMs / 2;
+      const uint32_t ramp = config.transitionMs * 3UL / 8;
+      if (elapsed < half) pose.expression = transitionFrom;
+      // A short closed interval ensures the swap is hidden even at 60 Hz.
+      if (elapsed < ramp) pose.closure = static_cast<uint8_t>(elapsed * 8 / ramp);
+      else if (elapsed < config.transitionMs - ramp) pose.closure = 8;
+      else pose.closure = static_cast<uint8_t>((config.transitionMs - elapsed) * 8 / (ramp ? ramp : 1));
+    }
+  }
+  if (config.idleMotion && !blinkState && !transitionActive && !boopActive) {
+    // Small, infrequent glances. Exact artwork at rest, no invented extra pixels.
+    const uint32_t phase = (now - blinkTime) % 6000;
+    pose.eyeOffset = phase >= 2200 && phase < 2500 ? 1 : phase >= 4400 && phase < 4700 ? -1 : 0;
+  }
+  Face::Frame composed;
+  Face::compose(composed, pose);
+  for (int y = 0; y < Face::Height; ++y)
+    for (int x = 0; x < Face::Width; ++x) {
+      const bool value = Face::pixel(composed, x, y);
+      if (!frameValid || value != Face::pixel(displayedFrame, x, y)) matrix.drawPixel(x, y, value);
+    }
+  displayedFrame = composed; frameValid = true; matrix.write();
+}
+
+void selectExpression(uint8_t expression, uint32_t now) {
+  if (expression >= ExpressionCount || expression == state) return;
+  const uint8_t old = state;
+  state = expression; resetAnimations(now); rising = true;
+  if (!sleeping && visorVisible && !boopActive && config.transitionMs) {
+    transitionActive = true; transitionFrom = old; transitionStarted = now;
+  }
+}
+
+uint32_t animationRand() {
+  animationRandom ^= animationRandom << 13;
+  animationRandom ^= animationRandom >> 17;
+  animationRandom ^= animationRandom << 5;
+  return animationRandom;
+}
+void scheduleBlink() {
+  nextBlinkInterval = config.blinkInterval;
+  if (config.naturalBlinks && config.blinkJitter) {
+    const uint32_t span = config.blinkJitter * 2UL + 1;
+    nextBlinkInterval = config.blinkInterval - config.blinkJitter + animationRand() % span;
+  }
+}
+void resetAnimations(uint32_t now) {
+  Step = 0; blinkState = false; counter = 0; transitionActive = false;
+  blinkTime = blinkSpeed = glitchDelay = glitchSpeed = now;
+  scheduleBlink(); pauseMicrophone();
+}
+void setColor(int red, int green, int blue) {
+  static int previousRed = -1, previousGreen = -1, previousBlue = -1;
+  if (red == previousRed && green == previousGreen && blue == previousBlue) return;
+  previousRed = red; previousGreen = green; previousBlue = blue;
+  analogWrite(redPin, red); analogWrite(greenPin, green); analogWrite(bluePin, blue);
 }

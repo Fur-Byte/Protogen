@@ -1,73 +1,123 @@
-// Service at most one ADC sample per loop; never busy-wait for a 16 ms FFT frame.
-void microphone() {
 #ifdef Microphone
-  const uint32_t now = micros();
-  const bool starting = !microphoneSampling;
-  if (!microphoneSampling) {
-    microphoneSampling = true;
-    nextSampleTime = now;
-  }
-  if (static_cast<int32_t>(now - nextSampleTime) < 0) {
-    return;
-  }
-  // If rendering or another task missed a whole period, discard the partial
-  // frame. Do not fabricate equally spaced samples with back-to-back ADC reads.
-  if (now - nextSampleTime >= samplingPeriodUs) {
-    microphoneSampleCount = 0;
-    nextSampleTime = now;
-  }
-  // Schedule from the actual read time. Advancing an old deadline can cause
-  // a near-immediate second sample after a delay of just under one period.
-  nextSampleTime = now + samplingPeriodUs;
-
-  const float sample = static_cast<float>(analogRead(micPin));
-  if (starting) {
-    // A sensor's DC bias can change while asleep/hidden/booped. Start from
-    // the current input so that a silent new bias is not treated as speech.
-    filterDCComponent = sample;
-  }
-  filterDCComponent = sample * 0.01f + filterDCComponent * 0.99f;
-  const int amplitude = static_cast<int>(fabsf(sample - filterDCComponent));
-  total -= readings[readIndex];
-  readings[readIndex] = amplitude;
-  total += amplitude;
-  if (++readIndex >= numReadings) {
-    readIndex = 0;
-  }
-  average = total / numReadings;
-
-  vReal[microphoneSampleCount] = sample;
-  vImag[microphoneSampleCount] = 0.0f;
-  if (++microphoneSampleCount == samples) {
-    microphoneSampleCount = 0;
-    if (average > Settings::MicrophoneSensitivity) {
-      fft(); // fft() computes magnitudes and calls renderFFTBars() to update fftIcon* buffers
-      speakingActive = true;
-      matrix.fillRect(MawLeft, 0, 32, 8, LOW);
-      matrix.fillRect(MawRight, 0, 32, 8, LOW);
-      matrix.drawBitmap(MawLeft + 16, 0, fftIcon2L, 16, 8, HIGH);
-      matrix.drawBitmap(MawLeft, 0, fftIcon1L, 16, 8, HIGH);
-      matrix.drawBitmap(MawRight + 16, 0, fftIcon1, 16, 8, HIGH);
-      matrix.drawBitmap(MawRight, 0, fftIcon2, 16, 8, HIGH);
-      speakingDelay = millis();
+// QuadTimer4 triggers ADC0 at 4 kHz. The completion ISR only queues samples;
+// floating-point DSP, graphics, and USB are always in the main loop.
+void microphoneSampleISR() {
+  const int sample = sensorAdc->adc0->readSingle(); // Acknowledge every conversion.
+  if (audioPriming) audioPriming = false; // Discard the software setup conversion.
+  else if (microphoneSampling) {
+    const uint16_t write = audioWrite;
+    if (sample < 0 || sample > 1023 || static_cast<uint16_t>(write - audioRead) >= audioBufferSize) {
+      ++audioDroppedSamples;
+    } else {
+      audioBuffer[write & (audioBufferSize - 1)] = static_cast<uint16_t>(sample);
+      audioWrite = static_cast<uint16_t>(write + 1);
     }
   }
-  // speakingDelay is captured in millis() for the UI hold timer; audio sampling uses micros().
-  if (speakingActive && average <= Settings::MicrophoneSensitivity && millis() - speakingDelay >= Settings::SpeakingHoldMs) {
-    speakingActive = false;
-    drawMouth(mawL, maw);
+#if defined(__IMXRT1062__)
+  asm volatile("dsb");
+#endif
+}
+
+void updateAudioCoefficients() {
+  attackCoefficient = 1.0f / (samplingFrequencyHz * config.attackMs / 1000.0f);
+  releaseCoefficient = 1.0f / (samplingFrequencyHz * config.releaseMs / 1000.0f);
+}
+
+void startMicrophone() {
+  if (!sensorAdc || microphoneSampling) return;
+  audioRead = audioWrite = 0; microphoneSampleCount = 0; frameActivity = false;
+  audioBiasReady = false; handledAudioDrops = audioDroppedSamples;
+  audioPriming = true; microphoneSampling = true;
+  sensorAdc->adc0->startSingleRead(micPin);
+  sensorAdc->adc0->enableInterrupts(microphoneSampleISR, 64);
+  sensorAdc->adc0->startTimer(samplingFrequencyHz);
+}
+
+void processMicrophoneSample(float sample, uint32_t now) {
+  if (!audioBiasReady) { filterDCComponent = sample; audioBiasReady = true; }
+  filterDCComponent = sample * 0.01f + filterDCComponent * 0.99f;
+  const int amplitude = static_cast<int>(fabsf(sample - filterDCComponent));
+  total -= readings[readIndex]; readings[readIndex] = amplitude; total += amplitude;
+  if (++readIndex >= numReadings) readIndex = 0;
+  average = total / numReadings;
+  const float coefficient = average > smoothedEnvelope ? attackCoefficient : releaseCoefficient;
+  smoothedEnvelope += (average - smoothedEnvelope) * coefficient;
+  const float adaptiveGate = noiseFloor * 2.0f + config.noiseMargin;
+  audioGate = adaptiveGate > config.sensitivity ? adaptiveGate : config.sensitivity;
+  // Latch every threshold crossing, including bursts early in the FFT frame.
+  if (!calibratingAudio && average > audioGate) frameActivity = true;
+  if (calibratingAudio) {
+    calibrationTotal += average;
+    if (++calibrationSamples >= samplingFrequencyHz / 2) {
+      noiseFloor = calibrationTotal / calibrationSamples;
+      config.noiseFloor = static_cast<uint16_t>(noiseFloor);
+      calibratingAudio = false; frameActivity = false;
+    }
   }
+  vReal[microphoneSampleCount] = sample; vImag[microphoneSampleCount] = 0;
+  if (++microphoneSampleCount == samples) {
+    microphoneSampleCount = 0; ++audioFrames;
+    if (frameActivity) {
+      if (config.mouthMode == 0) fft();
+      speakingActive = true; speakingDelay = now;
+    } else if (!speakingActive && !calibratingAudio) {
+      // Learn the noise floor only below the activity gate, never during speech.
+      noiseFloor += (average - noiseFloor) * 0.01f;
+    }
+    frameActivity = false;
+  }
+}
+#endif
+
+void microphone() {
+#ifdef Microphone
+  startMicrophone();
+  const uint32_t now = millis();
+  if (audioDroppedSamples != handledAudioDrops) {
+    // Queued data straddles a gap: discard it rather than FFT unevenly spaced samples.
+    noInterrupts(); audioRead = audioWrite; handledAudioDrops = audioDroppedSamples; interrupts();
+    microphoneSampleCount = 0; frameActivity = false; audioBiasReady = false;
+    memset(readings, 0, sizeof(readings)); readIndex = total = average = 0;
+    if (calibratingAudio) { calibrationSamples = 0; calibrationTotal = 0; }
+  }
+  // Bounded work (32 ms of queued audio) keeps controls responsive even after a stall.
+  for (uint16_t budget = 0; budget < samples * 2 && audioRead != audioWrite; ++budget) {
+    const uint16_t read = audioRead;
+    const uint16_t sample = audioBuffer[read & (audioBufferSize - 1)];
+    audioRead = static_cast<uint16_t>(read + 1);
+    processMicrophoneSample(sample, now);
+  }
+  if (speakingActive && now - speakingDelay >= Settings::SpeakingHoldMs && average <= audioGate) {
+    speakingActive = false;
+  }
+  float level = (smoothedEnvelope - audioGate) / (audioGate * 2.0f + 1.0f);
+  if (level < 0) level = 0;
+  if (level > 1) level = 1;
+  mouthAperture = speakingActive ? static_cast<uint8_t>(1 + level * 2) : 0;
 #endif
 }
 
 void pauseMicrophone() {
 #ifdef Microphone
-  microphoneSampleCount = 0;
-  microphoneSampling = false;
-  speakingActive = false;
-  memset(readings, 0, sizeof(readings));
-  readIndex = 0;
-  total = 0;
-  average = 0;
+  if (microphoneSampling) {
+    microphoneSampling = false;
+    sensorAdc->adc0->stopTimer(); sensorAdc->adc0->disableInterrupts();
+  }
+  audioRead = audioWrite = 0; microphoneSampleCount = 0;
+  frameActivity = false; audioBiasReady = false; speakingActive = false;
+  memset(readings, 0, sizeof(readings)); readIndex = total = average = 0;
+  smoothedEnvelope = 0; mouthAperture = 0;
+  calibratingAudio = false; calibrationSamples = 0; calibrationTotal = 0;
+#endif
+}
+
+bool calibrateMicrophone() {
+#ifdef Microphone
+  if (sleeping || !visorVisible || boopActive || !sensorAdc) return false;
+  pauseMicrophone(); calibratingAudio = true;
+  calibrationTotal = 0; calibrationSamples = 0;
+  return true;
+#else
+  return false;
 #endif
 }

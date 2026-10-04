@@ -1,5 +1,8 @@
 # PROT_OS7_MAX7219 recovery notes
 
+> Historical notes for the pre-8.0 firmware. See [UPGRADE.md](UPGRADE.md) and
+> the root README for current behavior, settings, build evidence, and checks.
+
 The canonical sketch is now `../firmware/PROT_OS7_MAX7219/`. Open its
 `PROT_OS7_MAX7219.ino` file in Arduino IDE. Keep all sketch tabs and `src/`
 together. The original project ZIP is retained under `../archive/`; it is a

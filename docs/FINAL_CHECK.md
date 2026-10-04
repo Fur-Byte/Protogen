@@ -1,5 +1,8 @@
 # Final project check — 2026-09-26
 
+> Historical notes for the pre-8.0 firmware. See [UPGRADE.md](UPGRADE.md) and
+> the root README for current behavior, settings, build evidence, and checks.
+
 Historical recovery review. See [the code audit](CODE_AUDIT.md) for current
 validation, and [the optimization report](OPTIMIZATION.md) for the intervening work.
 

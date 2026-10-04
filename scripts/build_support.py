@@ -1,0 +1,187 @@
+"""Shared source identity, pinned dependency checks, and per-run build evidence."""
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import uuid
+
+FQBN = "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std"
+
+
+def find_cli():
+    override = os.environ.get("ARDUINO_CLI")
+    candidates = [override] if override else [
+        "/Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/arduino-cli", "arduino-cli"]
+    for candidate in candidates:
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    raise RuntimeError("Arduino CLI not found; set ARDUINO_CLI to an executable path or command.")
+
+
+def source_identity(root):
+    files = {}
+    for directory in ("firmware", "scripts", "tools", "profiles"):
+        for path in sorted((root / directory).rglob("*")):
+            if path.is_file() and "__pycache__" not in path.parts:
+                files[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    lock = root / "toolchain.lock.json"
+    if lock.is_file():
+        files[lock.name] = hashlib.sha256(lock.read_bytes()).hexdigest()
+    digest = hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return {"sha256": digest, "files": files}
+
+
+def write_json(path, value):
+    temporary = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
+    temporary.write_text(json.dumps(value, indent=2) + "\n")
+    os.replace(temporary, path)
+
+
+def cli_json(cli, *args):
+    run = subprocess.run([cli, *args, "--format", "json"], capture_output=True, text=True)
+    if run.returncode:
+        raise RuntimeError("Toolchain inspection failed: " + run.stderr[-2000:])
+    try:
+        return json.loads(run.stdout)
+    except ValueError as error:
+        raise RuntimeError("Toolchain inspection returned invalid JSON") from error
+
+
+def check_toolchain(root, cli):
+    locked = json.loads((root / "toolchain.lock.json").read_text())
+    version = cli_json(cli, "version").get("VersionString")
+    platforms = cli_json(cli, "core", "list").get("platforms", [])
+    installed = {p["id"]: p.get("installed_version") for p in platforms}
+    libraries = cli_json(cli, "lib", "list").get("installed_libraries", [])
+    available = {p["library"]["name"]: p["library"].get("version") for p in libraries}
+    expected = locked["platform"]
+    problems = []
+    if version != locked["arduino_cli"]:
+        problems.append(f"Arduino CLI: expected {locked['arduino_cli']}, found {version}")
+    if installed.get(expected["id"]) != expected["version"]:
+        problems.append(f"{expected['id']}: expected {expected['version']}, found {installed.get(expected['id'])}")
+    for name, required in locked["libraries"].items():
+        if available.get(name) != required:
+            problems.append(f"{name}: expected {required}, found {available.get(name)}")
+    if locked["fqbn"] != FQBN:
+        problems.append("Lock FQBN does not match the build target")
+    if problems:
+        raise RuntimeError("Pinned toolchain mismatch. Install the versions in toolchain.lock.json:\n" + "\n".join(problems))
+    return {"cli": str(cli), "arduino_cli": version, "platform": expected,
+            "libraries": locked["libraries"], "bundled_libraries": locked["bundled_libraries"], "fqbn": FQBN}
+
+
+def memory_metrics(output):
+    result = {}
+    flash = re.search(r"FLASH: code:(\d+), data:(\d+), headers:(\d+)", output)
+    ram = re.search(r"RAM1: variables:(\d+).*free for local variables:(\d+)", output)
+    if flash:
+        result["flash_bytes"] = sum(map(int, flash.groups()))
+    if ram:
+        result["ram1_variables_bytes"], result["ram1_available_bytes"] = map(int, ram.groups())
+    return result
+
+
+class BuildRun:
+    def __init__(self, root, kind):
+        self.root, self.kind = root, kind
+        self.build = root / "build"
+        self.build.mkdir(exist_ok=True)
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        self.path = self.build / "runs" / (timestamp + "-" + kind + "-" + uuid.uuid4().hex[:8])
+        self.path.mkdir(parents=True)
+        self.current = self.build / ("current-build.json" if kind == "build" else "feature-results.json")
+        self.log = self.path / "compile.log"
+        self.compat_log = self.build / ("compile.log" if kind == "build" else "feature-checks.log")
+        self.record = {"schema": 1, "kind": kind, "state": "running", "started_utc": timestamp,
+                       "run_directory": str(self.path), "fqbn": FQBN, "results": []}
+        self.publish()
+        self.log.write_text("")
+        self.compat_log.write_text("")
+
+    def publish(self):
+        write_json(self.path / "manifest.json", self.record)
+        write_json(self.current, self.record)
+
+    def snapshot(self):
+        self.record["source"] = source_identity(self.root)
+        try:
+            self.record["git_head"] = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=self.root, capture_output=True, text=True).stdout.strip() or None
+            self.record["working_tree_dirty"] = bool(subprocess.run(
+                ["git", "status", "--porcelain"], cwd=self.root, capture_output=True, text=True).stdout.strip())
+        except OSError:
+            self.record["git_head"] = None
+        sketch = self.path / "snapshot" / "PROT_OS7_MAX7219"
+        shutil.copytree(self.root / "firmware/PROT_OS7_MAX7219", sketch)
+        # Detect an edit during copying, before any source-bound claim is made.
+        for path in sketch.rglob("*"):
+            if path.is_file():
+                key = "firmware/PROT_OS7_MAX7219/" + str(path.relative_to(sketch))
+                if hashlib.sha256(path.read_bytes()).hexdigest() != self.record["source"]["files"][key]:
+                    raise RuntimeError("Source changed while snapshotting; rerun the check")
+        self.publish()
+        return sketch
+
+    def compile(self, cli, sketch, features, output_directory=None):
+        output_directory = output_directory or self.path / ("artifacts-" + str(len(self.record["results"])))
+        command = [cli, "compile", "--fqbn", FQBN, "--warnings", "all", "--clean",
+                   "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
+        run = subprocess.run(command, capture_output=True, text=True)
+        output = run.stdout + run.stderr
+        result = {"features": list(features), "exit_code": run.returncode,
+                  "warnings": len(re.findall(r"\bwarning:", output)), "command": command,
+                  "configured_source_sha256": hashlib.sha256((sketch / "PROT_OS7_MAX7219.ino").read_bytes()).hexdigest(),
+                  "memory": memory_metrics(output)}
+        # libraries.cache records the paths actually selected by Arduino CLI.
+        if run.returncode == 0:
+            cache = output_directory / "objects" / "libraries.cache"
+            selected = json.loads(cache.read_text()) if cache.is_file() else []
+            resolved = {}
+            for library in selected:
+                properties = Path(library) / "library.properties"
+                if not properties.is_file() and Path(library).name == "src":
+                    properties = Path(library).parent / "library.properties"
+                if properties.is_file():
+                    text = properties.read_text()
+                    name = re.search(r"^name=(.*)$", text, re.MULTILINE)
+                    version = re.search(r"^version=(.*)$", text, re.MULTILINE)
+                    if name:
+                        resolved[name[1]] = {"version": version[1] if version else None, "path": library}
+            result["selected_libraries"] = resolved
+            expected = {name: version for name, version in self.record["toolchain"]["libraries"].items()
+                        if name != "arduinoFFT" or "Microphone" in features}
+            if "Microphone" in features or "BoopSensor" in features:
+                expected.update(self.record["toolchain"]["bundled_libraries"])
+            problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
+            if problems:
+                result["dependency_error"] = "Selected libraries missing or different from lock: " + ", ".join(problems)
+        self.record["results"].append(result)
+        with self.log.open("a") as log:
+            log.write(json.dumps(result) + "\n" + output + "\n")
+        shutil.copy2(self.log, self.compat_log)
+        self.publish()
+        print({k: result[k] for k in ("features", "exit_code", "warnings", "memory")}, flush=True)
+        return output_directory
+
+    def finish(self, error=None):
+        results = self.record["results"]
+        valid = bool(results) and all(r["exit_code"] == 0 and r["warnings"] == 0 and not r.get("dependency_error") for r in results)
+        if self.kind == "features" and len(results) != 8:
+            valid = False
+        if "source" in self.record and source_identity(self.root) != self.record["source"]:
+            error = "Source changed during this run; rerun for current evidence"
+        self.record["state"] = "failed" if error or not valid else "success"
+        self.record["finished_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if error:
+            self.record["error"] = str(error)
+            with self.log.open("a") as log:
+                log.write("FAILED: " + str(error) + "\n")
+            shutil.copy2(self.log, self.compat_log)
+        self.publish()
+        return self.record["state"] == "success"

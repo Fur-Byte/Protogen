@@ -28,9 +28,7 @@ void updateControls(uint32_t now) {
         sleeping = false; // Wake to the same expression; don't also advance it.
       }
       else {
-        state = (state + 1) % ExpressionCount;
-        resetAnimations(now);
-        rising = true;
+        selectExpression((state + 1) % ExpressionCount, now);
       }
     }
   }
@@ -61,12 +59,14 @@ void updateBoop(uint32_t now, bool forceSample) {
     return;
   }
   lastSample = now;
-  const int reading = analogRead(irPin);
-  if (reading >= Settings::BoopReleaseThreshold) {
+  const int reading = readBoopSensor();
+  if (reading < 0 || reading > 1023) return;
+  boopReading = reading;
+  if (reading >= config.boopRelease) {
     boopState = false;
     boopArmed = true;
   }
-  else if (reading <= Settings::BoopThreshold) {
+  else if (reading <= config.boopThreshold) {
     boopState = true;
   }
   // Between the two thresholds, keep the current state to prevent chatter.

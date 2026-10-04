@@ -54,7 +54,7 @@ bool Max72xxPanel::begin(uint32_t spiFrequency) {
   if (!bitmap) {
     return false;
   }
-  spiClock = (spiFrequency > 0 && spiFrequency <= 10000000UL) ? spiFrequency : 8000000UL;
+  spiClock = (spiFrequency > 0 && spiFrequency <= 10000000UL) ? spiFrequency : 4000000UL;
   pinMode(SPI_CS, OUTPUT);
   digitalWrite(SPI_CS, HIGH); // Teensy digitalWrite on INPUT only changes its pull resistor.
   SPI.begin();
@@ -166,7 +166,7 @@ void Max72xxPanel::spiTransfer(byte opcode, byte data) {
   if (!initialized) {
     return;
   }
-  // spiClock defaults to 8 MHz, below the MAX7219's 10 MHz limit. Each transaction loads every
+  // spiClock defaults to 4 MHz for chain timing margin. Each transaction loads every
   // tile, farthest first, so commands and pixels have identical chain order.
   SPI.beginTransaction(SPISettings(spiClock, MSBFIRST, SPI_MODE0));
   digitalWrite(SPI_CS, LOW);
