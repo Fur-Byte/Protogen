@@ -1,0 +1,4 @@
+Protogen Head by ZillionRoss on Thingiverse: https://www.thingiverse.com/thing:4268402
+
+Summary:
+I have had a love for protogens ever since they were created, and I was hoping that I would be able to make a video about how I made this one for the longest time, but as of now I think the best thing I can do is to just upload the files so others can make them and experiment with the design.I think uploading it here and letting people make their own heads with my preliminary design will help boost creativity and drive to a lot of people who may not have the CAD and design knowledge to make their own protogen bases.Happy making everyone! I can't wait to see what people come up with.
