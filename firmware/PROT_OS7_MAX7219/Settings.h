@@ -16,8 +16,7 @@ constexpr uint32_t BoopPollMs = 5;
 constexpr uint32_t BoopDurationMs = 6000;
 constexpr int MicrophoneSensitivity = 65;
 constexpr uint32_t SpeakingHoldMs = 100;
-constexpr uint32_t BlinkIntervalMs = 9000;
-constexpr uint32_t BlinkStepMs = 20;
+constexpr uint32_t BlinkIntervalMs = 4000; // Center of ordinary inter-blink pauses.
 constexpr uint32_t GlitchIntervalMs = 7000;
 constexpr uint32_t GlitchStepMs = 100;
 constexpr uint32_t TransitionMs = 160;
@@ -56,7 +55,7 @@ static_assert(validInterval(ButtonDebounceMs) && validInterval(ButtonHoldMs) &&
               validInterval(VisorDebounceMs) && validInterval(IndicatorMs) &&
               validInterval(BoopPollMs) && validInterval(BoopDurationMs) &&
               validInterval(SpeakingHoldMs) && validInterval(BlinkIntervalMs) &&
-              validInterval(BlinkStepMs) && validInterval(GlitchIntervalMs) &&
+              validInterval(GlitchIntervalMs) &&
               validInterval(GlitchStepMs) && (TransitionMs == 0 || validInterval(TransitionMs)) &&
               (BlinkJitterMs == 0 || validInterval(BlinkJitterMs)) && validInterval(AudioAttackMs) &&
               validInterval(AudioReleaseMs), "Timing intervals must be 1..2147483647 ms.");

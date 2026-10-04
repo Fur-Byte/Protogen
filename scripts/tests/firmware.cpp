@@ -85,8 +85,8 @@ int main() {
   }
   frameValid = false; rising = true; loop(); assert(SPI.display == happy);
   advanceTime((config.blinkInterval + 1) * 1000ULL);
-  loop(); runMs(Settings::BlinkStepMs); assert(Step == 1);
-  for (int i = 0; i < 15; ++i) { advanceTime((Settings::BlinkStepMs + 1) * 1000ULL); loop(); }
+  loop(); runMs(10); assert(Step == 1);
+  runMs(blinkTiming.duration());
   assert(Step == 0 && !blinkState && SPI.display == happy);
 
   // Contact chatter never becomes a press. Real presses act on release only.
@@ -333,17 +333,60 @@ int main() {
   assert(!transitionActive && SPI.shutdown); sleeping = false; loop();
   assert(!SPI.shutdown && SPI.display == angry);
 
-  // Natural blink delays remain inside their bounds and actually vary.
+  // Fresh hardware entropy is requested per ordinary sequence. No entropy must
+  // leave controls and rendering responsive, with no fabricated random fallback.
   config.naturalBlinks = 1; config.blinkJitter = 2000;
+  Entropy.ready = false;
+  scheduleBlink();
+  const auto entropyReads = Entropy.reads;
+  const auto expressionBeforeWait = state;
+  runMs(config.blinkInterval + config.blinkJitter + 1);
+  assert(blinkRandomPending && !blinkState && Entropy.reads == entropyReads);
+  shortPress(); assert(state == (expressionBeforeWait + 1) % ExpressionCount);
+  Entropy.ready = true; Entropy.budget = 1;
+  serviceBlinkRandomness(); assert(blinkRandomPending && blinkRandomCount == 1);
+  assert(Entropy.reads == entropyReads + 1);
+  serviceBlinkRandomness(); assert(blinkRandomPending && Entropy.reads == entropyReads + 1);
+  Entropy.budget = -1; loop(); assert(!blinkRandomPending && Entropy.reads == entropyReads + 2);
+
+  // Natural pauses stay bounded and vary, and each sequence consumes fresh bits.
   uint32_t firstDelay = 0; bool varied = false;
   for (int i = 0; i < 100; ++i) {
-    scheduleBlink();
+    const auto readsBeforeSchedule = Entropy.reads;
+    scheduleBlink(); serviceBlinkRandomness();
+    assert(!blinkRandomPending && Entropy.reads == readsBeforeSchedule + 2);
     assert(nextBlinkInterval >= config.blinkInterval - config.blinkJitter);
     assert(nextBlinkInterval <= config.blinkInterval + config.blinkJitter);
     if (!i) firstDelay = nextBlinkInterval;
     varied |= nextBlinkInterval != firstDelay;
   }
   assert(varied);
+
+  // A deliberately selected entropy packet produces exactly two blinks. The
+  // third waits for a new ordinary pause; resets cancel a planned follow-up.
+  Entropy.words = {0x80008000, 0};
+  state = ExpressionHappy; resetAnimations(millis()); serviceBlinkRandomness();
+  assert(blinkDoublePending);
+  Blink(blinkTime + nextBlinkInterval); assert(blinkState);
+  Blink(blinkSpeed + blinkTiming.closeMs); assert(Step == 8);
+  Blink(blinkSpeed + blinkTiming.duration());
+  assert(!blinkState && !blinkDoublePending && !blinkRandomPending);
+  assert(nextBlinkInterval == blinkTiming.followupMs);
+  Blink(blinkTime + nextBlinkInterval); assert(blinkState);
+  Blink(blinkSpeed + blinkTiming.duration());
+  assert(!blinkState && blinkRandomPending);
+  Entropy.words = {0x80008000, 0};
+  resetAnimations(millis()); serviceBlinkRandomness(); assert(blinkDoublePending);
+  sleeping = true; loop(); assert(!blinkDoublePending && !blinkState);
+  sleeping = false; loop();
+
+  // Elapsed-time motion survives millis rollover and returns to an exact face.
+  config.naturalBlinks = 0; resetAnimations(0xfffffff0UL);
+  Blink(blinkTime + nextBlinkInterval);
+  assert(blinkState);
+  Blink(blinkSpeed + blinkTiming.closeMs); assert(Step == 8);
+  Blink(blinkSpeed + blinkTiming.duration()); assert(!blinkState && Step == 0);
+  resetAnimations(millis());
 
   // Noise calibration learns a steady quiet environment, without speech, and
   // the amplitude style responds with bounded, smoothed mouth openings.

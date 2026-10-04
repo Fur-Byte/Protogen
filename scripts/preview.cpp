@@ -5,7 +5,12 @@
 static void advance(uint32_t ms) {
   for (uint32_t i = 0; i < ms; ++i) { advanceTime(1000); loop(); }
 }
+static uint32_t desktopEntropy() {
+  static std::random_device source;
+  return source();
+}
 int main() {
+  Entropy.provider = desktopEntropy;
   setup(); loop();
   std::string line;
   while (std::getline(std::cin, line)) {

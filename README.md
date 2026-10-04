@@ -5,9 +5,16 @@ This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work
 without them. Your manually mapped bitmap graphics are preserved.
 
-Firmware **8.0** adds expression transitions, natural blink timing, sleepy/wink
+Firmware **8.1** adds expression transitions, hardware-random blink timing, sleepy/wink
 expressions, buffered audio, runtime USB settings, and a local preview/configuration
 tool. See [the complete upgrade summary](docs/UPGRADE.md) for what changed and why.
+
+The original four resting faces are pixel-identical to the ZIP archive, including
+the rotated physical module data. See [the archive comparison](docs/ARCHIVE_FACE_COMPARISON.md).
+Ordinary blink pauses now vary between 2 and 6 seconds, centered near 4 seconds;
+the eyelids close quickly and reopen more slowly, with occasional double blinks.
+Previously saved timing stays saved: use **Restore defaults**, then **Save**, or
+apply and save the updated Everyday profile to adopt the new defaults.
 
 Preview the actual firmware without connecting a helmet:
 

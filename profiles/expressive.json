@@ -9,7 +9,7 @@
     "noise_margin": 12,
     "boop_trigger": 500,
     "boop_release": 550,
-    "blink_interval_ms": 6000,
+    "blink_interval_ms": 3500,
     "blink_jitter_ms": 1500,
     "transition_ms": 160,
     "attack_ms": 20,

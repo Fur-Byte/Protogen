@@ -73,7 +73,8 @@ def check_toolchain(root, cli):
     if problems:
         raise RuntimeError("Pinned toolchain mismatch. Install the versions in toolchain.lock.json:\n" + "\n".join(problems))
     return {"cli": str(cli), "arduino_cli": version, "platform": expected,
-            "libraries": locked["libraries"], "bundled_libraries": locked["bundled_libraries"], "fqbn": FQBN}
+            "libraries": locked["libraries"], "bundled_libraries": locked["bundled_libraries"],
+            "bundled_source_libraries": locked.get("bundled_source_libraries", {}), "fqbn": FQBN}
 
 
 def memory_metrics(output):
@@ -153,12 +154,21 @@ class BuildRun:
                     version = re.search(r"^version=(.*)$", text, re.MULTILINE)
                     if name:
                         resolved[name[1]] = {"version": version[1] if version else None, "path": library}
+                # Teensy's legacy Entropy library has no library.properties.
+                # Identify and verify its actually selected source files instead.
+                for name, files in self.record["toolchain"].get("bundled_source_libraries", {}).items():
+                    if Path(library).name == name:
+                        resolved[name] = {"path": library, "source_sha256": {
+                            filename: hashlib.sha256((Path(library) / filename).read_bytes()).hexdigest()
+                            for filename in files if (Path(library) / filename).is_file()}}
             result["selected_libraries"] = resolved
             expected = {name: version for name, version in self.record["toolchain"]["libraries"].items()
                         if name != "arduinoFFT" or "Microphone" in features}
             if "Microphone" in features or "BoopSensor" in features:
                 expected.update(self.record["toolchain"]["bundled_libraries"])
             problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
+            problems += [name for name, files in self.record["toolchain"].get("bundled_source_libraries", {}).items()
+                         if resolved.get(name, {}).get("source_sha256") != files]
             if problems:
                 result["dependency_error"] = "Selected libraries missing or different from lock: " + ", ".join(problems)
         self.record["results"].append(result)

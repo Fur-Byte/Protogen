@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regression checks for configuration validation and reliable feature coverage."""
 import importlib.util
+import hashlib
 import json
 import shutil
 import itertools
@@ -131,6 +132,31 @@ class FeatureChecks(unittest.TestCase):
             self.assertFalse(run.finish())
             self.assertEqual(run.record["state"], "failed")
             self.assertIn("Source changed", run.record["error"])
+
+    def test_selected_entropy_source_must_match_lock(self):
+        with tempfile.TemporaryDirectory(prefix="protogen-entropy-lock-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            library = root / "Entropy"
+            library.mkdir()
+            sources = {"Entropy.h": b"header", "Entropy.cpp": b"hardware implementation"}
+            for name, content in sources.items():
+                (library / name).write_bytes(content)
+            run = features.BuildRun(root, "build")
+            sketch = run.snapshot()
+            run.record["toolchain"] = {"libraries": {}, "bundled_libraries": {},
+                "bundled_source_libraries": {"Entropy": {
+                    name: hashlib.sha256(content).hexdigest() for name, content in sources.items()}}}
+            output = root / "output"
+            (output / "objects").mkdir(parents=True)
+            (output / "objects/libraries.cache").write_text(json.dumps([str(library)]))
+            with patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+                run.compile("fake-cli", sketch, (), output)
+                self.assertNotIn("dependency_error", run.record["results"][-1])
+                (library / "Entropy.cpp").write_bytes(b"a different implementation")
+                run.compile("fake-cli", sketch, (), output)
+                self.assertIn("Entropy", run.record["results"][-1]["dependency_error"])
+            self.assertFalse(run.finish())
 
 
 class SettingsChecks(unittest.TestCase):

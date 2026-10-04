@@ -1,4 +1,4 @@
-# Existing-hardware upgrade — firmware 8.0
+# Existing-hardware upgrade — firmware 8.1
 
 This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB indicator, and optional sensors**. The original four expression bitmaps, module order, rotations, pin assignments, fabrication assets, and archive are preserved. Optional sensors remain disabled in the supplied sketch. No firmware was uploaded and no physical helmet measurements were made.
 
@@ -9,7 +9,7 @@ This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB ind
 | Animation state separated from rendering | Eyes and mouth compose into one logical frame. Speech owns the mouth, blinking owns the eye mask, and boop takes priority over both. Inputs, USB, and audio run independently of the display's 16 ms frame interval. |
 | Expression transitions | A configurable close/swap/open transition hides the expression change. The default is 160 ms; 0 disables it. Rapid selections, sleep, and visor changes reset animations cleanly. |
 | Six selectable expressions | Happy, surprised, angry, and vwv keep their exact resting artwork. Sleepy and wink derive eye masks from the happy artwork. The button cycles all six. |
-| Natural blink timing | The default 9-second interval varies by up to ±2 seconds. Variation and the interval are configurable; timing remains deterministic and testable. |
+| Hardware-random blink timing | Fresh Teensy TRNG data chooses each sequence. Ordinary pauses cluster around 4 seconds within a 2–6-second range; quick closing, slower reopening, and occasional double blinks produce about 15 blinks/minute with the defaults. |
 | Optional idle glances | Small horizontal eye movements add character. Off by default so the original resting face remains exact. The Expressive profile enables them. |
 | Buffered microphone acquisition | ADC0 is triggered by QuadTimer4 submodule 0 at a nominal 4 kHz. An ADC-completion ISR copies samples into a fixed 512-sample ring; the loop processes bounded batches. Rendering no longer schedules ADC conversions. |
 | Separate sensor ADCs | Boop uses ADC1 on the same A7 pin. It cannot redirect the microphone's ADC0 conversion. ADC 9.1 is bundled with the pinned Teensy core. |
@@ -35,7 +35,7 @@ python3 scripts/helmet-tool.py
 
 Open **http://127.0.0.1:8765**. Desktop simulation enables the three virtual sensors regardless of the real sketch's feature flags. It runs an isolated copy of the actual firmware with the same renderer, configuration protocol, FFT, and control logic. The nominal ADC/SPI model does not establish real electrical timing or visor appearance. Simulated saves last for the preview process; download a profile to retain them.
 
-After uploading firmware 8.0 using Arduino IDE, find the serial device and connect:
+After uploading firmware 8.1 using Arduino IDE, find the serial device and connect:
 
 ```sh
 python3 scripts/helmet-tool.py --list-ports
@@ -47,6 +47,18 @@ USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It 
 **Apply settings** changes RAM. **Save to helmet** retains the applied settings after power-off. **Load saved** restores the latest valid saved record. **Restore defaults** changes RAM to Settings.h defaults; it does not erase EEPROM. The current expression and sleep state remain session-only; saved `startup_expression` selects the face on the next boot. Saved settings override Settings.h defaults on boot. To retain changed compiled defaults, restore defaults and explicitly save.
 
 Choose a preset or import a profile, apply it, and save if desired. Everyday uses the spectrum mouth and original resting artwork. Expressive uses the amplitude mouth, shorter varied blink intervals, and idle glances. Brightness stays at 1 in both. Quiet calibration needs an enabled, visible, awake microphone with no active boop; remain quiet until the calibration indicator clears, then save. Interrupted calibration is canceled on sleep, expression reset, or settings changes. Idle noise adaptation stays in RAM; an explicit calibration updates the saved-setting candidate.
+
+Existing saved settings and downloaded profiles keep their earlier blink interval. Restore defaults and Save, or apply and save the updated Everyday preset, to adopt the 4-second center and ±2-second variation. Expressive now uses a 3.5-second center and ±1.5-second variation. The persisted schema remains compatible.
+
+## Blink timing in 8.1
+
+The fixed-seed xorshift generator was removed. Teensy's bundled Entropy library initializes the i.MX RT1062 hardware true random number generator. Each ordinary blink sequence consumes two new 32-bit random words. The loop checks availability before reading and consumes at most two words per pass. If entropy is unavailable or only one word has arrived, the blink waits while buttons, audio, rendering, and USB keep running. No pseudorandom fallback substitutes for missing hardware entropy. The selected Entropy.h/Entropy.cpp sources are pinned by SHA-256 because this legacy library has no version metadata.
+
+Two independent 16-bit halves are added to form a triangular pause distribution: values near the configured interval occur more often than the extremes. The default pause is 2–6 seconds, centered near 4 seconds, measured from one blink's end to the next one's start. Other random bits choose closing (60–90 ms), a fully closed hold (20–35 ms), and reopening (130–180 ms). Total nominal animation time is 210–305 ms; actual displayed motion is quantized by the eight rows and the 16-ms frame interval. Around 8% of sequences contain one follow-up blink after a 180–320-ms open pause; a double blink cannot chain into a third. Expression changes, sleep, and visor changes cancel any pending follow-up. The vwv expression retains its original behavior without automatic blinks.
+
+This is a human-inspired animation, not a fitted physiological model. The target rate is informed by [measurements of spontaneous blinking during quiet viewing](https://pmc.ncbi.nlm.nih.gov/articles/PMC6449783/), and the quicker closing/slower opening motion is informed by [high-speed blink kinematics](https://pmc.ncbi.nlm.nih.gov/articles/PMC4043155/). The triangular distribution, ranges, and double-blink probability are animation choices. Disabling Natural blink timing keeps the configured pause fixed, uses a 250-ms blink, and disables double blinks. Desktop preview uses operating-system entropy through std::random_device; regression tests inject repeatable values to check exact behavior. Neither simulates the physical entropy circuit.
+
+STATUS now includes blink_random_ready, next_blink_ms, and blink_duration_ms. Archive comparison and timing source code are described in [ARCHIVE_FACE_COMPARISON.md](ARCHIVE_FACE_COMPARISON.md).
 
 ## USB interface and configuration
 
@@ -75,13 +87,13 @@ python3 scripts/check-features.py
 ./scripts/build.sh
 ```
 
-Arduino CLI 1.5.1, Teensy 1.62.0, arduinoFFT 2.0.4, Adafruit GFX 1.12.6, Adafruit BusIO 1.17.4, and the bundled ADC 9.1 are pinned. Environment overrides for ARDUINO_CLI, CXX, and ARDUINO_FFT_SRC remain supported. The host checks and preview require Clang/C++17, Python 3, and the installed FFT source. No new hardware or downloaded library is required on this Mac.
+Arduino CLI 1.5.1, Teensy 1.62.0, arduinoFFT 2.0.4, Adafruit GFX 1.12.6, Adafruit BusIO 1.17.4, the bundled ADC 9.1, and the bundled Entropy sources are pinned. Environment overrides for ARDUINO_CLI, CXX, and ARDUINO_FFT_SRC remain supported. The host checks and preview require Clang/C++17, Python 3, and the installed FFT source. No new hardware or downloaded library is required on this Mac.
 
 Build results are versioned under build/runs/. `build/current-build.json` identifies the latest build attempt; `build/feature-results.json` is now an object containing state, source, toolchain, and results. `build/latest-successful-build.json` intentionally retains the last successful build. `build/teensy40/` contains the selected-feature HEX plus its source manifest. A failed build preserves the prior export and records the failure separately; use the manifest to establish whether an image matches the current source. Editing source during a run invalidates that run as current evidence.
 
 The host suite covers the original four complete faces, 3,584 physical mapping cases, driver bounds/allocation checks, transitions and new expressions, blink variation, control debounce and rollover, shutdown ordering, quiet hidden sensors, boop expiry while hidden/asleep, early/late bursts, buffered acquisition during modeled SPI/ADC work, slower-SPI recovery, overruns, counter wrap, DC bias, FFT equivalence and bounds, both mouth styles, calibration persistence, USB validation/backpressure/timeouts, CRC and interrupted saves, failed-build provenance, all eight feature masks, preview/profile integration, and serial framing through a disposable pseudo-terminal. Target checks compile all eight combinations with zero warnings.
 
-### Completed validation
+### Original 8.0 validation
 
 The full host suite passed with AddressSanitizer, UndefinedBehaviorSanitizer, and compiler warnings treated as errors. All eight Teensy feature combinations compiled with zero warnings and verified dependency versions. The default firmware was exported successfully. Face Studio's expression controls, simulated microphone, profiles, and save/default/load sequence were exercised in the browser. Original Icons.h remains byte-for-byte identical to the baseline.
 
@@ -91,6 +103,19 @@ The full host suite passed with AddressSanitizer, UndefinedBehaviorSanitizer, an
 | Visor, boop, and microphone enabled | 79,868 bytes | 16,032 bytes | 442,720 bytes |
 
 The final build and feature manifests match source fingerprint `3bdda5c40bd93f7e07275a7155d727cec2c7b8778103fc6a3cb74f934f904de7`. Artifact hashes were checked against the exported files. Build evidence records the baseline Git HEAD and the then-uncommitted upgrade; the source fingerprint identifies the exact tested files independently of the later upgrade commit. The evidence index is build/upgrade-validation.json, with host logs in build/upgrade-host-tests.log and build/upgrade-tool-tests.log, and the browser capture in build/face-studio.jpg.
+
+### Completed 8.1 validation
+
+The full host suite passed with AddressSanitizer/UndefinedBehaviorSanitizer and warnings treated as errors. It now includes comparison against the actual archive, hardware-entropy availability and partial reads, double-blink cancellation and bounded sequences, blink rollover, pinned entropy source validation, and 100,000 generated schedules. That timing sample averaged 4,000.29 ms for ordinary pauses, 257.354 ms for motion, and 15.0442 blinks/minute including 7,741 double sequences. These are model results, not helmet measurements.
+
+All eight real Teensy configurations compiled with zero warnings and the expected Entropy source hashes. The default firmware was exported. Both build manifests match source fingerprint `8a6a8500e7b8bc8632a48c1c45c817c40595604970aac45b2bd1e0e784af1d02`; the exact logs are build/blink-host-tests.log, build/blink-feature-checks.log, and build/blink-build.log. The comparison checked 896 logical and 896 physical pixels per original expression, with zero differences for all four. Its raw frames and ZIP/artwork fingerprints are in build/archive-face-comparison.json.
+
+Face Studio was reloaded with 8.1 and the updated Everyday preset was applied and saved in simulation. The displayed 4,000-ms usual pause and natural-motion controls were verified; the browser capture is build/blink-face-studio.jpg. The exported artifact hashes and build source identity were checked again before completion; the evidence index is build/blink-validation.json. No physical firmware upload or entropy-circuit measurement was performed.
+
+| Target configuration | Flash | RAM1 variables | RAM1 available for local variables |
+| --- | ---: | ---: | ---: |
+| Default, optional sensors disabled | 71,676 bytes | 13,280 bytes | 445,472 bytes |
+| Visor, boop, and microphone enabled | 80,892 bytes | 16,128 bytes | 442,624 bytes |
 
 Before helmet use, upload the default build and inspect every expression, transition, and wake. Enable each connected sensor individually; test voice response during blinks, boop release and hidden expiry, and quiet calibration. Observe STATUS for dropped samples under real load. The reserved QuadTimer4/ADC0 resources must not be shared with future audio/timer libraries. Neither host tests nor successful compilation establishes power draw, thermal behavior, real ADC cadence/interrupt latency, wiring quality, or display appearance.
 

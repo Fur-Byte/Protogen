@@ -10,7 +10,7 @@
 <body>
 <main>
 <header><div class="brand"><div class="mark" aria-hidden="true"><span>··</span></div> PROTOGEN</div><span class="small" style="color:var(--muted)">TEENSY 4.0 &nbsp; / &nbsp; 14 × MAX7219</span><span class="tag" id="connection">Connecting…</span></header>
-<div class="intro"><div><div class="eyebrow">Face studio / firmware 8.0</div><h1>Your face, in motion.</h1><p>Explore expressions. Tune the response. Make it yours.</p></div><button class="secondary" id="sleep">Sleep display</button></div>
+<div class="intro"><div><div class="eyebrow">Face studio / firmware 8.1</div><h1>Your face, in motion.</h1><p>Explore expressions. Tune the response. Make it yours.</p></div><button class="secondary" id="sleep">Sleep display</button></div>
 <section class="preview" aria-label="Face display preview">
 <div class="preview-top"><div class="led-label"><span class="dot"></span><span id="display-label">Firmware preview</span></div><span class="tag" id="reaction">Happy</span></div>
 <canvas id="face" width="1120" height="100" aria-label="112 by 8 LED face preview"></canvas>
@@ -26,9 +26,9 @@
 <div><label for="mouth_mode">Speaking mouth</label><select id="mouth_mode"><option value="0">Spectrum · original style</option><option value="1">Amplitude · open & close</option></select></div>
 <div><label for="sensitivity">Microphone threshold · 0–1023</label><input id="sensitivity" type="number" min="0" max="1023" step="1"></div>
 <div><label for="transition_ms">Expression transition · ms</label><input id="transition_ms" type="number" min="0" max="1000" step="1"></div>
-<div><label for="blink_interval_ms">Blink interval · ms</label><input id="blink_interval_ms" type="number" min="1000" max="60000" step="1"></div>
+<div><label for="blink_interval_ms">Usual blink pause · ms</label><input id="blink_interval_ms" type="number" min="1000" max="60000" step="1"></div>
 </div>
-<div class="toggle"><label for="natural_blinks">Natural blink timing<small>Vary the pause between blinks.</small></label><input id="natural_blinks" type="checkbox"></div>
+<div class="toggle"><label for="natural_blinks">Natural blink timing<small>Irregular pauses, quick closure, gentle reopening, occasional double blinks.</small></label><input id="natural_blinks" type="checkbox"></div>
 <div class="toggle"><label for="idle_motion">Subtle eye movement<small>Add small glances between animations.</small></label><input id="idle_motion" type="checkbox"></div>
 <details><summary>Audio & sensor calibration</summary><div class="grid">
 <div><label for="attack_ms">Audio attack · ms</label><input id="attack_ms" type="number" min="1" max="2000" step="1"></div>

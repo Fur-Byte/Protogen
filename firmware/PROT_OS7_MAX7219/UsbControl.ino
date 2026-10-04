@@ -36,16 +36,19 @@ void replyStatus() {
   const bool calibration = false;
 #endif
   snprintf(usbReply, sizeof(usbReply),
-    "{\"ok\":true,\"firmware\":\"8.0\",\"schema\":%u,\"features\":%u,\"expression\":%u,"
+    "{\"ok\":true,\"firmware\":\"8.1\",\"schema\":%u,\"features\":%u,\"expression\":%u,"
     "\"sleeping\":%s,\"visible\":%s,\"display_ready\":%s,\"boop\":%s,\"boop_reading\":%d,"
     "\"speaking\":%s,\"envelope\":%u,\"noise_floor\":%u,\"audio_gate\":%u,\"calibrating\":%s,"
-    "\"audio_drops\":%lu,\"audio_frames\":%lu,\"sample_rate_hz\":%lu,\"spi_hz\":%lu}\n",
+    "\"audio_drops\":%lu,\"audio_frames\":%lu,\"sample_rate_hz\":%lu,\"spi_hz\":%lu,"
+    "\"blink_random_ready\":%s,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu}\n",
     configSchemaVersion, features, state, sleeping ? "true" : "false",
     visorVisible ? "true" : "false", displayReady ? "true" : "false",
     boopActive ? "true" : "false", boopReading, speakingActive ? "true" : "false",
     envelope, floor, gate, calibration ? "true" : "false",
     static_cast<unsigned long>(drops), static_cast<unsigned long>(frames),
-    static_cast<unsigned long>(frequency), static_cast<unsigned long>(Settings::SpiFrequencyHz));
+    static_cast<unsigned long>(frequency), static_cast<unsigned long>(Settings::SpiFrequencyHz),
+    blinkRandomPending ? "false" : "true", static_cast<unsigned long>(nextBlinkInterval),
+    static_cast<unsigned long>(blinkTiming.duration()));
 }
 void replyFrame() {
   const bool hidden = sleeping || !visorVisible || !displayReady;

@@ -8,7 +8,7 @@ void updateControls(uint32_t);
 void updateBoop(uint32_t, bool);
 void resetAnimations(uint32_t);
 void scheduleBlink();
-uint32_t animationRand();
+void serviceBlinkRandomness();
 void selectExpression(uint8_t, uint32_t);
 void renderFace(uint32_t);
 void Blink(uint32_t);

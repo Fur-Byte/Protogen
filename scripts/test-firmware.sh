@@ -27,6 +27,8 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize=address,undefined
   "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-firmware"
 "$TEST_TEMP/test-firmware"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/matrix.cpp" -o "$TEST_TEMP/test-matrix"
+"${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/blink-timing.cpp" -o "$TEST_TEMP/test-blink-timing"
+"$TEST_TEMP/test-blink-timing"
 "${CXX:-clang++}" "${FLAGS[@]}" \
   "$ROOT/scripts/tests/configuration.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
@@ -53,3 +55,4 @@ for mask in {0..7}; do
 done
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-tools.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-helmet-tool.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/compare-archive-faces.py"

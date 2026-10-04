@@ -7,11 +7,13 @@
 #include <SPI.h>
 #include <Adafruit_GFX.h>
 #include <EEPROM.h>
+#include <Entropy.h> // Bundled with the pinned Teensy core; native i.MX RT1062 TRNG.
 #include "src/Max72xxPanel/Max72xxPanel.h"
 #include "Icons.h"
 #include "Configuration.h"
 #include "ConfigStore.h"
 #include "FaceRenderer.h"
+#include "BlinkTiming.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
 // #define VisorSensor  // Digital sensor on pin 3; HIGH blanks the display.
@@ -51,7 +53,10 @@ uint8_t state = Settings::StartupExpression, Step = 0, counter = 0, transitionFr
 uint32_t blinkTime = 0, blinkSpeed = 0, nextBlinkInterval = Settings::BlinkIntervalMs;
 uint32_t glitchDelay = 0, glitchSpeed = 0, boopTime = 0, speakingDelay = 0;
 uint32_t previousMillis = 0, transitionStarted = 0, lastFrameTime = 0;
-uint32_t animationRandom = 0x84f035a7;
+BlinkTiming::Timing blinkTiming;
+bool blinkRandomPending = false, blinkDoublePending = false;
+uint8_t blinkRandomCount = 0;
+uint32_t blinkRandomWords[2] = {};
 int boopReading = 1023;
 Face::Frame displayedFrame;
 bool frameValid = false;
@@ -80,6 +85,7 @@ uint8_t mouthAperture = 0;
 
 void setup() {
   Serial.begin(115200); // USB is optional; startup never waits for a computer.
+  Entropy.Initialize(); // Starts hardware entropy collection without waiting for it.
   loadStoredConfig(config);
   state = static_cast<uint8_t>(config.startupExpression);
   displayReady = matrix.begin(Settings::SpiFrequencyHz);
@@ -101,6 +107,7 @@ void setup() {
 
 void loop() {
   const uint32_t now = millis();
+  serviceBlinkRandomness();
   serviceSerial(now);
   updateControls(now);
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
@@ -183,18 +190,23 @@ void selectExpression(uint8_t expression, uint32_t now) {
   }
 }
 
-uint32_t animationRand() {
-  animationRandom ^= animationRandom << 13;
-  animationRandom ^= animationRandom >> 17;
-  animationRandom ^= animationRandom << 5;
-  return animationRandom;
-}
 void scheduleBlink() {
   nextBlinkInterval = config.blinkInterval;
-  if (config.naturalBlinks && config.blinkJitter) {
-    const uint32_t span = config.blinkJitter * 2UL + 1;
-    nextBlinkInterval = config.blinkInterval - config.blinkJitter + animationRand() % span;
-  }
+  blinkTiming = BlinkTiming::Timing{};
+  blinkRandomCount = 0; blinkDoublePending = false;
+  blinkRandomPending = config.naturalBlinks != 0;
+}
+void serviceBlinkRandomness() {
+  if (!blinkRandomPending) return;
+  // Entropy.random() can wait internally. Check availability first and perform
+  // at most two reads per loop; controls/audio keep running if entropy is late.
+  while (blinkRandomCount < 2 && Entropy.available())
+    blinkRandomWords[blinkRandomCount++] = Entropy.random();
+  if (blinkRandomCount < 2) return;
+  blinkTiming = BlinkTiming::sample(config, blinkRandomWords[0], blinkRandomWords[1]);
+  nextBlinkInterval = blinkTiming.pauseMs;
+  blinkDoublePending = blinkTiming.doubleBlink;
+  blinkRandomPending = false;
 }
 void resetAnimations(uint32_t now) {
   Step = 0; blinkState = false; counter = 0; transitionActive = false;

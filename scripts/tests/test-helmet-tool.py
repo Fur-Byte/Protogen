@@ -35,6 +35,18 @@ class PreviewChecks(unittest.TestCase):
             self.assertTrue(state["simulation"])
         self.helmet.action({"action": "defaults"})
 
+    def test_blink_diagnostics_and_defaults(self):
+        self.helmet.action({"action": "defaults"})
+        self.transport.command("tick 10")
+        state = self.helmet.state()
+        self.assertEqual(state["status"]["firmware"], "8.1")
+        self.assertEqual(state["config"]["blink_interval_ms"], 4000)
+        self.assertTrue(state["status"]["blink_random_ready"])
+        self.assertGreaterEqual(state["status"]["next_blink_ms"], 2000)
+        self.assertLessEqual(state["status"]["next_blink_ms"], 6000)
+        self.assertGreaterEqual(state["status"]["blink_duration_ms"], 210)
+        self.assertLessEqual(state["status"]["blink_duration_ms"], 305)
+
     def test_invalid_edits_do_not_partially_apply(self):
         before = dict(self.helmet.state()["config"])
         for config in ({"brightness": 3, "boop_trigger": 900, "boop_release": 800},
