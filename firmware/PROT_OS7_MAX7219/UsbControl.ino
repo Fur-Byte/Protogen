@@ -35,12 +35,20 @@ void replyStatus() {
   const uint32_t drops = 0, frames = 0, frequency = 0;
   const bool calibration = false;
 #endif
+#ifdef WirelessPaw
+  features |= 8;
+#endif
+#ifdef VisorConnector
+  features |= 16;
+#endif
   snprintf(usbReply, sizeof(usbReply),
-    "{\"ok\":true,\"firmware\":\"8.1\",\"schema\":%u,\"features\":%u,\"expression\":%u,"
+    "{\"ok\":true,\"firmware\":\"8.2\",\"schema\":%u,\"features\":%u,\"expression\":%u,"
     "\"sleeping\":%s,\"visible\":%s,\"display_ready\":%s,\"boop\":%s,\"boop_reading\":%d,"
     "\"speaking\":%s,\"envelope\":%u,\"noise_floor\":%u,\"audio_gate\":%u,\"calibrating\":%s,"
     "\"audio_drops\":%lu,\"audio_frames\":%lu,\"sample_rate_hz\":%lu,\"spi_hz\":%lu,"
-    "\"blink_random_ready\":%s,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu}\n",
+    "\"blink_random_ready\":%s,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu,"
+    "\"paw_connected\":%s,\"paw_rejected\":%lu,\"microphone_enabled\":%s,"
+    "\"sensor_faults\":%u,\"connector_ready\":%s,\"boop_mode\":%u}\n",
     configSchemaVersion, features, state, sleeping ? "true" : "false",
     visorVisible ? "true" : "false", displayReady ? "true" : "false",
     boopActive ? "true" : "false", boopReading, speakingActive ? "true" : "false",
@@ -48,10 +56,12 @@ void replyStatus() {
     static_cast<unsigned long>(drops), static_cast<unsigned long>(frames),
     static_cast<unsigned long>(frequency), static_cast<unsigned long>(Settings::SpiFrequencyHz),
     blinkRandomPending ? "false" : "true", static_cast<unsigned long>(nextBlinkInterval),
-    static_cast<unsigned long>(blinkTiming.duration()));
+    static_cast<unsigned long>(blinkTiming.duration()),pawIsOnline(millis())?"true":"false",
+    static_cast<unsigned long>(pawRejectedPackets()),microphoneEnabled?"true":"false",
+    sensorFaults,connectorReady?"true":"false",config.boopMode);
 }
 void replyFrame() {
-  const bool hidden = sleeping || !visorVisible || !displayReady;
+  const bool hidden = sleeping || !visorVisible || !displayReady || !connectorReady;
   size_t used = snprintf(usbReply, sizeof(usbReply), "{\"ok\":true,\"width\":112,\"height\":8,\"hidden\":%s,\"frame\":\"",
                          hidden ? "true" : "false");
   const char digits[] = "0123456789abcdef";
@@ -72,7 +82,7 @@ void applyConfig(const RuntimeConfig &value, uint32_t now) {
   noiseFloor = config.noiseFloor;
 #endif
   // Re-evaluate a sensor under its new calibration without inventing a boop.
-  boopArmed = false; boopState = false; boopActive = false;
+  boopArmed = false; boopState = false; boopActive = false; boopFromRemote = false;
 }
 bool parseNumber(const char *text, unsigned long &value) {
   if (!text || !*text) return false;
@@ -110,13 +120,21 @@ void handleUsbCommand(char *line, uint32_t now) {
   }
   const char *argument = strtok_r(nullptr, " \t", &save);
   unsigned long number;
-  if (strcmp(command, "EXPR") == 0 || strcmp(command, "SLEEP") == 0) {
+  if (strcmp(command, "EXPR") == 0 || strcmp(command, "SLEEP") == 0 || strcmp(command,"MIC")==0) {
     if (!parseNumber(argument, number) || strtok_r(nullptr, " \t", &save) ||
         number >= (strcmp(command, "EXPR") == 0 ? ExpressionCount : 2)) {
       replyError("invalid_argument"); return;
     }
     if (strcmp(command, "EXPR") == 0) selectExpression(static_cast<uint8_t>(number), now);
-    else sleeping = number != 0;
+    else if(strcmp(command,"SLEEP")==0) sleeping = number != 0;
+    else {
+#ifdef Microphone
+      microphoneEnabled=number!=0;
+      if(!microphoneEnabled)pauseMicrophone();else sensorFaults&=static_cast<uint16_t>(~4u);
+#else
+      replyError("microphone_unavailable_or_paused");return;
+#endif
+    }
     strcpy(usbReply, "{\"ok\":true}\n"); return;
   }
   if (argument) { replyError("unexpected_argument"); return; }

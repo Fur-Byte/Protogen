@@ -36,7 +36,13 @@ int main() {
   assert(request("FRAME").find("\"hidden\":true") != std::string::npos);
   assert(success(request("SLEEP 0")) && !sleeping && !SPI.shutdown);
   const auto status = request("STATUS");
-  assert(success(status) && status.find("\"schema\":1") != std::string::npos);
+  assert(success(status) && status.find("\"schema\":2") != std::string::npos);
+#ifdef Microphone
+  assert(success(request("MIC 0")) && !microphoneEnabled);
+  assert(success(request("MIC 1")) && microphoneEnabled);
+#else
+  assert(!success(request("MIC 1")) && !microphoneEnabled);
+#endif
   const auto frame = request("FRAME");
   assert(frame.find("\"width\":112") != std::string::npos);
 
@@ -73,6 +79,18 @@ int main() {
   EEPROM.bytes = baseline;
   EEPROM.bytes[10] ^= 0x20; // Corruption in the only committed record.
   assert(!loadStoredConfig(stored));
+  // A real schema-1 byte record migrates with held/proximity behavior and 6 s cap.
+  EEPROM.bytes.fill(0xff);
+  uint8_t legacy[47]={};memcpy(legacy,"P8CF",4);
+  ConfigStore::writeNumber(legacy+4,1,2);ConfigStore::writeNumber(legacy+6,30,2);
+  ConfigStore::writeNumber(legacy+8,9,4);
+  for(size_t i=0;i<15;++i)ConfigStore::writeNumber(legacy+12+i*2,config.*(configFields[i].member),2);
+  ConfigStore::writeNumber(legacy+42,ConfigStore::crc(legacy,42),4);legacy[46]=0xa5;
+  memcpy(EEPROM.bytes.data(),legacy,sizeof(legacy));
+  RuntimeConfig migrated;assert(loadStoredConfig(migrated));
+  assert(migrated.brightness==config.brightness && migrated.boopMode==0 && migrated.boopDuration==6000);
+  migrated.boopMode=1;migrated.boopDuration=1200;assert(saveStoredConfig(migrated));
+  assert(loadStoredConfig(stored) && sameConfig(stored,migrated));
 #ifdef Microphone
   syntheticMicrophone = true;
   assert(success(request("CALIBRATE")));

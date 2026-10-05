@@ -50,7 +50,7 @@ public:
 
   // Initialize SPI and the displays from setup(), after Teensy core startup.
   // Returns false for zero/over-255 tiles or failed allocation; no I/O in that case.
-  bool begin(uint32_t spiFrequency = 4000000UL);
+  bool begin(uint32_t spiFrequency = 4000000UL, bool stayShutdown = false);
 
 	/*
 	 * Define how the displays are ordered. The first display (0)
@@ -131,4 +131,3 @@ private:
 };
 
 #endif	// Max72xxPanel_h
-

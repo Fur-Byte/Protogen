@@ -9,12 +9,14 @@ public:
   uint32_t frequency = 0;
   uint64_t next = 0;
   bool enabled = false;
+  bool stuck = false;
   void (*callback)() = nullptr;
   void setResolution(int value) { assert(value == 10); }
   void setAveraging(int value) { assert(value == 1); }
   void setConversionSpeed(ADC_CONVERSION_SPEED) {}
   void setSamplingSpeed(ADC_SAMPLING_SPEED) {}
   bool startSingleRead(int value) { pin = value; return true; }
+  bool isComplete() { return !stuck; }
   void enableInterrupts(void (*fn)(), unsigned) { callback = fn; enabled = true; callback(); }
   void disableInterrupts() { enabled = false; }
   void startTimer(uint32_t rate) { frequency = rate; next = fakeUs + 1000000 / rate; }

@@ -5,9 +5,11 @@ This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work
 without them. Your manually mapped bitmap graphics are preserved.
 
-Firmware **8.1** adds expression transitions, hardware-random blink timing, sleepy/wink
-expressions, buffered audio, runtime USB settings, and a local preview/configuration
-tool. See [the complete upgrade summary](docs/UPGRADE.md) for what changed and why.
+Firmware **8.2** retains expression transitions, hardware-random blink timing, sleepy/wink
+expressions, buffered audio, runtime USB settings, and the local preview/configuration
+tool. It adds optional authenticated paw control, protected dock support,
+nonblocking IR acquisition, held/timed original boop controls, microphone fault isolation,
+and separate ESP32 status firmware. See [the complete upgrade summary](docs/UPGRADE.md) for what changed and why.
 
 The original four resting faces are pixel-identical to the ZIP archive, including
 the rotated physical module data. See [the archive comparison](docs/ARCHIVE_FACE_COMPARISON.md).
@@ -26,9 +28,15 @@ Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teen
 serial device to configure the physical helmet. Changes apply temporarily until
 explicitly saved. Saved startup/settings override compiled defaults on reboot.
 
+The [engineering specification](docs/ENGINEERING_PLAN.md), [schematic/wiring package](docs/HARDWARE_WIRING.md),
+[wireless protocol](docs/WIRELESS_PROTOCOL.md), and [8.2 change summary](docs/IMPLEMENTATION_8_2.md)
+cover the new hardware and software. New hardware is disabled until physically qualified;
+no upload or wiring change was performed. [ESP32 setup instructions](firmware/esp32/README.md).
+
 ## Project layout
 
 - `firmware/PROT_OS7_MAX7219/`: the one active sketch, including its MAX7219 driver and license.
+- `firmware/esp32/`: separate helmet/paw ESP32-C3 targets; DTLS, ESP-NOW and wearer status.
 - `docs/UPGRADE.md`: current features, full change summary, USB protocol, configuration, and validation.
 - `tools/helmet/`, `scripts/helmet-tool.py`, `profiles/`: local Face Studio and named settings profiles.
 - `toolchain.lock.json`: pinned CLI, core, and library versions.
@@ -171,6 +179,9 @@ Optional sensors remain disabled until enabled in the sketch.
 ```sh
 ./scripts/test-firmware.sh        # Sanitized host behavior + tooling/preview integration
 python3 scripts/check-features.py # All eight real Teensy sensor combinations
+python3 scripts/check-extensions.py # Five new UART/dock combinations
+bash scripts/test-dtls.sh          # Actual Mbed TLS authentication/replay tests
+python3 scripts/build-esp32.py     # Helmet and paw ESP32 builds
 ./scripts/build.sh                # Selected features; export HEX + source manifest
 ```
 

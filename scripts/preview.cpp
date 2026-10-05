@@ -27,7 +27,8 @@ int main() {
       else if (sensor == "tap") { buttonInput = LOW; advance(30); buttonInput = HIGH; }
       else if (sensor == "hold") { buttonInput = LOW; advance(1250); buttonInput = HIGH; }
       else { std::cout << "{\"ok\":false,\"error\":\"unknown_simulation\"}\n" << std::flush; continue; }
-      advance(30); std::cout << "{\"ok\":true}\n" << std::flush; continue;
+      advance(sensor=="visor" ? Settings::VisorDebounceMs+2 : 30);
+      std::cout << "{\"ok\":true}\n" << std::flush; continue;
     }
     Serial.input = line + "\n"; Serial.output.clear();
     for (unsigned i = 0; i < 2000 && (Serial.output.empty() || Serial.output.back() != '\n'); ++i) {
@@ -37,7 +38,7 @@ int main() {
     std::cout << Serial.output << std::flush;
   }
   pauseMicrophone();
-#if defined(Microphone) || defined(BoopSensor)
+#if defined(Microphone) || defined(BoopSensor) || defined(VisorConnector)
   delete sensorAdc;
 #endif
 }

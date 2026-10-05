@@ -50,7 +50,7 @@ Max72xxPanel::~Max72xxPanel() {
   free(bitmap);
 }
 
-bool Max72xxPanel::begin(uint32_t spiFrequency) {
+bool Max72xxPanel::begin(uint32_t spiFrequency, bool stayShutdown) {
   if (!bitmap) {
     return false;
   }
@@ -66,7 +66,7 @@ bool Max72xxPanel::begin(uint32_t spiFrequency) {
   setIntensity(1);
   dirtyRows = 0xff;
   write(); // Load the framebuffer before enabling the LEDs.
-  shutdown(false);
+  if (!stayShutdown) shutdown(false);
   return true;
 }
 

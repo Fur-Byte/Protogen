@@ -21,6 +21,7 @@ PY
 FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize=address,undefined
   -fno-sanitize-recover=all -DARDUINO=10819 -DARDUINO_TEENSY40
   -I"$ROOT/scripts/tests/stubs" -I"$TEST_TEMP/PROT_OS7_MAX7219" -I"$FFT_SRC")
+FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/firmware.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
@@ -40,6 +41,14 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize=address,undefined
   "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-matrix"
+"${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER \
+  -I"$ROOT/firmware/esp32/src" "$ROOT/scripts/tests/helmet-protocol.cpp" -o "$TEST_TEMP/test-protocol"
+"$TEST_TEMP/test-protocol"
+"${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw -DVisorConnector \
+  "$ROOT/scripts/tests/extensions.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-extensions"
+"$TEST_TEMP/test-extensions"
 for mask in {0..7}; do
   FEATURES=()
   if (( mask & 1 )); then FEATURES+=(-DVisorSensor); fi
@@ -55,4 +64,5 @@ for mask in {0..7}; do
 done
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-tools.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-helmet-tool.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-pair-paw.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/compare-archive-faces.py"

@@ -21,7 +21,7 @@ using boolean = bool;
 #define sq(x) ((x)*(x))
 #define bitWrite(value, bit, set) ((value) = ((value) & ~(1u << (bit))) | ((set) << (bit)))
 inline uint64_t fakeUs = 0;
-inline int buttonInput = HIGH, visorInput = LOW, boopInput = 1023, micInput = 510;
+inline int buttonInput = HIGH, visorInput = LOW, pilotInput = LOW, voltageInput = 640, boopInput = 1023, micInput = 510;
 inline unsigned adcReads = 0, pwmWrites = 0;
 inline std::array<unsigned, 32> adcReadsByPin{}, digitalReadsByPin{};
 inline std::array<int, 32> pwmValues{};
@@ -42,13 +42,13 @@ inline uint32_t millis() { return static_cast<uint32_t>(fakeUs / 1000); }
 inline int readADCValue(int pin) {
   ++adcReads; ++adcReadsByPin.at(pin);
   if (pin == A0 && recordMicrophoneTimes) microphoneTimes.push_back(fakeUs);
-  int result = pin == A7 ? boopInput : micInput;
+  int result = pin == A7 ? boopInput : pin == 15 ? voltageInput : micInput;
   if (pin == A0 && syntheticMicrophone)
     result = static_cast<int>(510 + syntheticAmplitude * std::sin(6.28318530718 * 1000 * fakeUs / 1000000.0));
   return result;
 }
 inline int analogRead(int pin) { const int value = readADCValue(pin); advanceTime(adcReadDurationUs); return value; }
-inline int digitalRead(int pin) { ++digitalReadsByPin.at(pin); return pin == 2 ? buttonInput : visorInput; }
+inline int digitalRead(int pin) { ++digitalReadsByPin.at(pin); return pin == 2 ? buttonInput : pin == 12 ? pilotInput : visorInput; }
 inline void analogWrite(int pin, int value) { ++pwmWrites; pwmValues.at(pin) = value; }
 inline void pinMode(int pin, int mode) { pinModes.at(pin) = mode; }
 inline void digitalWrite(int pin, int value) {
@@ -67,6 +67,7 @@ struct FakeSerial {
   int capacity = 4096;
   std::string input, output;
   void begin(unsigned) {}
+  void addMemoryForRead(void*, size_t) {}
   explicit operator bool() const { return connected; }
   int available() const { return static_cast<int>(input.size()); }
   int availableForWrite() const { return capacity; }
@@ -74,3 +75,4 @@ struct FakeSerial {
   size_t write(const uint8_t *bytes, size_t count) { output.append(reinterpret_cast<const char*>(bytes), count); return count; }
 };
 inline FakeSerial Serial;
+inline FakeSerial Serial1;

@@ -15,6 +15,14 @@ void Blink(uint32_t);
 void glitch(uint32_t);
 void setupSensors();
 int readBoopSensor();
+int readDisplayVoltage();
+void serviceSensorAcquisition(uint32_t);
+void setupPawLink();
+void servicePawLink(uint32_t);
+bool pawIsOnline(uint32_t);
+uint32_t pawRejectedPackets();
+void setupVisorConnector();
+void updateVisorConnector(uint32_t);
 void microphone();
 void pauseMicrophone();
 void updateAudioCoefficients();
@@ -30,3 +38,5 @@ void serviceSerial(uint32_t);
 #include "Microphone.ino"
 #include "FFT.ino"
 #include "UsbControl.ino"
+#include "PawLink.ino"
+#include "VisorConnector.ino"

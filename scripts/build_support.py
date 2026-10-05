@@ -96,9 +96,9 @@ class BuildRun:
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.build / "runs" / (timestamp + "-" + kind + "-" + uuid.uuid4().hex[:8])
         self.path.mkdir(parents=True)
-        self.current = self.build / ("current-build.json" if kind == "build" else "feature-results.json")
+        self.current = self.build / ("current-build.json" if kind == "build" else "feature-results.json" if kind == "features" else kind+"-results.json")
         self.log = self.path / "compile.log"
-        self.compat_log = self.build / ("compile.log" if kind == "build" else "feature-checks.log")
+        self.compat_log = self.build / ("compile.log" if kind == "build" else "feature-checks.log" if kind == "features" else kind+"-checks.log")
         self.record = {"schema": 1, "kind": kind, "state": "running", "started_utc": timestamp,
                        "run_directory": str(self.path), "fqbn": FQBN, "results": []}
         self.publish()
@@ -164,7 +164,7 @@ class BuildRun:
             result["selected_libraries"] = resolved
             expected = {name: version for name, version in self.record["toolchain"]["libraries"].items()
                         if name != "arduinoFFT" or "Microphone" in features}
-            if "Microphone" in features or "BoopSensor" in features:
+            if set(features) & {"Microphone", "BoopSensor", "VisorConnector"}:
                 expected.update(self.record["toolchain"]["bundled_libraries"])
             problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
             problems += [name for name, files in self.record["toolchain"].get("bundled_source_libraries", {}).items()

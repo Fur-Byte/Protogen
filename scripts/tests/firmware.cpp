@@ -152,26 +152,26 @@ int main() {
   assert(state == 2 && SPI.display == angry);
 
   // Boop hysteresis rejects threshold jitter; timeouts require a real release.
-  boopInput = Settings::BoopThreshold; runMs(Settings::BoopPollMs + 1);
+  boopInput = Settings::BoopThreshold; runMs(Settings::BoopPollMs * 2 + 2);
   assert(boopActive);
   const auto boop = SPI.display;
   boopInput = (Settings::BoopThreshold + Settings::BoopReleaseThreshold) / 2;
-  runMs(Settings::BoopPollMs + 1); assert(boopActive);
+  runMs(Settings::BoopPollMs * 2 + 2); assert(boopActive);
   stableVisor(HIGH); stableVisor(LOW);
   assert(SPI.display == boop && SPI.wakeFrames.back() == boop);
   boopInput = Settings::BoopReleaseThreshold; runMs(20);
   assert(!boopActive && boopArmed);
   boopInput = (Settings::BoopThreshold + Settings::BoopReleaseThreshold) / 2;
-  runMs(Settings::BoopPollMs + 1); assert(!boopActive);
-  boopInput = Settings::BoopThreshold; runMs(Settings::BoopPollMs + 1);
+  runMs(Settings::BoopPollMs * 2 + 2); assert(!boopActive);
+  boopInput = Settings::BoopThreshold; runMs(Settings::BoopPollMs * 2 + 2);
   assert(boopActive);
   runMs(Settings::BoopDurationMs + 2);
   assert(!boopActive && !boopArmed);
   runMs(Settings::BoopPollMs * 3); assert(!boopActive);
-  boopInput = Settings::BoopReleaseThreshold; runMs(Settings::BoopPollMs + 1);
+  boopInput = Settings::BoopReleaseThreshold; runMs(Settings::BoopPollMs * 2 + 2);
   assert(boopArmed);
-  boopInput = Settings::BoopThreshold; runMs(Settings::BoopPollMs + 1); assert(boopActive);
-  boopInput = 1023; runMs(Settings::BoopPollMs + 1); assert(!boopActive);
+  boopInput = Settings::BoopThreshold; runMs(Settings::BoopPollMs * 2 + 2); assert(boopActive);
+  boopInput = 1023; runMs(Settings::BoopPollMs * 2 + 2); assert(!boopActive);
 
   // Speech owns the mouth and postpones angry glitches.
   advanceTime((Settings::GlitchIntervalMs + 1) * 1000ULL);
@@ -186,10 +186,13 @@ int main() {
   loop(); assert(counter == 0 && sameMouth(SPI.display, angry));
 
   // Hold/debounce still work through the millis() wrap at 49.7 days.
+  // Clock teleportation is a harness operation, not 49 days without ADC IRQs.
+  pauseMicrophone();
   fakeUs = (static_cast<uint64_t>(UINT32_MAX) - Settings::ButtonHoldMs / 2) * 1000ULL;
   loop(); stableButton(LOW); runMs(Settings::ButtonHoldMs);
   assert(sleeping && state == 2);
   stableButton(HIGH); shortPress(); assert(!sleeping && state == 2);
+  pauseMicrophone();
   fakeUs = (static_cast<uint64_t>(UINT32_MAX) * 2 + 1 - Settings::VisorDebounceMs / 2) * 1000ULL;
   loop(); stableVisor(HIGH); assert(SPI.shutdown);
   stableVisor(LOW); assert(!SPI.shutdown);

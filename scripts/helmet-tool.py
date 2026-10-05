@@ -150,8 +150,8 @@ class Helmet:
         self.transport = transport
         self.lock = threading.RLock()
         self.config = self.checked("GET")
-        if self.config.get("schema") != 1:
-            raise RuntimeError("Unsupported settings schema; this tool expects firmware 8.0 / schema 1.")
+        if self.config.get("schema") not in (1, 2):
+            raise RuntimeError("Unsupported settings schema; this tool supports schemas 1 and 2.")
         self.fields = set(self.config["config"])
         self.calibrating = False
 
@@ -189,12 +189,12 @@ class Helmet:
                 if action == "calibrate":
                     self.calibrating = True
                 self.config = self.checked("GET")
-            elif action in ("expression", "sleep"):
+            elif action in ("expression", "sleep", "microphone"):
                 value = payload.get("value")
                 maximum = 5 if action == "expression" else 1
                 if type(value) is not int or not 0 <= value <= maximum:
                     raise ValueError("Invalid control value")
-                self.checked(("EXPR " if action == "expression" else "SLEEP ") + str(value))
+                self.checked(("EXPR " if action == "expression" else "MIC " if action == "microphone" else "SLEEP ") + str(value))
             elif action == "simulate" and self.transport.simulation:
                 sensor, value = payload.get("sensor"), payload.get("value")
                 maximum = 500 if sensor == "audio" else 1
@@ -210,6 +210,11 @@ def make_handler(helmet, port):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
+
+        def end_headers(self):
+            self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+            self.send_header("X-Frame-Options", "DENY")
+            super().end_headers()
 
         def respond(self, status, body, mime="application/json"):
             data = json.dumps(body).encode() if mime == "application/json" else body

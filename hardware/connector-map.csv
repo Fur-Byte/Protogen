@@ -1,0 +1,15 @@
+contact,net,function,qualification
+1,FACE5_SW,+5V power path A,Parallel power contacts require rated equalized paths and thermal qualification
+2,FACE5_SW,+5V power path B,Do not infer current rating from number of contacts
+3,FACE5_SW,+5V power path C,Check partial engagement and a failed contact
+4,FACE5_SW,+5V power path D,No finalized magnetic connector selected
+5,GND_DISPLAY,Display return A,Separate heavy return to distribution star
+6,GND_DISPLAY,Display return B,Ground alignment and make/break order required
+7,GND_DISPLAY,Display return C,Measured contact resistance and current sharing
+8,GND_DISPLAY,Display return D,Sensor signal reference also returns to common ground
+9,SPI_DIN_5V,MAX7219 data,74AHCT125 output gated by pilot and power-good
+10,SPI_CLK_5V,MAX7219 clock,4MHz signal integrity needs scope qualification
+11,SPI_LOAD_5V,MAX7219 LOAD,No MAX DOUT connection to Teensy
+12,CORE3V3_SENSOR,Protected IR sensor supply,Low current not display power
+13,IR_ANALOG,IR analog return,0-3.3V only; conditioning and pilot-open isolation
+14,PILOT_N,First-break last-make contact to removable ground,Must open before any powered contact; generic equal-height pogo is insufficient

@@ -14,12 +14,15 @@
 #include "ConfigStore.h"
 #include "FaceRenderer.h"
 #include "BlinkTiming.h"
+#include "src/HelmetProtocol/HelmetProtocol.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
 // #define VisorSensor  // Digital sensor on pin 3; HIGH blanks the display.
 // #define BoopSensor   // Analog boop/IR sensor on A7; runtime-calibrated thresholds.
 // #define Microphone   // Microphone with 0-3.3 V output on A0.
-#if defined(Microphone) || defined(BoopSensor)
+// #define WirelessPaw  // Paired ESP32 receiver on Serial1 (RX 0 / TX 1).
+// #define VisorConnector // Protected dock: enable 6, buffer enable 4, pilot 12, sense A1.
+#if defined(Microphone) || defined(BoopSensor) || defined(VisorConnector)
 #include <ADC.h> // ADC 9.1 bundled with Teensy 1.62.0.
 ADC *sensorAdc = nullptr; // Construct during setup(), after Teensy core initialization.
 #endif
@@ -48,6 +51,15 @@ constexpr RgbColor expressionColors[ExpressionCount] = {
 
 bool visorVisible = true, sleeping = false, displayBlanked = false, displayReady = false;
 bool boopState = false, boopArmed = false, boopActive = false, speakingActive = false;
+bool boopFromRemote = false;
+#ifdef Microphone
+bool microphoneEnabled = true;
+#else
+bool microphoneEnabled = false;
+#endif
+uint16_t remoteBoopDuration = 1200;
+bool connectorReady = true;
+uint16_t sensorFaults = 0;
 bool rising = true, blinkState = false, transitionActive = false;
 uint8_t state = Settings::StartupExpression, Step = 0, counter = 0, transitionFrom = 0;
 uint32_t blinkTime = 0, blinkSpeed = 0, nextBlinkInterval = Settings::BlinkIntervalMs;
@@ -68,6 +80,9 @@ static_assert((audioBufferSize & (audioBufferSize - 1)) == 0, "Audio ring must b
 volatile uint16_t audioBuffer[audioBufferSize];
 volatile uint16_t audioWrite = 0, audioRead = 0;
 volatile uint32_t audioDroppedSamples = 0;
+volatile uint16_t audioRailRun = 0;
+uint16_t lastAudioWrite = 0;
+uint32_t audioProgressAt = 0;
 uint32_t handledAudioDrops = 0, audioFrames = 0;
 uint16_t microphoneSampleCount = 0;
 bool microphoneSampling = false, audioPriming = false, frameActivity = false;
@@ -88,7 +103,7 @@ void setup() {
   Entropy.Initialize(); // Starts hardware entropy collection without waiting for it.
   loadStoredConfig(config);
   state = static_cast<uint8_t>(config.startupExpression);
-  displayReady = matrix.begin(Settings::SpiFrequencyHz);
+  displayReady = matrix.begin(Settings::SpiFrequencyHz, true);
   matrix.shutdown(true);
   matrix.setIntensity(static_cast<uint8_t>(config.brightness));
   analogReadResolution(10);
@@ -101,6 +116,8 @@ void setup() {
 #endif
   pinMode(redPin, OUTPUT); pinMode(greenPin, OUTPUT); pinMode(bluePin, OUTPUT);
   setupSensors();
+  setupVisorConnector();
+  setupPawLink();
   resetAnimations(millis());
   displayBlanked = true; // Compose the first complete face before enabling panels.
 }
@@ -109,12 +126,15 @@ void loop() {
   const uint32_t now = millis();
   serviceBlinkRandomness();
   serviceSerial(now);
+  servicePawLink(now);
   updateControls(now);
+  serviceSensorAcquisition(now);
+  updateVisorConnector(now);
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
-  if (boopActive && now - boopTime >= Settings::BoopDurationMs) {
-    boopActive = false; boopArmed = false; rising = true;
+  if (boopActive && now - boopTime >= (boopFromRemote ? remoteBoopDuration : config.boopDuration)) {
+    boopActive = false; boopFromRemote = false; boopArmed = false; rising = true;
   }
-  if (sleeping || !visorVisible || !displayReady) {
+  if (sleeping || !visorVisible || !displayReady || !connectorReady) {
     if (!displayBlanked) {
       matrix.shutdown(true); setColor(0,0,0); resetAnimations(now);
       displayBlanked = true;
@@ -126,9 +146,10 @@ void loop() {
   updateBoop(now, waking);
   if (boopState && boopArmed && !boopActive) {
     boopActive = true; boopTime = now; previousMillis = now;
+    boopFromRemote = false;
     resetAnimations(now); setColor(16,4,0); rising = true;
   }
-  if (boopActive && !boopState) {
+  if (boopActive && !boopFromRemote && config.boopMode == 0 && !boopState) {
     boopActive = false; resetAnimations(now); rising = true;
   }
   if (rising && !boopActive) {
@@ -136,7 +157,7 @@ void loop() {
     previousMillis = now;
   }
   if (boopActive) pauseMicrophone();
-  else { microphone(); glitch(now); Blink(now); }
+  else { if (microphoneEnabled) microphone(); else pauseMicrophone(); glitch(now); Blink(now); }
   if (now - previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
   // At most 60-ish display frames per second; inputs/audio are serviced every loop.
   if (waking || rising || now - lastFrameTime >= 16) {

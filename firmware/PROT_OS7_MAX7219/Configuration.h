@@ -27,6 +27,8 @@ struct RuntimeConfig {
   uint16_t releaseMs = Settings::AudioReleaseMs;
   uint16_t naturalBlinks = Settings::NaturalBlinks;
   uint16_t idleMotion = Settings::IdleMotion;
+  uint16_t boopMode = Settings::BoopMode;
+  uint16_t boopDuration = Settings::BoopDurationMs;
 };
 
 struct ConfigField {
@@ -49,10 +51,12 @@ constexpr ConfigField configFields[] = {
   {"attack_ms", &RuntimeConfig::attackMs, 1, 2000},
   {"release_ms", &RuntimeConfig::releaseMs, 1, 2000},
   {"natural_blinks", &RuntimeConfig::naturalBlinks, 0, 1},
-  {"idle_motion", &RuntimeConfig::idleMotion, 0, 1}
+  {"idle_motion", &RuntimeConfig::idleMotion, 0, 1},
+  {"boop_mode", &RuntimeConfig::boopMode, 0, 1},
+  {"boop_duration_ms", &RuntimeConfig::boopDuration, 100, 6000}
 };
 constexpr size_t configFieldCount = sizeof(configFields) / sizeof(configFields[0]);
-constexpr uint16_t configSchemaVersion = 1;
+constexpr uint16_t configSchemaVersion = 2;
 
 inline bool validConfig(const RuntimeConfig &value) {
   for (const auto &field : configFields) {

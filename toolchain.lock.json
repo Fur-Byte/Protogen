@@ -1,5 +1,6 @@
 {
   "arduino_cli": "1.5.1",
+  "esp32": {"platformio": "6.1.19", "platform": "espressif32@7.1.3", "esp_idf": "6.1.0", "mbedtls": "4.1.0", "boards": ["esp32-c3-devkitm-1", "seeed_xiao_esp32c3"]},
   "fqbn": "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std",
   "platform": {"id": "teensy:avr", "version": "1.62.0", "index_url": "https://www.pjrc.com/teensy/package_teensy_index.json"},
   "libraries": {"arduinoFFT": "2.0.4", "Adafruit GFX Library": "1.12.6", "Adafruit BusIO": "1.17.4"},

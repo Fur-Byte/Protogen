@@ -1,4 +1,6 @@
-# Existing-hardware upgrade — firmware 8.1
+# Existing-hardware upgrade — firmware 8.2
+
+The 8.2 additions and why they were made are in [IMPLEMENTATION_8_2.md](IMPLEMENTATION_8_2.md). The reviewed engineering plan, original IR-first boop specification and schematic package are in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md) and [HARDWARE_WIRING.md](HARDWARE_WIRING.md). Historical 8.0/8.1 validation below remains identified by its source fingerprints.
 
 This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB indicator, and optional sensors**. The original four expression bitmaps, module order, rotations, pin assignments, fabrication assets, and archive are preserved. Optional sensors remain disabled in the supplied sketch. No firmware was uploaded and no physical helmet measurements were made.
 
@@ -35,7 +37,7 @@ python3 scripts/helmet-tool.py
 
 Open **http://127.0.0.1:8765**. Desktop simulation enables the three virtual sensors regardless of the real sketch's feature flags. It runs an isolated copy of the actual firmware with the same renderer, configuration protocol, FFT, and control logic. The nominal ADC/SPI model does not establish real electrical timing or visor appearance. Simulated saves last for the preview process; download a profile to retain them.
 
-After uploading firmware 8.1 using Arduino IDE, find the serial device and connect:
+After uploading firmware 8.2 using Arduino IDE, find the serial device and connect:
 
 ```sh
 python3 scripts/helmet-tool.py --list-ports
@@ -48,7 +50,7 @@ USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It 
 
 Choose a preset or import a profile, apply it, and save if desired. Everyday uses the spectrum mouth and original resting artwork. Expressive uses the amplitude mouth, shorter varied blink intervals, and idle glances. Brightness stays at 1 in both. Quiet calibration needs an enabled, visible, awake microphone with no active boop; remain quiet until the calibration indicator clears, then save. Interrupted calibration is canceled on sleep, expression reset, or settings changes. Idle noise adaptation stays in RAM; an explicit calibration updates the saved-setting candidate.
 
-Existing saved settings and downloaded profiles keep their earlier blink interval. Restore defaults and Save, or apply and save the updated Everyday preset, to adopt the 4-second center and ±2-second variation. Expressive now uses a 3.5-second center and ±1.5-second variation. The persisted schema remains compatible.
+Existing saved settings and downloaded profiles keep their earlier blink interval. Restore defaults and Save, or apply and save the updated Everyday preset, to adopt the 4-second center and ±2-second variation. Expressive now uses a 3.5-second center and ±1.5-second variation. Schema 2 migrates saved schema 1 values while adding the held/timed boop fields.
 
 ## Blink timing in 8.1
 
@@ -70,14 +72,15 @@ One ASCII request per newline; one JSON response per request. CRLF is supported.
 | SET brightness=1 sensitivity=65 | Apply one or several settings atomically; reject the whole request if invalid |
 | EXPR 0 through EXPR 5 | Select happy, surprised, angry, vwv, sleepy, or wink |
 | SLEEP 1 / SLEEP 0 | Sleep / wake; an enabled hidden visor still keeps the face blank |
+| MIC 1 / MIC 0 | Enable/retry microphone / mute; session-only, feature must be compiled |
 | CALIBRATE | Begin quiet microphone calibration |
 | SAVE / LOAD / DEFAULTS | Explicit save / load / compiled defaults |
-| STATUS | Features bitmask (visor=1, boop=2, microphone=4), controls, audio, sensor, and display diagnostics |
+| STATUS | Features bitmask (visor=1, boop=2, microphone=4, paw=8, dock=16), controls, audio, sensor, and display diagnostics |
 | FRAME | Last composed logical frame, width 112, height 8, row-major hexadecimal bitmap; hidden displays return zeros |
 
-Configuration schema 1 uses integers: `brightness` 0–15; `startup_expression` 0–5; `mouth_mode` 0–1; `sensitivity` and `noise_floor` 0–1023; `noise_margin` 1–1023; `boop_trigger` 0–1022; `boop_release` 1–1023; `blink_interval_ms` 1000–60000; `blink_jitter_ms` 0–5000; `transition_ms` 0–1000; `attack_ms` and `release_ms` 1–2000; `natural_blinks` and `idle_motion` 0–1. Trigger must be less than release, and jitter less than the blink interval. Pin assignments, SPI clock, hardware enable flags, debounce/hold timing, and boop lifetime remain compile-time settings. Change `configSchemaVersion` if the persisted layout changes in a future release.
+Configuration schema 2 uses integers: `brightness` 0–15; `startup_expression` 0–5; `mouth_mode` 0–1; `sensitivity` and `noise_floor` 0–1023; `noise_margin` 1–1023; `boop_trigger` 0–1022; `boop_release` 1–1023; `blink_interval_ms` 1000–60000; `blink_jitter_ms` 0–5000; `transition_ms` 0–1000; `attack_ms` and `release_ms` 1–2000; `natural_blinks` and `idle_motion` 0–1; `boop_mode` 0–1; `boop_duration_ms` 100–6000. Trigger must be less than release, and jitter less than the blink interval. Pin assignments, SPI clock, hardware enable flags, and debounce/hold timing remain compile-time settings. Physical boop defaults to held/proximity behavior with a 6000 ms cap. Change `configSchemaVersion` if the persisted layout changes in a future release.
 
-Profiles have `{ "schema": 1, "name": "My helmet", "config": { ... } }`. The named files in profiles/ are examples and are checked against the actual firmware by the integration tests.
+Profiles have `{ "schema": 2, "name": "My helmet", "config": { ... } }`. The named files in profiles/ are examples and are checked against the actual firmware by the integration tests.
 
 ## Build and validation
 
@@ -87,7 +90,7 @@ python3 scripts/check-features.py
 ./scripts/build.sh
 ```
 
-Arduino CLI 1.5.1, Teensy 1.62.0, arduinoFFT 2.0.4, Adafruit GFX 1.12.6, Adafruit BusIO 1.17.4, the bundled ADC 9.1, and the bundled Entropy sources are pinned. Environment overrides for ARDUINO_CLI, CXX, and ARDUINO_FFT_SRC remain supported. The host checks and preview require Clang/C++17, Python 3, and the installed FFT source. No new hardware or downloaded library is required on this Mac.
+Arduino CLI 1.5.1, Teensy 1.62.0, arduinoFFT 2.0.4, Adafruit GFX 1.12.6, Adafruit BusIO 1.17.4, the bundled ADC 9.1, and the bundled Entropy sources are pinned. Environment overrides for ARDUINO_CLI, CXX, and ARDUINO_FFT_SRC remain supported. The host checks and preview require Clang/C++17, Python 3, and the installed FFT source. The core Teensy upgrade uses the existing libraries. Optional ESP32 builds have the separate pinned ESP-IDF toolchain described in firmware/esp32/README.md.
 
 Build results are versioned under build/runs/. `build/current-build.json` identifies the latest build attempt; `build/feature-results.json` is now an object containing state, source, toolchain, and results. `build/latest-successful-build.json` intentionally retains the last successful build. `build/teensy40/` contains the selected-feature HEX plus its source manifest. A failed build preserves the prior export and records the failure separately; use the manifest to establish whether an image matches the current source. Editing source during a run invalidates that run as current evidence.
 

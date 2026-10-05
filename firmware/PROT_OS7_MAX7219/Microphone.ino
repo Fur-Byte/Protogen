@@ -3,6 +3,8 @@
 // floating-point DSP, graphics, and USB are always in the main loop.
 void microphoneSampleISR() {
   const int sample = sensorAdc->adc0->readSingle(); // Acknowledge every conversion.
+  if(sample<=2 || sample>=1021) {if(audioRailRun<256)++audioRailRun;}
+  else audioRailRun=0;
   if (audioPriming) audioPriming = false; // Discard the software setup conversion.
   else if (microphoneSampling) {
     const uint16_t write = audioWrite;
@@ -28,6 +30,7 @@ void startMicrophone() {
   audioRead = audioWrite = 0; microphoneSampleCount = 0; frameActivity = false;
   audioBiasReady = false; handledAudioDrops = audioDroppedSamples;
   audioPriming = true; microphoneSampling = true;
+  audioRailRun=0;lastAudioWrite=audioWrite;audioProgressAt=millis();
   sensorAdc->adc0->startSingleRead(micPin);
   sensorAdc->adc0->enableInterrupts(microphoneSampleISR, 64);
   sensorAdc->adc0->startTimer(samplingFrequencyHz);
@@ -73,6 +76,11 @@ void microphone() {
 #ifdef Microphone
   startMicrophone();
   const uint32_t now = millis();
+  if(audioWrite!=lastAudioWrite){lastAudioWrite=audioWrite;audioProgressAt=now;}
+  if(audioRailRun>=256 || now-audioProgressAt>=100) {
+    // A stuck/railed microphone only disables speech. Expressions and blink continue.
+    microphoneEnabled=false;sensorFaults|=4;pauseMicrophone();return;
+  }
   if (audioDroppedSamples != handledAudioDrops) {
     // Queued data straddles a gap: discard it rather than FFT unevenly spaced samples.
     noInterrupts(); audioRead = audioWrite; handledAudioDrops = audioDroppedSamples; interrupts();
@@ -113,8 +121,9 @@ void pauseMicrophone() {
 
 bool calibrateMicrophone() {
 #ifdef Microphone
-  if (sleeping || !visorVisible || boopActive || !sensorAdc) return false;
+  if (sleeping || !visorVisible || !connectorReady || !microphoneEnabled || boopActive || !sensorAdc) return false;
   pauseMicrophone(); calibratingAudio = true;
+  sensorFaults&=static_cast<uint16_t>(~4u);
   calibrationTotal = 0; calibrationSamples = 0;
   return true;
 #else

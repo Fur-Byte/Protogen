@@ -32,10 +32,13 @@ inline Record readSlot(int slot) {
   if (EEPROM.length() < SlotBytes * 2) return record;
   for (int i = 0; i < RecordBytes; ++i) record.bytes[i] = EEPROM.read(slot * SlotBytes + i);
   const auto *data = record.bytes;
-  if (memcmp(data, "P8CF", 4) || readNumber(data + 4, 2) != configSchemaVersion ||
-      readNumber(data + 6, 2) != PayloadBytes || data[MarkerOffset] != 0xa5 ||
-      readNumber(data + CrcOffset, 4) != crc(data, CrcOffset)) return record;
-  for (size_t i = 0; i < configFieldCount; ++i)
+  const uint32_t schema = readNumber(data + 4, 2), payload = readNumber(data + 6, 2);
+  const bool legacy = schema == 1 && payload == 30;
+  if (memcmp(data, "P8CF", 4) || (!legacy && (schema != configSchemaVersion || payload != PayloadBytes))) return record;
+  const int crcAt = HeaderBytes + static_cast<int>(payload), markerAt = crcAt + 4;
+  if (data[markerAt] != 0xa5 || readNumber(data + crcAt, 4) != crc(data, crcAt)) return record;
+  // The appended boop fields default to Feronium's held reaction when loading v1.
+  for (size_t i = 0; i < payload / 2; ++i)
     record.config.*(configFields[i].member) = static_cast<uint16_t>(readNumber(data + HeaderBytes + i * 2, 2));
   record.sequence = readNumber(data + 8, 4);
   record.valid = validConfig(record.config);
