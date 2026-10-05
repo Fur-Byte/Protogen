@@ -45,7 +45,10 @@ def main():
                       "MBEDTLS_SSL_COOKIE_C":True,"MBEDTLS_SSL_PROTO_TLS1_3":False,
                       "MBEDTLS_SSL_RENEGOTIATION":False,"MBEDTLS_CLIENT_SSL_SESSION_TICKETS":False,
                       "MBEDTLS_SERVER_SSL_SESSION_TICKETS":False,"MBEDTLS_ASYMMETRIC_CONTENT_LEN":False,
-                      "MBEDTLS_SSL_MAX_CONTENT_LEN":1024}
+                      "MBEDTLS_SSL_MAX_CONTENT_LEN":1024,"ESP_WIFI_SOFTAP_SUPPORT":False,
+                      "MBEDTLS_GCM_C":True,"MBEDTLS_ECDH_C":True,
+                      "MBEDTLS_ECP_DP_SECP256R1_ENABLED":True,"NVS_ENCRYPTION":False,
+                      "SECURE_BOOT":False,"SECURE_FLASH_ENC_ENABLED":False,"PROTOGEN_PRODUCTION":False}
             required["ESP_CONSOLE_UART_DEFAULT" if role=="helmet" else "ESP_CONSOLE_USB_SERIAL_JTAG"]=True
             if any(sdk.get(key)!=value for key,value in required.items()):
                 raise RuntimeError(f"{role}: resolved SDK settings differ from the intended security/board configuration; regenerate build/sdkconfig.{role}")

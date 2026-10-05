@@ -1,0 +1,9 @@
+menu "Protogen production security"
+config PROTOGEN_PRODUCTION
+    bool "Require explicitly provisioned production hardware"
+    default n
+    help
+        Fails compilation without Secure Boot v2, flash encryption, encrypted
+        NVS and anti-rollback; rejects hardware without boot/flash protection.
+        Never enable on development units. Follow PRODUCTION_PROVISIONING.md.
+endmenu

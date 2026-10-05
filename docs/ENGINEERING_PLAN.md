@@ -64,17 +64,32 @@ The fallback analog front end and classification firmware are deliberately defer
 | BLE | Standard secure pairing/connection services, useful if a phone is a primary controller, good low-power options | GATT/service and pairing UI work; bonding/reconnect behavior must still be designed |
 | ESP-NOW | Direct C3-to-C3 control without a phone or access point, small datagrams, straightforward dedicated controller | Shared RF channel; callbacks are not application acknowledgements; security/session freshness must be specified |
 
-Use **ESP-NOW** for the dedicated three-button paw. The chosen security layer adds established DTLS over its datagram transport. This adds code and handshake traffic, but avoids inventing the custom authentication handshake previously proposed. Radio encryption uses a unique 16-byte PMK and LMK; DTLS uses a separate randomly generated 32-byte PSK. Only the configured unicast peer MAC is admitted to a fixed receive queue. ESP-NOW broadcast does not carry controls. [Espressif's ESP-NOW documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/network/esp_now.html) specifies encrypted peers and explains why application acknowledgements are needed.
+The implemented v2 design uses **ESP-NOW** with native encrypted unicast and an
+independent PSA AES-256-GCM application envelope. Wireless pairing requires
+local gestures on both devices, ephemeral P-256 ECDH commit/reveal, comparison
+of all six LED authentication digits and second physical confirmations on both.
+USB-only provisioning and factory-MAC whitelisting have been retired. See
+[the current protocol](WIRELESS_PROTOCOL.md) for the complete authenticated
+session/HKDF/replay and rotating identity/rendezvous design.
 
-Provision locally through USB after physical unlock: hold helmet BOOT for two seconds **after startup**, and all three paw buttons for three seconds. This opens a 60-second configuration window and suspends control traffic. The pairing tool discovers each board's MAC and role, generates keys using the host OS's secure randomness, writes each peer atomically to NVS, and stores no key files. It never logs key material. Re-pairing replaces both devices' keys; a failed half-pair cannot authenticate, so unlock and rerun. There is no radio-based unprotected pairing mode or universal default secret.
+Teensy Serial1 remains 115200 8N1 with COBS and CRC16, boot epochs, fresh 300 ms
+receiver tickets, execution ACKs, deduplication and command rate limits. The
+helmet ESP32 validates wireless input before forwarding it. Local rendering and
+buttons keep working during wireless loss. Idle RF keepalives are randomized
+3–5 s; 100 ms polling supports active gestures and deteriorating links. Radio
+loss is detected after 12 s; the existing separate wired heartbeat lets Teensy
+clear paw-online within another 2 s. Keyed asymmetric channel recovery on
+1/6/11 establishes a fresh authenticated session without needing a message on
+the failed channel. Periodic idle renewal changes keys/MACs after 15–17 minutes.
 
-Mbed TLS performs the handshake, encryption, authentication, cookie verification and record replay checks. Only DTLS 1.2 with PSK/AES-128-CCM and a full 128-bit tag is negotiated. Session tickets, renegotiation and early-data behavior are not used. The cipher is selected through the library API; this project does not implement it. See [Mbed TLS's DTLS guide](https://mbed-tls.readthedocs.io/en/latest/kb/how-to/dtls-tutorial/) and [the protocol specification](WIRELESS_PROTOCOL.md).
-
-Commands contain a boot epoch, current bridge session ID, sequence and a Teensy-issued ticket. Tickets expire after 300 ms in Teensy time, so there is no trusting a paw timestamp or custom clock synchronization. UART frames have COBS delimiters, exact lengths and CRC16. The CRC detects line corruption; it is not authentication. Duplicate application commands repeat the result without repeating the action; matching sequence numbers with changed payloads are rejected. Older sequences, invalid actions/values, wrong sessions, stale tickets and more than 20 actions/second are rejected. Buffers/queues are fixed and every service pass has a budget.
-
-Paw commands use a short retry budget and require an ACK from the Teensy. No commands are retained offline. Release all buttons after reconnect before new actions are accepted. A two-second peer timeout marks the link lost, clears pending work and reconnects with a fresh session; it preserves the selected expression and normal local face behavior. The underlying ESP-NOW channel is configurable 1–11; con interference and body/fur antenna attenuation still need RF tests. No automatic channel-hopping protocol is introduced.
-
-Security covers nearby unauthorized transmitters, recorded traffic, malformed inputs and unintentional floods. Physical access to unencrypted MCU flash/NVS could expose a paired key; this prototype does not enable secure boot or flash encryption. PSK-only DTLS also does not provide forward secrecy after later key disclosure. Those tradeoffs are documented rather than claiming enterprise or physical-tamper security. Re-key a lost controller. A determined RF jammer can deny wireless service; it cannot become the face controller.
+Development remains recoverable with ordinary NVS. Production needs explicitly
+provisioned hardware-backed encrypted storage, Secure Boot v2, release flash
+encryption, signed firmware, anti-rollback and a qualified update process.
+Firmware does not burn eFuses. RF fingerprinting/timing correlation, physical
+compromise of development units and broadband jamming remain outside full
+protection. See [SECURITY.md](../SECURITY.md),
+[production steps](PRODUCTION_PROVISIONING.md) and
+[physical release gates](WIRELESS_VALIDATION.md).
 
 ## Power architecture
 

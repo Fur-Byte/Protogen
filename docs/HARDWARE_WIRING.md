@@ -118,3 +118,24 @@ Paw XIAO: GPIO4/D2, GPIO5/D3 and GPIO10/D10 buttons each switch to ground, with 
 ## Current release gates
 
 Firmware feature flags are independent: IR can be implemented on the existing working face before any removable connector, status screen or C3 hardware exists. Validate each interface on a current-limited bench, scope rail and signal behavior under worst load, inspect temperature/contact hot spots, and only then enable its flag on the physical helmet. This package does not claim CAD ERC, PCB routing approval, hot-plug safety, final converter temperature, four-hour runtime or on-body RF results.
+
+## Mandatory v2 wireless pairing indicators
+
+Each ESP32-C3 needs a visible, single-color LED for wireless pairing. The existing
+helmet DevKit RGB LED is addressable and is **not** treated as a plain GPIO LED;
+the XIAO paw has no suitable shared ordinary indicator. Firmware assigns GPIO2
+on each board to a new buffered indicator. GPIO2 is a boot-strapping pin: do not
+connect an LED/resistor that loads it directly or change the board's strap bias.
+Use a high-input-impedance, 3.3 V logic buffer/transistor driver whose input leaves
+the strap level valid during power-on/reset; LED current/resistor belong on the
+buffer output. Verify strap levels and bootloader/normal boot on the exact board.
+Do not connect a 5 V LED load directly to a C3 pin. Adjust `Device::PairingLed` only
+after checking board schematics and every enabled peripheral/console pin.
+
+Both indicators are mandatory for first-use authentication; omit neither merely
+because key agreement completes. Position them so the user can compare six flash
+groups with both devices together. One long pulse begins each repeat; a zero
+has ten short flashes. Rapid 2 Hz blinking announces the bounded pairing window.
+Test visibility, leading zeros, all digits, window expiry, and mismatched-code
+rejection. LED/SAS comparison is the practical wireless out-of-band confirmation;
+it needs no USB connection or phone. Hold helmet BOOT only after boot.

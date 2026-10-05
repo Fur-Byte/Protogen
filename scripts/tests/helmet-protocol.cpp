@@ -48,9 +48,9 @@ int main() {
   assert(SensorMath::signedCurrent(positive)==256 && SensorMath::signedCurrent(negative)==-256);
   assert(SensorMath::ntc(1320,t) && t>24.9 && t<25.1);assert(!SensorMath::ntc(3300,t));
   assert(SensorMath::percent(30000,60000)==50 && SensorMath::percent(70000,60000)==0 && SensorMath::percent(0,0)==-1);
-  Device::Config config;config.paired=true;config.peer[0]=2;config.psk[0]=1;config.lmk[0]=2;config.pmk[0]=3;config.usableEnergyMWh=60000;
+  Device::Config config;config.paired=true;config.psk[0]=1;config.usableEnergyMWh=60000;
   uint8_t b[Device::ConfigBytes];Device::encode(config,b);Device::Config loaded;assert(Device::decode(b,sizeof(b),loaded) && loaded.paired);
   b[4]^=1;assert(!Device::decode(b,sizeof(b),loaded) && loaded.paired);
-  memset(b+12,0,32);put16(b+80,crc16(b,80));assert(!Device::decode(b,sizeof(b),loaded) && loaded.psk[0]==1);
+  memset(b+8,0,32);put16(b+44,crc16(b,44));assert(!Device::decode(b,sizeof(b),loaded) && loaded.psk[0]==1);
   std::cout<<"PASS: 20000 framed packets, truncation/corruption/overflow, freshness, replay/dedup, epoch/session, rate limit, sensor CRC/conversions, provisioning records\n";
 }

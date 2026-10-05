@@ -36,7 +36,7 @@ no upload or wiring change was performed. [ESP32 setup instructions](firmware/es
 ## Project layout
 
 - `firmware/PROT_OS7_MAX7219/`: the one active sketch, including its MAX7219 driver and license.
-- `firmware/esp32/`: separate helmet/paw ESP32-C3 targets; DTLS, ESP-NOW and wearer status.
+- `firmware/esp32/`: separate helmet/paw ESP32-C3 targets; wireless physical pairing, AES-GCM over encrypted ESP-NOW, rotating identities and wearer status.
 - `docs/UPGRADE.md`: current features, full change summary, USB protocol, configuration, and validation.
 - `tools/helmet/`, `scripts/helmet-tool.py`, `profiles/`: local Face Studio and named settings profiles.
 - `toolchain.lock.json`: pinned CLI, core, and library versions.
@@ -180,7 +180,8 @@ Optional sensors remain disabled until enabled in the sketch.
 ./scripts/test-firmware.sh        # Sanitized host behavior + tooling/preview integration
 python3 scripts/check-features.py # All eight real Teensy sensor combinations
 python3 scripts/check-extensions.py # Five new UART/dock combinations
-bash scripts/test-dtls.sh          # Actual Mbed TLS authentication/replay tests
+bash scripts/test-wireless.sh      # Actual v2 pairing/AEAD/replay/recovery tests
+bash scripts/test-dtls.sh          # Retained historical DTLS regression tests
 python3 scripts/build-esp32.py     # Helmet and paw ESP32 builds
 ./scripts/build.sh                # Selected features; export HEX + source manifest
 ```
