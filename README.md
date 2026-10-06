@@ -1,5 +1,13 @@
 # Protogen helmet — Teensy 4.0
 
+> **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
+> for helmet and Paw; C3/v3 is retained as legacy development/regression.
+> Current production sources remain v3. Public S31 preview builds and a 48 KiB
+> ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
+> and its memory-protection implementation block the production migration/v4
+> phase. Physical S31 qualification is separately pending. See the
+> [S31 preflight](docs/WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
+
 Open **[firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino](firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino)** in Arduino IDE.
 This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work

@@ -1,5 +1,13 @@
 # ESP32-C3 helmet and paw firmware
 
+> **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
+> for helmet and Paw; C3/v3 is retained as legacy development/regression.
+> Current production sources remain v3. Public S31 preview builds and a 48 KiB
+> ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
+> and its memory-protection implementation block the production migration/v4
+> phase. Physical S31 qualification is separately pending. See the
+> [S31 preflight](../../docs/WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
+
 Helmet: ESP32-C3-DevKitM-1. Paw: Seeed XIAO ESP32-C3. Teensy 4.0 remains the
 behavior/rendering controller; the helmet ESP32 authenticates wireless commands
 before the existing 115200 8N1 COBS/CRC16 Serial1 bridge (Teensy pins 0/1).

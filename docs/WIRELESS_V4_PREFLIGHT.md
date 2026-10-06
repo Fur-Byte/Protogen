@@ -1,5 +1,13 @@
 # Wireless v4 preflight — stopped at the stack resource gate
 
+> **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
+> for helmet and Paw; C3/v3 is retained as legacy development/regression.
+> Current production sources remain v3. Public S31 preview builds and a 48 KiB
+> ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
+> and its memory-protection implementation block the production migration/v4
+> phase. Physical S31 qualification is separately pending. See the
+> [S31 preflight](WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
+
 Date: 2026-10-06. Baseline repository commit:
 `c26464d5529b78d8e03ddafd9830d99ecee7d2d5`.
 

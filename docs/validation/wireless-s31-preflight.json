@@ -1,0 +1,1755 @@
+{
+  "scope": "isolated public S31 preview research; unchanged production v3",
+  "measured_utc": "2026-10-06T15:11:19.192958+00:00",
+  "sdk_support": "PREVIEW; official supported tag v6.1.1 not published at assessment",
+  "target": "esp32s31",
+  "esp_idf": "6.1.0",
+  "compiler": "riscv32-esp-elf-gcc (crosstool-NG esp-15.2.0_20251204) 15.2.0",
+  "mlkem_commit": "d1b2fe782888bdb761a50336012923180be7f502",
+  "sdk_pins": {
+    "purpose": "S31 public-preview research only; not a production SDK selection",
+    "esp_idf": "6.1.0",
+    "official_release_tag": "v6.1",
+    "official_release_commit": "fff9895c82d744c7237be8847347bdd1b07c6643",
+    "framework_package": "4.60100.0",
+    "compiler": "esp-15.2.0_20251204 / GCC 15.2.0",
+    "target": "esp32s31",
+    "official_supported_tag_minimum": "v6.1.1 (unpublished on 2026-10-06)",
+    "upstream": "https://github.com/espressif/esp-idf",
+    "license": "Apache-2.0 for these ESP-IDF source files; Wi-Fi archives have separate Espressif licensing",
+    "source_sha256": {
+      "tools/cmake/version.cmake": "09228291a5c5ee860c432c782a79bb2abd24e6989254d5d5614de7a8d822b747",
+      "tools/idf_py_actions/constants.py": "a8d755bcf76cc2cbec29330ebf2d4e8f133855899e27dbd3ce2b79b82ae6e03d",
+      "components/soc/esp32s31/include/soc/soc_caps.h": "6b85717b0b0e34c03b9a2c6a474415b8491b890ad5b2cc43891a1a35cfb4e814",
+      "components/esp_system/port/soc/esp32s31/system_internal.c": "9fbdc8c20080168c5e11e60e1bbbfece685fe7d8c5d8fa599870d8261735a709",
+      "components/esp_system/ld/esp32s31/ld.hp_mem_defs": "78cf82989175ef6c6a5ca3678872c0b68328520edd4618f3a5f63026083de8a6",
+      "components/esp_hw_support/port/esp32s31/cpu_region_protect.c": "9e1b389fd73c85aabf3f6111636a3a176d3cb2784df07986c8b4e803bf6b654d",
+      "components/bootloader_support/src/bootloader_mem.c": "58f69d35c70996252d0b020089b9d3b4a2ce93bece0fc6f2bf1d9ca05a64f38f"
+    }
+  },
+  "roles": {
+    "helmet": {
+      "baseline": {
+        "sections": {
+          ".rtc.text": 0,
+          ".rtc.force_fast": 0,
+          ".rtc_noinit": 0,
+          ".rtc.force_slow": 36,
+          ".rtc_reserved": 24,
+          ".iram0.text": 86794,
+          ".iram0.text_end": 118,
+          ".iram0.data": 0,
+          ".iram0.bss": 0,
+          ".iram0.end": 0,
+          ".dram0.dummy": 0,
+          ".dram0.data": 19332,
+          ".noinit": 0,
+          ".dram0.bss": 30576,
+          ".flash.text": 602758,
+          ".flash_rodata_dummy": 655360,
+          ".flash.appdesc": 256,
+          ".flash.rodata": 114200,
+          ".flash.init_array": 260,
+          ".flash.tdata": 16,
+          ".flash.rodata_noload": 23052,
+          ".dram0.heap_start": 0,
+          ".noload": 4,
+          ".debug_aranges": 52608,
+          ".debug_info": 4004821,
+          ".debug_abbrev": 361422,
+          ".debug_line": 1997076,
+          ".debug_frame": 187440,
+          ".debug_str": 611847,
+          ".debug_loc": 1507509,
+          ".debug_ranges": 98752,
+          ".debug_line_str": 5907,
+          ".debug_loclists": 20124,
+          ".debug_rnglists": 2175,
+          ".comment": 134,
+          ".riscv.attributes": 138
+        },
+        "symbols": {
+          "_heap_start": 788665984
+        },
+        "static_data_bss_bytes": 49908,
+        "contiguous_linker_tail_before_runtime_allocations_bytes": 366912,
+        "elf_sha256": "d0713a16734050dc37ae86c6b603a7df3895a05b335b197cdd71873d3caacdb2",
+        "binary_bytes": 823776,
+        "binary_sha256": "1f64a4d793116da6370a7d9c6b4c52eb09c2211d63538d671c08874e6a75ab4a"
+      },
+      "worker_relink": {
+        "sections": {
+          ".rtc.text": 0,
+          ".rtc.force_fast": 0,
+          ".rtc_noinit": 0,
+          ".rtc.force_slow": 36,
+          ".rtc_reserved": 24,
+          ".iram0.text": 86794,
+          ".iram0.text_end": 118,
+          ".iram0.data": 0,
+          ".iram0.bss": 0,
+          ".iram0.end": 0,
+          ".dram0.dummy": 0,
+          ".dram0.data": 25748,
+          ".noinit": 0,
+          ".dram0.bss": 80128,
+          ".flash.text": 620106,
+          ".flash_rodata_dummy": 655360,
+          ".flash.appdesc": 256,
+          ".flash.rodata": 114880,
+          ".flash.init_array": 264,
+          ".flash.tdata": 16,
+          ".flash.rodata_noload": 23052,
+          ".dram0.heap_start": 0,
+          ".noload": 4,
+          ".debug_aranges": 52800,
+          ".debug_info": 4015632,
+          ".debug_abbrev": 363561,
+          ".debug_line": 2005152,
+          ".debug_frame": 187968,
+          ".debug_str": 613447,
+          ".debug_loc": 1512779,
+          ".debug_ranges": 99080,
+          ".debug_line_str": 5907,
+          ".debug_loclists": 20124,
+          ".debug_rnglists": 2175,
+          ".comment": 134,
+          ".riscv.attributes": 138
+        },
+        "symbols": {
+          "_heap_start": 788721952
+        },
+        "static_data_bss_bytes": 105876,
+        "contiguous_linker_tail_before_runtime_allocations_bytes": 310944,
+        "elf_sha256": "5d059d34ee028d5139aef03195f4e5b35cc217a9d58006c55064f9e30adcc0d3",
+        "static_ram_increase_bytes": 55968
+      },
+      "native": {
+        "text": 15550,
+        "data": 0,
+        "bss": 0,
+        "frames": {
+          "mlk_ct_memcmp": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_ct_cmov_zero": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_compress_d5_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_compress_d11_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_decompress_d5_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_decompress_d11_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_tobytes_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_frombytes_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_tomont_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_reduce_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_mulcache_compute_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_ntt_butterfly_block": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_ntt_layer": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "mlk_poly_ntt_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_invntt_layer": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_invntt_tomont_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_polyvec_basemul_acc_montgomery_cached_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_rej_uniform_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_rej_uniform": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_load32_littleendian": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_keccakf1600_permute_c": {
+            "bytes": 272,
+            "kind": "static"
+          },
+          "pqqual_poly_compress_d5": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_compress_d11": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_decompress_d5": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_decompress_d11": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_tobytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_frombytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_frommsg": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_tomsg": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_reduce": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_add": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_sub": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_mulcache_compute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_ntt": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_invntt_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_compress_du": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_pack_ciphertext": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_decompress_du": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_unpack_ciphertext": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_tobytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_pack_sk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_pack_pk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_frombytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_unpack_pk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_unpack_sk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_ntt": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_invntt_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_basemul_acc_montgomery_cached": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_matvec_mul": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_polyvec_mulcache_compute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_indcpa_dec": {
+            "bytes": 6208,
+            "kind": "static"
+          },
+          "pqqual_polyvec_reduce": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_check_pk": {
+            "bytes": 3648,
+            "kind": "static"
+          },
+          "pqqual_polyvec_add": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_cbd2": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_shake128_init": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_shake128_release": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_init": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_release": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600_extract_bytes": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_keccakf1600x4_extract_bytes_c": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600_xor_bytes": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_keccakf1600x4_xor_bytes_c": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600x4_extract_bytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600x4_xor_bytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600_permute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_keccak_absorb_once": {
+            "bytes": 48,
+            "kind": "static"
+          },
+          "pqqual_shake128_absorb_once": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_keccak_squeezeblocks": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_shake128_squeezeblocks": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_rej_uniform": {
+            "bytes": 784,
+            "kind": "static"
+          },
+          "mlk_keccak_squeeze_once": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_shake256": {
+            "bytes": 272,
+            "kind": "static"
+          },
+          "pqqual_poly_getnoise_eta1_4x": {
+            "bytes": 832,
+            "kind": "static"
+          },
+          "mlk_keypair_getnoise_eta1": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_poly_getnoise_eta2": {
+            "bytes": 208,
+            "kind": "static"
+          },
+          "mlk_enc_getnoise_eta1_eta2": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_sha3_256": {
+            "bytes": 224,
+            "kind": "static"
+          },
+          "pqqual_check_sk": {
+            "bytes": 80,
+            "kind": "static"
+          },
+          "pqqual_sha3_512": {
+            "bytes": 224,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600x4_permute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_keccak_absorb_once_x4": {
+            "bytes": 48,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_absorb_once": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "mlk_shake256x4_absorb_once": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "mlk_keccak_squeezeblocks_x4": {
+            "bytes": 48,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_squeezeblocks": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_rej_uniform_x4": {
+            "bytes": 2944,
+            "kind": "static"
+          },
+          "pqqual_gen_matrix": {
+            "bytes": 320,
+            "kind": "static"
+          },
+          "pqqual_indcpa_keypair_derand": {
+            "bytes": 15536,
+            "kind": "static"
+          },
+          "pqqual_indcpa_enc": {
+            "bytes": 19056,
+            "kind": "static"
+          },
+          "pqqual_enc_derand": {
+            "bytes": 192,
+            "kind": "static"
+          },
+          "pqqual_enc": {
+            "bytes": 96,
+            "kind": "static"
+          },
+          "pqqual_dec": {
+            "bytes": 1792,
+            "kind": "static"
+          },
+          "mlk_check_pct": {
+            "bytes": 1680,
+            "kind": "static"
+          },
+          "pqqual_keypair_derand": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_keypair": {
+            "bytes": 112,
+            "kind": "static"
+          },
+          "mlk_shake256x4_squeezeblocks": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_shake256x4": {
+            "bytes": 1408,
+            "kind": "static"
+          }
+        },
+        "known_call_paths": {
+          "pqqual_enc": {
+            "known_frames_sum_bytes": 22992,
+            "path": [
+              [
+                "pqqual_enc",
+                96
+              ],
+              [
+                "pqqual_enc_derand",
+                192
+              ],
+              [
+                "pqqual_indcpa_enc",
+                19056
+              ],
+              [
+                "pqqual_gen_matrix",
+                320
+              ],
+              [
+                "pqqual_poly_rej_uniform_x4",
+                2944
+              ],
+              [
+                "pqqual_shake128x4_absorb_once",
+                32
+              ],
+              [
+                "mlk_keccak_absorb_once_x4",
+                48
+              ],
+              [
+                "pqqual_keccakf1600x4_permute",
+                16
+              ],
+              [
+                "pqqual_keccakf1600_permute",
+                16
+              ],
+              [
+                "mlk_keccakf1600_permute_c",
+                272
+              ]
+            ]
+          },
+          "pqqual_dec": {
+            "known_frames_sum_bytes": 24496,
+            "path": [
+              [
+                "pqqual_dec",
+                1792
+              ],
+              [
+                "pqqual_indcpa_enc",
+                19056
+              ],
+              [
+                "pqqual_gen_matrix",
+                320
+              ],
+              [
+                "pqqual_poly_rej_uniform_x4",
+                2944
+              ],
+              [
+                "pqqual_shake128x4_absorb_once",
+                32
+              ],
+              [
+                "mlk_keccak_absorb_once_x4",
+                48
+              ],
+              [
+                "pqqual_keccakf1600x4_permute",
+                16
+              ],
+              [
+                "pqqual_keccakf1600_permute",
+                16
+              ],
+              [
+                "mlk_keccakf1600_permute_c",
+                272
+              ]
+            ]
+          },
+          "pqqual_keypair": {
+            "known_frames_sum_bytes": 26320,
+            "path": [
+              [
+                "pqqual_keypair",
+                112
+              ],
+              [
+                "pqqual_keypair_derand",
+                32
+              ],
+              [
+                "mlk_check_pct",
+                1680
+              ],
+              [
+                "pqqual_dec",
+                1792
+              ],
+              [
+                "pqqual_indcpa_enc",
+                19056
+              ],
+              [
+                "pqqual_gen_matrix",
+                320
+              ],
+              [
+                "pqqual_poly_rej_uniform_x4",
+                2944
+              ],
+              [
+                "pqqual_shake128x4_absorb_once",
+                32
+              ],
+              [
+                "mlk_keccak_absorb_once_x4",
+                48
+              ],
+              [
+                "pqqual_keccakf1600x4_permute",
+                16
+              ],
+              [
+                "pqqual_keccakf1600_permute",
+                16
+              ],
+              [
+                "mlk_keccakf1600_permute_c",
+                272
+              ]
+            ]
+          }
+        }
+      },
+      "worker": {
+        "text": 2875,
+        "data": 6404,
+        "bss": 49544,
+        "frames": {
+          "pqqual::Worker::~Worker()": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "uint64_t {anonymous}::now_ms()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "void __static_initialization_and_destruction_0()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pqqual::Worker::submit(pqqual::Op, bool, uint64_t, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token&)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::enqueue_failed(pqqual::Token)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual::Buffers* pqqual::Worker::begin(pqqual::Token, uint64_t, pqqual::Op&)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::finish(pqqual::Token, int, uint64_t)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "bool pqqual::Worker::take(pqqual::Token, uint64_t, pqqual::Buffers&)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::cancel()": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::expire(uint64_t)": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "void {anonymous}::run(void*)": {
+            "bytes": 80,
+            "kind": "static"
+          },
+          "int randombytes(uint8_t*, size_t)": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pq_qualification_probe()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pq_qualification_submit(pqqual::Op, bool, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token*)": {
+            "bytes": 80,
+            "kind": "static"
+          },
+          "void pq_qualification_cancel()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pq_qualification_take(pqqual::Token, pqqual::Buffers*)": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "cpp)": {
+            "bytes": 16,
+            "kind": "static"
+          }
+        }
+      },
+      "adapter": {
+        "text": 102,
+        "data": 0,
+        "bss": 0,
+        "frames": {
+          "int pqqual::native_execute(Op, Buffers&)": {
+            "bytes": 16,
+            "kind": "static"
+          }
+        }
+      },
+      "sdk_stacks": {
+        "COMPILER_STACK_CHECK_MODE_ALL": false,
+        "COMPILER_STACK_CHECK_MODE_NONE": true,
+        "COMPILER_STACK_CHECK_MODE_NORM": false,
+        "COMPILER_STACK_CHECK_MODE_STRONG": false,
+        "ESP_IPC_TASK_STACK_SIZE": 1024,
+        "ESP_MAIN_TASK_STACK_SIZE": 12288,
+        "ESP_MINIMAL_SHARED_STACK_SIZE": 2048,
+        "ESP_SYSTEM_EVENT_TASK_STACK_SIZE": 2304,
+        "ESP_SYSTEM_HW_STACK_GUARD": true,
+        "ESP_TIMER_TASK_STACK_SIZE": 3584,
+        "ESP_TLS_CUSTOM_STACK": false,
+        "FATFS_LFN_STACK": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_CANARY": true,
+        "FREERTOS_CHECK_STACKOVERFLOW_NONE": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_PTRVAL": false,
+        "FREERTOS_IDLE_TASK_STACKSIZE": 1536,
+        "FREERTOS_ISR_STACKSIZE": 1536,
+        "FREERTOS_TIMER_TASK_STACK_DEPTH": 2048,
+        "FREERTOS_WATCHPOINT_END_OF_STACK": false,
+        "LWIP_TCPIP_TASK_STACK_SIZE": 3072,
+        "NVS_BDL_STACK": false,
+        "PTHREAD_STACK_MIN": 768,
+        "PTHREAD_TASK_STACK_SIZE_DEFAULT": 3072
+      },
+      "cpu_mhz": 320,
+      "compiler_warnings": 0,
+      "cmake_warning_count": 5
+    },
+    "paw": {
+      "baseline": {
+        "sections": {
+          ".rtc.text": 0,
+          ".rtc.force_fast": 0,
+          ".rtc_noinit": 0,
+          ".rtc.force_slow": 36,
+          ".rtc_reserved": 24,
+          ".iram0.text": 72298,
+          ".iram0.text_end": 22,
+          ".iram0.data": 0,
+          ".iram0.bss": 0,
+          ".iram0.end": 0,
+          ".dram0.dummy": 0,
+          ".dram0.data": 19000,
+          ".noinit": 0,
+          ".dram0.bss": 28992,
+          ".flash.text": 550084,
+          ".flash_rodata_dummy": 589824,
+          ".flash.appdesc": 256,
+          ".flash.rodata": 97760,
+          ".flash.init_array": 260,
+          ".flash.tdata": 16,
+          ".flash.rodata_noload": 23052,
+          ".dram0.heap_start": 0,
+          ".noload": 4,
+          ".debug_aranges": 50024,
+          ".debug_info": 3641700,
+          ".debug_abbrev": 343565,
+          ".debug_line": 1853962,
+          ".debug_frame": 177776,
+          ".debug_str": 591494,
+          ".debug_loc": 1410972,
+          ".debug_ranges": 93488,
+          ".debug_line_str": 5488,
+          ".debug_loclists": 18719,
+          ".debug_rnglists": 2056,
+          ".comment": 134,
+          ".riscv.attributes": 138
+        },
+        "symbols": {
+          "_heap_start": 788649472
+        },
+        "static_data_bss_bytes": 47992,
+        "contiguous_linker_tail_before_runtime_allocations_bytes": 383424,
+        "elf_sha256": "a819c083c66046df5580f085afb1e071946b812551ce503f8b01cfeed2790d1a",
+        "binary_bytes": 739824,
+        "binary_sha256": "89f61324074dc1bf39c5d80fae1f13d7885e3081810e430d49b5cdd78a6de4d6"
+      },
+      "worker_relink": {
+        "sections": {
+          ".rtc.text": 0,
+          ".rtc.force_fast": 0,
+          ".rtc_noinit": 0,
+          ".rtc.force_slow": 36,
+          ".rtc_reserved": 24,
+          ".iram0.text": 72298,
+          ".iram0.text_end": 22,
+          ".iram0.data": 0,
+          ".iram0.bss": 0,
+          ".iram0.end": 0,
+          ".dram0.dummy": 0,
+          ".dram0.data": 25416,
+          ".noinit": 0,
+          ".dram0.bss": 78544,
+          ".flash.text": 567440,
+          ".flash_rodata_dummy": 589824,
+          ".flash.appdesc": 256,
+          ".flash.rodata": 98408,
+          ".flash.init_array": 264,
+          ".flash.tdata": 16,
+          ".flash.rodata_noload": 23052,
+          ".dram0.heap_start": 0,
+          ".noload": 4,
+          ".debug_aranges": 50216,
+          ".debug_info": 3652511,
+          ".debug_abbrev": 345704,
+          ".debug_line": 1862038,
+          ".debug_frame": 178304,
+          ".debug_str": 593094,
+          ".debug_loc": 1416242,
+          ".debug_ranges": 93816,
+          ".debug_line_str": 5488,
+          ".debug_loclists": 18719,
+          ".debug_rnglists": 2056,
+          ".comment": 134,
+          ".riscv.attributes": 138
+        },
+        "symbols": {
+          "_heap_start": 788705440
+        },
+        "static_data_bss_bytes": 103960,
+        "contiguous_linker_tail_before_runtime_allocations_bytes": 327456,
+        "elf_sha256": "3b192d8a2624565be61422f46928cda8fcdb132b0a399500e81c4d183245ef70",
+        "static_ram_increase_bytes": 55968
+      },
+      "native": {
+        "text": 15550,
+        "data": 0,
+        "bss": 0,
+        "frames": {
+          "mlk_ct_memcmp": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_ct_cmov_zero": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_compress_d5_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_compress_d11_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_decompress_d5_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_decompress_d11_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_poly_tobytes_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_frombytes_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_tomont_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_reduce_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_mulcache_compute_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_ntt_butterfly_block": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_ntt_layer": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "mlk_poly_ntt_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_invntt_layer": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_poly_invntt_tomont_c": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_polyvec_basemul_acc_montgomery_cached_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_rej_uniform_c": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_rej_uniform": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_load32_littleendian": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_keccakf1600_permute_c": {
+            "bytes": 272,
+            "kind": "static"
+          },
+          "pqqual_poly_compress_d5": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_compress_d11": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_decompress_d5": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_decompress_d11": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_tobytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_frombytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_frommsg": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_tomsg": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_reduce": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_add": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_sub": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_poly_mulcache_compute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_ntt": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_invntt_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_compress_du": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_pack_ciphertext": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_decompress_du": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_unpack_ciphertext": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_tobytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_pack_sk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_pack_pk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_frombytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_unpack_pk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_unpack_sk": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_ntt": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_invntt_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_basemul_acc_montgomery_cached": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_matvec_mul": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_polyvec_mulcache_compute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_indcpa_dec": {
+            "bytes": 6208,
+            "kind": "static"
+          },
+          "pqqual_polyvec_reduce": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_check_pk": {
+            "bytes": 3648,
+            "kind": "static"
+          },
+          "pqqual_polyvec_add": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_polyvec_tomont": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_cbd2": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_shake128_init": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_shake128_release": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_init": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_release": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600_extract_bytes": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_keccakf1600x4_extract_bytes_c": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600_xor_bytes": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "mlk_keccakf1600x4_xor_bytes_c": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600x4_extract_bytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600x4_xor_bytes": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600_permute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_keccak_absorb_once": {
+            "bytes": 48,
+            "kind": "static"
+          },
+          "pqqual_shake128_absorb_once": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_keccak_squeezeblocks": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_shake128_squeezeblocks": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_rej_uniform": {
+            "bytes": 784,
+            "kind": "static"
+          },
+          "mlk_keccak_squeeze_once": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_shake256": {
+            "bytes": 272,
+            "kind": "static"
+          },
+          "pqqual_poly_getnoise_eta1_4x": {
+            "bytes": 832,
+            "kind": "static"
+          },
+          "mlk_keypair_getnoise_eta1": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_poly_getnoise_eta2": {
+            "bytes": 208,
+            "kind": "static"
+          },
+          "mlk_enc_getnoise_eta1_eta2": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_sha3_256": {
+            "bytes": 224,
+            "kind": "static"
+          },
+          "pqqual_check_sk": {
+            "bytes": 80,
+            "kind": "static"
+          },
+          "pqqual_sha3_512": {
+            "bytes": 224,
+            "kind": "static"
+          },
+          "pqqual_keccakf1600x4_permute": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "mlk_keccak_absorb_once_x4": {
+            "bytes": 48,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_absorb_once": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "mlk_shake256x4_absorb_once": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "mlk_keccak_squeezeblocks_x4": {
+            "bytes": 48,
+            "kind": "static"
+          },
+          "pqqual_shake128x4_squeezeblocks": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_poly_rej_uniform_x4": {
+            "bytes": 2944,
+            "kind": "static"
+          },
+          "pqqual_gen_matrix": {
+            "bytes": 320,
+            "kind": "static"
+          },
+          "pqqual_indcpa_keypair_derand": {
+            "bytes": 15536,
+            "kind": "static"
+          },
+          "pqqual_indcpa_enc": {
+            "bytes": 19056,
+            "kind": "static"
+          },
+          "pqqual_enc_derand": {
+            "bytes": 192,
+            "kind": "static"
+          },
+          "pqqual_enc": {
+            "bytes": 96,
+            "kind": "static"
+          },
+          "pqqual_dec": {
+            "bytes": 1792,
+            "kind": "static"
+          },
+          "mlk_check_pct": {
+            "bytes": 1680,
+            "kind": "static"
+          },
+          "pqqual_keypair_derand": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "pqqual_keypair": {
+            "bytes": 112,
+            "kind": "static"
+          },
+          "mlk_shake256x4_squeezeblocks": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "pqqual_shake256x4": {
+            "bytes": 1408,
+            "kind": "static"
+          }
+        },
+        "known_call_paths": {
+          "pqqual_enc": {
+            "known_frames_sum_bytes": 22992,
+            "path": [
+              [
+                "pqqual_enc",
+                96
+              ],
+              [
+                "pqqual_enc_derand",
+                192
+              ],
+              [
+                "pqqual_indcpa_enc",
+                19056
+              ],
+              [
+                "pqqual_gen_matrix",
+                320
+              ],
+              [
+                "pqqual_poly_rej_uniform_x4",
+                2944
+              ],
+              [
+                "pqqual_shake128x4_absorb_once",
+                32
+              ],
+              [
+                "mlk_keccak_absorb_once_x4",
+                48
+              ],
+              [
+                "pqqual_keccakf1600x4_permute",
+                16
+              ],
+              [
+                "pqqual_keccakf1600_permute",
+                16
+              ],
+              [
+                "mlk_keccakf1600_permute_c",
+                272
+              ]
+            ]
+          },
+          "pqqual_dec": {
+            "known_frames_sum_bytes": 24496,
+            "path": [
+              [
+                "pqqual_dec",
+                1792
+              ],
+              [
+                "pqqual_indcpa_enc",
+                19056
+              ],
+              [
+                "pqqual_gen_matrix",
+                320
+              ],
+              [
+                "pqqual_poly_rej_uniform_x4",
+                2944
+              ],
+              [
+                "pqqual_shake128x4_absorb_once",
+                32
+              ],
+              [
+                "mlk_keccak_absorb_once_x4",
+                48
+              ],
+              [
+                "pqqual_keccakf1600x4_permute",
+                16
+              ],
+              [
+                "pqqual_keccakf1600_permute",
+                16
+              ],
+              [
+                "mlk_keccakf1600_permute_c",
+                272
+              ]
+            ]
+          },
+          "pqqual_keypair": {
+            "known_frames_sum_bytes": 26320,
+            "path": [
+              [
+                "pqqual_keypair",
+                112
+              ],
+              [
+                "pqqual_keypair_derand",
+                32
+              ],
+              [
+                "mlk_check_pct",
+                1680
+              ],
+              [
+                "pqqual_dec",
+                1792
+              ],
+              [
+                "pqqual_indcpa_enc",
+                19056
+              ],
+              [
+                "pqqual_gen_matrix",
+                320
+              ],
+              [
+                "pqqual_poly_rej_uniform_x4",
+                2944
+              ],
+              [
+                "pqqual_shake128x4_absorb_once",
+                32
+              ],
+              [
+                "mlk_keccak_absorb_once_x4",
+                48
+              ],
+              [
+                "pqqual_keccakf1600x4_permute",
+                16
+              ],
+              [
+                "pqqual_keccakf1600_permute",
+                16
+              ],
+              [
+                "mlk_keccakf1600_permute_c",
+                272
+              ]
+            ]
+          }
+        }
+      },
+      "worker": {
+        "text": 2875,
+        "data": 6404,
+        "bss": 49544,
+        "frames": {
+          "pqqual::Worker::~Worker()": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "uint64_t {anonymous}::now_ms()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "void __static_initialization_and_destruction_0()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pqqual::Worker::submit(pqqual::Op, bool, uint64_t, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token&)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::enqueue_failed(pqqual::Token)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "pqqual::Buffers* pqqual::Worker::begin(pqqual::Token, uint64_t, pqqual::Op&)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::finish(pqqual::Token, int, uint64_t)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "bool pqqual::Worker::take(pqqual::Token, uint64_t, pqqual::Buffers&)": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::cancel()": {
+            "bytes": 0,
+            "kind": "static"
+          },
+          "void pqqual::Worker::expire(uint64_t)": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "void {anonymous}::run(void*)": {
+            "bytes": 80,
+            "kind": "static"
+          },
+          "int randombytes(uint8_t*, size_t)": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pq_qualification_probe()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pq_qualification_submit(pqqual::Op, bool, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token*)": {
+            "bytes": 80,
+            "kind": "static"
+          },
+          "void pq_qualification_cancel()": {
+            "bytes": 16,
+            "kind": "static"
+          },
+          "bool pq_qualification_take(pqqual::Token, pqqual::Buffers*)": {
+            "bytes": 32,
+            "kind": "static"
+          },
+          "cpp)": {
+            "bytes": 16,
+            "kind": "static"
+          }
+        }
+      },
+      "adapter": {
+        "text": 102,
+        "data": 0,
+        "bss": 0,
+        "frames": {
+          "int pqqual::native_execute(Op, Buffers&)": {
+            "bytes": 16,
+            "kind": "static"
+          }
+        }
+      },
+      "sdk_stacks": {
+        "COMPILER_STACK_CHECK_MODE_ALL": false,
+        "COMPILER_STACK_CHECK_MODE_NONE": true,
+        "COMPILER_STACK_CHECK_MODE_NORM": false,
+        "COMPILER_STACK_CHECK_MODE_STRONG": false,
+        "ESP_IPC_TASK_STACK_SIZE": 1024,
+        "ESP_MAIN_TASK_STACK_SIZE": 12288,
+        "ESP_MINIMAL_SHARED_STACK_SIZE": 2048,
+        "ESP_SYSTEM_EVENT_TASK_STACK_SIZE": 2304,
+        "ESP_SYSTEM_HW_STACK_GUARD": true,
+        "ESP_TIMER_TASK_STACK_SIZE": 3584,
+        "ESP_TLS_CUSTOM_STACK": false,
+        "FATFS_LFN_STACK": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_CANARY": true,
+        "FREERTOS_CHECK_STACKOVERFLOW_NONE": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_PTRVAL": false,
+        "FREERTOS_IDLE_TASK_STACKSIZE": 1536,
+        "FREERTOS_ISR_STACKSIZE": 1536,
+        "FREERTOS_TIMER_TASK_STACK_DEPTH": 2048,
+        "FREERTOS_WATCHPOINT_END_OF_STACK": false,
+        "LWIP_TCPIP_TASK_STACK_SIZE": 3072,
+        "NVS_BDL_STACK": false,
+        "PTHREAD_STACK_MIN": 768,
+        "PTHREAD_TASK_STACK_SIZE_DEFAULT": 3072
+      },
+      "cpu_mhz": 320,
+      "compiler_warnings": 0,
+      "cmake_warning_count": 5
+    }
+  },
+  "worker_stack_bytes": 49152,
+  "physical_hp_sram_bytes": 524288,
+  "application_linker_sram_bytes": 503744,
+  "mcu_runtime": {
+    "stack_high_water": null,
+    "heap_minimum": null,
+    "largest_free_block": null,
+    "keygen_us": null,
+    "encaps_us": null,
+    "decaps_us": null,
+    "watchdog": null,
+    "uart_latency": null,
+    "radio_latency": null,
+    "power": null,
+    "rf": null
+  },
+  "production_files_unchanged_sha256": {
+    "firmware/PROT_OS7_MAX7219/Blink.ino": "97aeec833416f4becbb27a8473cfea1a6c363cf01741c1cb35c92dd1b056a43e",
+    "firmware/PROT_OS7_MAX7219/BlinkTiming.h": "9b926c9c1b5bd76d56a9820582df6ed8ed1056c49ebdc3a3e893296f35e872d6",
+    "firmware/PROT_OS7_MAX7219/ConfigStore.h": "cae7e6aee8f0ee4aab537adfd0d77fd15b56d98cd3400c08d0836eb8801a4b66",
+    "firmware/PROT_OS7_MAX7219/Configuration.h": "3698eb872d6fab003a5aa57d8fef14a49ae038d0c6830f5788cf6b9e0bd720c3",
+    "firmware/PROT_OS7_MAX7219/Control.ino": "f7209abff568af72d4f971e9f971f6fd72a98969b8cff7fd1197ab5338a9efe9",
+    "firmware/PROT_OS7_MAX7219/FFT.ino": "0df396c132f04cda95ee89217c950b0e0437d1b1b0144256ebd3ad0b2fc413ea",
+    "firmware/PROT_OS7_MAX7219/FaceRenderer.h": "f03c60a5bdcd82d5e6d4ab3dcbbb9493417b73c304994ad43eb1e217c33e5eaa",
+    "firmware/PROT_OS7_MAX7219/Glitch.ino": "3200905deff056bf4d572b1adb500e7968c222b7ee5eb6d1a9989062763a0432",
+    "firmware/PROT_OS7_MAX7219/Icons.h": "b977dbde17338799f8cdf658e13e08c91e20d7a67e68f255ac0c24f60e5bb645",
+    "firmware/PROT_OS7_MAX7219/Microphone.ino": "bfaa080310d805759d921830503af8a92e0c9fc38c10b281a02f69f3e2831cd1",
+    "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino": "3c01c169e58c98a0c110023b0bd4e052af1fc58ff0f4084c95f98363c366f9e3",
+    "firmware/PROT_OS7_MAX7219/PawLink.ino": "3ff336f78b7c06f03fe1464a252cc950cb7d4bfd8018ef929d977125db7406dd",
+    "firmware/PROT_OS7_MAX7219/SensorHardware.ino": "a7094ae3dfdfbefea60682c0ae905ca1a995042a34602fa2f02d1b1c1e1417a2",
+    "firmware/PROT_OS7_MAX7219/Settings.h": "30b6425ee2b80efaa68a513879b8712b390e26a3947c31bec1ebfd07d9a940a2",
+    "firmware/PROT_OS7_MAX7219/UartCryptoConfig.h": "d6553938bdca2198a70f693de0d7d9edbb0211c0773cb387bf82544ae6398423",
+    "firmware/PROT_OS7_MAX7219/UartCryptoSymbols.h": "4228b8d4687586db0b9dc03058e278d7d9756e06cf32c62b85542c0539d44cbf",
+    "firmware/PROT_OS7_MAX7219/UsbControl.ino": "3f9b0e78eeab99acf0d2419d4844b9814bd8e7081433c7cbe86f7c5fdebfcb84",
+    "firmware/PROT_OS7_MAX7219/VisorConnector.ino": "2dbc862efea9c1f80b51365638788af736874a1789e597eaa8ebabffb29491ca",
+    "firmware/PROT_OS7_MAX7219/mbedtls/build_info.h": "a9ff45f478969aae4b4f610634a02ff02355189b15beb25777ec1cf2f87cd749",
+    "firmware/PROT_OS7_MAX7219/mbedtls/check_config.h": "66696df9cc3f7cbbe84786046937242b18140963b94c34347404f7827c428efa",
+    "firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_legacy_crypto.h": "01e7322cbfac74ac36abb30e4c904b63c8c9492d8675d324281fbc5c04dcbc90",
+    "firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_ssl.h": "2d37a7552566e9fbd8a5a8b3e6cf6d4e21125a5e48a7e24ca30f3c683d141871",
+    "firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_x509.h": "92909d91c59340f13eb2b447cf44e0075a0ee742a18f22fb7843f6a18c5af5dc",
+    "firmware/PROT_OS7_MAX7219/mbedtls/error.h": "ddcb14c1bf9d6fd2f2f1d2eb62117ce9bf05a0f9430c6931d7555b23f9ed3ddb",
+    "firmware/PROT_OS7_MAX7219/mbedtls/md.h": "89c41b36251ab26facdedc7b379ad5236af8f941cae58941be7f6de690fecd4e",
+    "firmware/PROT_OS7_MAX7219/mbedtls/md5.h": "21893a1ffcb6d65057178a45977774ed249387ace6d733f32434d8546dd827f7",
+    "firmware/PROT_OS7_MAX7219/mbedtls/platform.h": "5f9e6ab749a7d9ddb24c10cfdec53fd1436ca36c7507fc2d543f43afedcc1bfb",
+    "firmware/PROT_OS7_MAX7219/mbedtls/platform_util.h": "1237d849e96bc15b479e8086160e4568c1de86563bb51c60eead45b99ad1b4ac",
+    "firmware/PROT_OS7_MAX7219/mbedtls/private_access.h": "c897213b3e534e8d5db83629177f9c01d90461ed6fea57906836262dba87056d",
+    "firmware/PROT_OS7_MAX7219/mbedtls/ripemd160.h": "138b3cd792a3301fb869e5303fe0dd317743b2009b7a8f8423a51511444e23dc",
+    "firmware/PROT_OS7_MAX7219/mbedtls/sha1.h": "e644d96d46d44da66e160eb69ad637f13caef1d192e3361616833b342c6a859b",
+    "firmware/PROT_OS7_MAX7219/mbedtls/sha256.h": "a2ee050ca15b7598a8d227cac0e0ec9fd6c38615b817737a8007e90b3feab0d9",
+    "firmware/PROT_OS7_MAX7219/mbedtls/sha3.h": "8cc0b3928976871e2a4847d0f6bf02da4663a94cc0779afdec3438a0c76a5499",
+    "firmware/PROT_OS7_MAX7219/mbedtls/sha512.h": "0f77abf1b4dfc18b865725e8a221d5d9279899c274e993005359be182b7574a2",
+    "firmware/PROT_OS7_MAX7219/mbedtls/threading.h": "5688b2bef81fa61b9d29bca9383931db26b7dcb8a96785dbc957b95e01292b72",
+    "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/HelmetProtocol.h": "ea50a65c4dae05a260bf579524de1a36b43b8e89f17daf80c10e161aed78614c",
+    "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/SecureZero.h": "ae3a03b1f006ac04e696f39c3a619cbe4a445f49f402159af34f10ebb11de39f",
+    "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/UartAuthentication.h": "58888964416fe559fecf33134877d85ded1dd25734cc04d8402b667833bd942e",
+    "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp": "f0875c557ae43cb76ebf5036ae45a10232870515681c51383d6e8d1dbae1b64e",
+    "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.h": "bb7c037a2757a034803f57ab9ba3fb97751f6545c05868e5fe85491d75e79dd8",
+    "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/README.md": "85901dd961718bbb75382e33584dba841b64d72277bd75eb077c855633c1655a",
+    "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/license.txt": "c858ddb9ca5ee0ce7ae7a4a59910936b86540f3672056e268d77180715bbec29",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/LICENSE": "9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/UPSTREAM.json": "295d29fe5395206b9fb5188931289059f537df802a41a4596e4d3232b261bf3a",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/UartMac.h": "7ea66fa6cc3b8c2063bb5527561a4467ddc119568f7bff451dd0992614cc102e",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/alignment.h": "d18086bed998b4cf2a4b99e423f39b274287324f206d8aeb9da31e15947128bd",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/common.h": "60cd8ae44ed2537b178643f0426af9252f47e7211ca579498914324792613203",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/md.c": "bc0f63b36d66226cb47083324a5bc18b5fbbbd4ecb68d69d181ede33b3ffc824",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/md.inc": "5ba79d51ff85951cb4001a22b2428568e4bc1072b367222808f3eac1ad91884d",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/md_wrap.h": "383077e483c60893f8256db246a7bd1fb1fc30bc7dd8e15133d2cb16b9dc5c82",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.c": "0bc5d7f87bb4d376f61dd5c53b028c3208696179b5d5d3ac3661828dcbbefbce",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.inc": "5e195c161ebf03afc4640fb0c8f8aa1a962390fc447a02cd91f7545b5d224a4b",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.c": "31d3e35d53dc6a07bb50ef5190872da412a4b7013f48740a51c93f1b38e370ff",
+    "firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.inc": "4f928e5dcc0a2baf08634fc759309a3dbda52bb69ead14ff6c2dccafd8267453",
+    "firmware/esp32/CMakeLists.txt": "35810e522bf31728b040da085b6384a280bd594c325b2b8c66c3c6b1af033a81",
+    "firmware/esp32/README.md": "b6e0f1ac9dfc44171a5d384e8aca37c849f7adf9ad12c46e92ccd1a810778470",
+    "firmware/esp32/platformio.ini": "c77569b1b6347062db1b74c2b8e9490f146bef161b7b02ff91709b17b973ddd7",
+    "firmware/esp32/sdkconfig.defaults": "771dbd80e6cf3322eb0c4c866bad5c1a681c69fec187dbd775d9c8e61f1f2f0e",
+    "firmware/esp32/sdkconfig.defaults.paw": "b3d1d479eec785aed6742f04ae8c90ef82a3c8b313b4cd32eff800f563112b1a",
+    "firmware/esp32/src/ActionQueue.h": "a45f49f7254c9cb3f2c8255d54b69bcfeee5bfe09986dcc3de67bb9a7c78c901",
+    "firmware/esp32/src/CMakeLists.txt": "0868617fc166520d201edaa79df7493e486115c90eadd63e5acadd7b35817bd9",
+    "firmware/esp32/src/DeviceConfig.h": "27bcb4e7c8d0a2f646155f0640ce4dfec3a304415512ad8480139dfc06f7eaab",
+    "firmware/esp32/src/EspNowTransport.cpp": "9a7dbb5dedc9ba88b4b09c373274daf2fafdc065de4c05aba5a9f8fa1ede9e73",
+    "firmware/esp32/src/EspNowTransport.h": "b871f957d42b0c8cb3b264a53b27c738c2ea98147932239deeb313fb3bcc3b05",
+    "firmware/esp32/src/IdentityRecovery.cpp": "88c0b375c9863db429b83a8f3bbe68c13f51a28d043fe45e9dae92ab7b1eda79",
+    "firmware/esp32/src/IdentityRecovery.h": "f25cabc0f8c7b3bd6adbaf8fa4cd5936cfe7866a298d50dd11042a9e0e3563a4",
+    "firmware/esp32/src/Kconfig.projbuild": "7bd3dc3214e8ac8256adfd7e3c7e8aa7ef0d75fe177902254156ce4f771cc2a0",
+    "firmware/esp32/src/PairingIndicator.cpp": "f2682420d05772db5b6dc26e94310a80f1f5651a88a999c14dcce93afd030a21",
+    "firmware/esp32/src/PairingIndicator.h": "874ad9445f711ad7e006a29e2dd82c4e49eb6bdc6eef3d91ba45c8dac8dd0eeb",
+    "firmware/esp32/src/ReplayWindow.h": "f65b91f0eeaee5ea58a3c36021f2cb8a4abc3f7a38e8b55b6e34fb62023d5e51",
+    "firmware/esp32/src/SecureSession.cpp": "033b49c8f2990183284d077a970ae01c421f11584d3ce992750695ec526f259b",
+    "firmware/esp32/src/SecureSession.h": "97f493709c0cf3a7224806460b76b8515be2bd8249a09673d2c1ccd392f63650",
+    "firmware/esp32/src/SecureStorage.cpp": "0e1595c01ecf10ab7d53ce7725660d8f425c814c4ce8367851bcc9c41e6a8d48",
+    "firmware/esp32/src/SecureStorage.h": "1b2295eda187109dca0d0d1eec38c3830b88c4d786a82fef92e2270554d8190d",
+    "firmware/esp32/src/SecurityState.h": "4e4e0abbae891e9ef7e3d1b0b3b74857db09d1deddba6c1f0d4937c671d3ea4c",
+    "firmware/esp32/src/SensorMath.h": "dd3bae77e815820624a5b3a31429eea09d0aac6bfa9e0b347aab873c2c6e8232",
+    "firmware/esp32/src/SessionHandshake.cpp": "92e6176172a3dd71cacee2602c31cc8b522f340c2d4f4d1cafb67d044f63d514",
+    "firmware/esp32/src/SessionHandshake.h": "83ab45b3c4dbba43ba0cce0028db2713426666e0b08814deae2bf5d96b8413c4",
+    "firmware/esp32/src/WearerIO.cpp": "c208feb9f88b5feef885103a207bb11881493bdf4d205f72e6cbaab48f00a02e",
+    "firmware/esp32/src/WearerIO.h": "5fc534346fcb3307f1e67f5fc981debc3190fbcd74357294327d10f7620d3caa",
+    "firmware/esp32/src/WirelessConfig.h": "e8c6c3a8525326c6684c5c8ed4ae666108e9ae105b77e792661dc329d4e9300f",
+    "firmware/esp32/src/WirelessCrypto.cpp": "459cb9af1da7af07044c99d44dc5a17d3705bc7d8f29120bd28a15abb676fd40",
+    "firmware/esp32/src/WirelessCrypto.h": "a40b479a357229a71509228ceaf200e382e4d3fbf63f15e73c34cd7d024466f8",
+    "firmware/esp32/src/WirelessLink.cpp": "12dce5a37e04baec0487ffcc5aa42bb944083fe5912c27cf6bf6f6ae1196da83",
+    "firmware/esp32/src/WirelessLink.h": "c681eb877dfdae9812be416d787f6fa0c4706bd8eedc789fa01392abd236d1ed",
+    "firmware/esp32/src/WirelessPairing.cpp": "3035ce90dfebbc50dad565f9f863d51d287109dcce41ddf2801b70737e006ba3",
+    "firmware/esp32/src/WirelessPairing.h": "66e944cd2e68cba0e7845ac40eb4c2cf817c6ba45a0b3d36113b20db0fe6a859",
+    "firmware/esp32/src/WirelessSession.cpp": "8737fed192794e5acf59ce6131a09a137f01540b880fa182665934b8217a8466",
+    "firmware/esp32/src/WirelessSession.h": "4627bedc5cfd65569e43b8c23c6c3df3c4bfa4cbcf6d0674e6cdb8ffe622a07f",
+    "firmware/esp32/src/WirelessTransport.h": "c8997242b6c865a28f5d26b943cc18b478d51a9360c4c9a0bc5104d1b2cdcf65",
+    "firmware/esp32/src/main.cpp": "0a50d3bc00780171f43aaa776f40f669c3f8e4118351f1043cd799af758c8a49",
+    "toolchain.lock.json": "ce29ca31381003e3ec1a45f38c431482bae69956f3ae870f5112e2b5551dd138"
+  },
+  "qualification_source_sha256": {
+    "scripts/check-s31-preflight.py": "5a84972cace56da3a6dc1f13642b6d0222f9d9ab4a741fa98235f794bbe7d688",
+    "scripts/tests/s31-preflight-pins.json": "5b4e1fc7cb78b6e4baf78abd25d66a8cba59ce55a277b9c6a012d7a3c11a3e05",
+    "scripts/tests/pq-worker/arena_config.h": "260a060b7e73d811d1cb68825bde9da810224123a84b43811ba9fb1226c26f74",
+    "scripts/tests/pq-worker/arena_shim.c": "5ce0879f5a88d638abebb0f53574dc1dd64859e388efbd40042999dc601535af",
+    "scripts/tests/pq-worker/freertos_probe.cpp": "7d29dbc1af015130c856afeab6069e65b647acf6a7cc3626e57a223d05734b02",
+    "scripts/tests/pq-worker/guarded_stack.c": "470a7e924b1fd61aa619d74bdc2898eecbd203c305719d7c08244f3ede289c90",
+    "scripts/tests/pq-worker/kem.cpp": "6bd1c5eca7846a360cafe969b4731ac6456982e8881cdbe2bbe291dcf3ad35b5",
+    "scripts/tests/pq-worker/native_config.h": "d228661e1978503ea61a30d04508a8654360c1871e1c01800a0e21df79632f59",
+    "scripts/tests/pq-worker/native_shim.c": "2940a29280fcb7361f702fdec3df5cde0c6d8c9f32df6604717a0a0a8806b802",
+    "scripts/tests/pq-worker/primitive_stress.c": "bcbfb26be8633926e5a94720dc06d0a6286f6707429be86f4058f4420c813e22",
+    "scripts/tests/pq-worker/stress.cpp": "394eed5c44bb7739f48885c6b8868316eca61d350fb57dfaf876fd3dcbd22ee8",
+    "scripts/tests/pq-worker/wolf_settings.h": "7b2b72f63c80f20e4b75599ed77648145279dba845e48d6096b227f88dd332e2",
+    "scripts/tests/pq-worker/wolf_shim.c": "5dbbbaa2cc5aff6cecfe3ecd599aa0fc6917fc36b573d0430b5c56fbe10887ae",
+    "scripts/tests/pq-worker/worker.hpp": "b4c21661d6733b4bea95f5884cb6851768101fcd22f1cb1d3ea82d1ed5b1383a"
+  },
+  "separately_observed_validation": {
+    "note": "These commands were run separately during this assessment; check-s31-preflight.py does not itself execute them. Worker/allocator host binaries were previously built with ASan/UBSan from unchanged pinned qualification sources.",
+    "commands": [
+      "bash scripts/test-wireless.sh",
+      "python3 scripts/check-mlkem-preflight.py",
+      "check-mlkem-preflight.vectors(build/pq-worker/acvp-pct-sanitized)",
+      "build/pq-worker/stress",
+      "build/pq-worker/arena-sanitizer-test",
+      "CXX=clang++ python3 scripts/analyze-wireless.py",
+      "python3 scripts/tests/test-tools.py"
+    ],
+    "counts": {
+      "nist_mlkem1024": 145,
+      "nist_mlkem1024_pct": 145,
+      "upstream_functional_iterations": 1000,
+      "v3_protocol_transitions": 1000000,
+      "aes_gcm_records": 1000000,
+      "corruption_cases": 52000,
+      "storage_fault_cases": 135983,
+      "malformed_uart_streams": 100000,
+      "worker_transitions": 1000000,
+      "worker_real_kem_operations": 2571,
+      "worker_admission_rejects": 12000,
+      "allocation_faults": 77,
+      "allocator_roundtrips": 1000,
+      "modified_ciphertext_rejections": 1000,
+      "wireless_analyzed_modules": 10,
+      "tool_test_methods": 12
+    },
+    "log_sha256": {
+      "v3-regression.log": "1acab8bc162b3eba43e0876c89d2b8db1640fda5534f2c5c204a82b61b6340b6",
+      "mlkem-regression.log": "e561d9c87240d83704405cad03f69452ef1f563e165af1b1c9889be595a71e89",
+      "pct-validation.log": "38eb85d91ea8e832530de4eae21696fcbc19d99fe70200ddc9cf2df2cde31b0d",
+      "worker-stress.log": "d6c40a31445e916f861388c320b42f71831e21c76ae5ddb55470b581f5b55588",
+      "allocation-stress.log": "dc77d8c75787251e2b22d719ef9e07a05fc95f1a6a477db3cb3c9bd26a924c09",
+      "v3-analysis.log": "cbdc74ceaef45ea04ea495454ed3c09ebfa9d7fd75978b1ce937260d73826de4",
+      "tool-tests.log": "2048eef5fc5c0ba1b67b94e1921c2369bda456a8f5840bc201d6ec8e1ab116f5"
+    },
+    "worker_metrics": {
+      "real_worker_operations": 2571,
+      "completed": 1427,
+      "cancelled_or_expired": 1287,
+      "admission_rejects": 12000,
+      "transitions": 1000000,
+      "threaded_operations": 20,
+      "simulated_uart_ticks": 17585,
+      "linux_service_max_gap_ms": 3.524825,
+      "host_mean_ms": [
+        0.341266,
+        0.110571,
+        0.163168
+      ],
+      "host_max_ms": [
+        0.764429,
+        0.431577,
+        0.81308
+      ]
+    },
+    "legacy_c3_build": {
+      "command": "python3 scripts/build-esp32.py",
+      "state": "success",
+      "warnings": 0,
+      "resolved": {
+        "platformio": "PlatformIO Core, version 6.1.19",
+        "esp_idf": "6.1.0",
+        "mbedtls": "4.1.0"
+      },
+      "artifacts": {
+        "build/esp32/helmet/firmware.bin": "722b5b80b9ce610805e625ba00d454a0d152aa50c009f2688c2bd05cdf2d0415",
+        "build/esp32/helmet/firmware.elf": "d14e83d13127bceab46028393c71bcdbd381a632306171a944e283ffbad2ba2e",
+        "build/esp32/helmet/bootloader.bin": "23965ec0c2c0c810a2f716a90f03b6b9865a22a4bc2a2032a6641af6293d5ce7",
+        "build/esp32/helmet/partitions.bin": "5295e8c42d6fb5f95e4e8a185932c6191d27cfc5078322475347e40e71af815a",
+        "build/esp32/paw/firmware.bin": "56553750249270ad9ce107c3bda961123e3a9e4fb5fc8c7546fa24fc3a6ecafd",
+        "build/esp32/paw/firmware.elf": "869863ad7cb16794ffeb3c30d3ac71f816d23346e37a40d47387cd932bb46628",
+        "build/esp32/paw/bootloader.bin": "72341641f7102a5fb69541274aac4e40d1a205e10568474afbbc7d7f66e5d0a3",
+        "build/esp32/paw/partitions.bin": "5295e8c42d6fb5f95e4e8a185932c6191d27cfc5078322475347e40e71af815a"
+      }
+    }
+  }
+}

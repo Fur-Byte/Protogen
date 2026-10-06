@@ -1,0 +1,21 @@
+{
+  "purpose": "S31 public-preview research only; not a production SDK selection",
+  "esp_idf": "6.1.0",
+  "official_release_tag": "v6.1",
+  "official_release_commit": "fff9895c82d744c7237be8847347bdd1b07c6643",
+  "framework_package": "4.60100.0",
+  "compiler": "esp-15.2.0_20251204 / GCC 15.2.0",
+  "target": "esp32s31",
+  "official_supported_tag_minimum": "v6.1.1 (unpublished on 2026-10-06)",
+  "upstream": "https://github.com/espressif/esp-idf",
+  "license": "Apache-2.0 for these ESP-IDF source files; Wi-Fi archives have separate Espressif licensing",
+  "source_sha256": {
+    "tools/cmake/version.cmake": "09228291a5c5ee860c432c782a79bb2abd24e6989254d5d5614de7a8d822b747",
+    "tools/idf_py_actions/constants.py": "a8d755bcf76cc2cbec29330ebf2d4e8f133855899e27dbd3ce2b79b82ae6e03d",
+    "components/soc/esp32s31/include/soc/soc_caps.h": "6b85717b0b0e34c03b9a2c6a474415b8491b890ad5b2cc43891a1a35cfb4e814",
+    "components/esp_system/port/soc/esp32s31/system_internal.c": "9fbdc8c20080168c5e11e60e1bbbfece685fe7d8c5d8fa599870d8261735a709",
+    "components/esp_system/ld/esp32s31/ld.hp_mem_defs": "78cf82989175ef6c6a5ca3678872c0b68328520edd4618f3a5f63026083de8a6",
+    "components/esp_hw_support/port/esp32s31/cpu_region_protect.c": "9e1b389fd73c85aabf3f6111636a3a176d3cb2784df07986c8b4e803bf6b654d",
+    "components/bootloader_support/src/bootloader_mem.c": "58f69d35c70996252d0b020089b9d3b4a2ce93bece0fc6f2bf1d9ca05a64f38f"
+  }
+}
