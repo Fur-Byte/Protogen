@@ -1,11 +1,13 @@
-# ML-KEM-1024 crypto-worker qualification
+# Historical ESP32-C3 ML-KEM-1024 crypto-worker qualification
 
 > **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
 > for helmet and Paw; C3/v3 is retained as legacy development/regression.
 > Current production sources remain v3. Public S31 preview builds and a 48 KiB
 > ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
-> and its memory-protection implementation block the production migration/v4
-> phase. Physical S31 qualification is separately pending. See the
+> and its memory-protection implementation block production S31 integration.
+> The isolated [experimental v4 core](WIRELESS_V4_PROTOCOL.md) implements
+> host-tested hybrid P-256 + ML-KEM-1024 establishment and is never selected by
+> production builds. Physical S31 qualification is separately pending. See the
 > [S31 preflight](WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
 
 Date: 2026-10-06. Production baseline:

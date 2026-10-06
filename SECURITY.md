@@ -4,9 +4,21 @@
 > for helmet and Paw; C3/v3 is retained as legacy development/regression.
 > Current production sources remain v3. Public S31 preview builds and a 48 KiB
 > ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
-> and its memory-protection implementation block the production migration/v4
-> phase. Physical S31 qualification is separately pending. See the
+> and its memory-protection implementation block production S31 integration.
+> The isolated [experimental v4 core](docs/WIRELESS_V4_PROTOCOL.md) implements
+> host-tested hybrid P-256 + ML-KEM-1024 establishment and is never selected by
+> production builds. Physical S31 qualification is separately pending. See the
 > [S31 preflight](docs/WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
+
+The experimental v4 library is outside this active v3 trust boundary. Its
+[protocol specification](docs/WIRELESS_V4_PROTOCOL.md) documents conditional
+hybrid forward secrecy, SAS limitations and the standards-based combiner.
+[Hardware gates](docs/WIRELESS_V4_HARDWARE_GATES.md) prohibit platform activation
+until supported SDK hardening, storage, provisioning and real-board checks pass.
+Review v4 changes for dual-contribution ONLINE gates, canonical transcript
+coverage, stale worker/cancellation isolation, fragment bounds, replay/nonce
+safety and secret cleanup. The storage self-HMAC is corruption detection; it
+does not authenticate storage against an attacker able to replace its PSK.
 
 The Teensy 4.0 owns rendering and behavior. The helmet ESP32 authenticates and
 validates wireless input before forwarding bounded COBS/CRC16 frames over the

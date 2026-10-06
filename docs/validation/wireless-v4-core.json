@@ -1,0 +1,1817 @@
+{
+  "schema_version": 1,
+  "assessment_date_utc": "2026-10-06",
+  "scope": "EXPERIMENTAL / HARDWARE-INDEPENDENT / NOT ACTIVE PRODUCTION FIRMWARE",
+  "statuses": {
+    "protocol_v4_core_software": "COMPLETE",
+    "s31_production_integration": "BLOCKED ON OFFICIALLY SUPPORTED SDK",
+    "physical_hardware_qualification": "PENDING"
+  },
+  "file_manifest": [
+    {
+      "path": "README.md",
+      "change": "modified",
+      "sha256": "bc4c09621ea415c682329812a65a6433517f76fee62781c9a3737b9042a9cb8f"
+    },
+    {
+      "path": "SECURITY.md",
+      "change": "modified",
+      "sha256": "01849eca081f0fe7e60098f3bc15689fa9dc7ddcc843e7f47d114c0fe1401535"
+    },
+    {
+      "path": "docs/ENGINEERING_PLAN.md",
+      "change": "modified",
+      "sha256": "86dc5474cccae483cc466191eacf515f048f95aca7dff0bb5ed9cb72c7908657"
+    },
+    {
+      "path": "docs/PRODUCTION_PROVISIONING.md",
+      "change": "modified",
+      "sha256": "d6c5d8f21d513b6a877c91984f22aecb514ee7d213e50b0280bd7e34966eb284"
+    },
+    {
+      "path": "docs/WIRELESS_IMPLEMENTATION.md",
+      "change": "modified",
+      "sha256": "4ce422d44fbdb114a181dab94e45d5b581fc81349845bd3ead5d35c9d5e67fbf"
+    },
+    {
+      "path": "docs/WIRELESS_PQ_WORKER_QUALIFICATION.md",
+      "change": "modified",
+      "sha256": "2257ff9d01d6b3d511fcc64bb55da5ae61745e77e5369dfab704beeacabf36e7"
+    },
+    {
+      "path": "docs/WIRELESS_PROTOCOL.md",
+      "change": "modified",
+      "sha256": "98c6bd843040906207230ac33232c4274b89f7a758392fe7dcb41442c45d7d34"
+    },
+    {
+      "path": "docs/WIRELESS_S31_PREFLIGHT.md",
+      "change": "modified",
+      "sha256": "f842107931711552b145b91517487e90d259d08c745f5ad4cc7e9b17425e1c6d"
+    },
+    {
+      "path": "docs/WIRELESS_V4_HARDWARE_GATES.md",
+      "change": "created",
+      "sha256": "23eca6d8fd7b07914fd1af9f0807e055b6903a862de654e7129c323336ecf60c"
+    },
+    {
+      "path": "docs/WIRELESS_V4_IMPLEMENTATION.md",
+      "change": "created",
+      "sha256": "f286007d903030a908276b9f02ea2573e098de7ee9f95145fefbb18b26b87b53"
+    },
+    {
+      "path": "docs/WIRELESS_V4_PREFLIGHT.md",
+      "change": "modified",
+      "sha256": "d005e1d34288f761b4adf6b2e631d532f10725f90d1690e0a497bb5efe711eef"
+    },
+    {
+      "path": "docs/WIRELESS_V4_PROTOCOL.md",
+      "change": "created",
+      "sha256": "51557fa15d56079b7dc4e441174e63276b33ae691a44c1e493a4b6bf053e5286"
+    },
+    {
+      "path": "docs/WIRELESS_V4_VALIDATION.md",
+      "change": "created",
+      "sha256": "37300dfe89becab969e5fac2214f9424b4fad6bc925e152afef9bfff73432b78"
+    },
+    {
+      "path": "docs/WIRELESS_VALIDATION.md",
+      "change": "modified",
+      "sha256": "16ac9cefa8cd05f3093e150c489d5fe2873ec0128200ef4169e54ccf0c5691cf"
+    },
+    {
+      "path": "docs/validation/wireless-v4-core.json",
+      "change": "created",
+      "sha256": null
+    },
+    {
+      "path": "firmware/esp32/README.md",
+      "change": "modified",
+      "sha256": "50e8b41a77bc1b65ebdb06163f43b1dc033eb69c56ffb2a47fdb86e5637e1e01"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Core.cpp",
+      "change": "created",
+      "sha256": "b491190da10e9d05726ee115dd9e80644d3ec005f920a449b85c382bb2d05c9d"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Core.hpp",
+      "change": "created",
+      "sha256": "5f9ded984bbd3b07d39612bcc6500e6fc64e9e2ea447e9bcff568587e5c95fd7"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Derivation.cpp",
+      "change": "created",
+      "sha256": "984d110f74089e9e24ba70dfaaa8ee8024ee45feebbbe626c45c268e3502da19"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Derivation.hpp",
+      "change": "created",
+      "sha256": "69a69a5ca4d3de7364ba2ebd5ea90fe2869c268f1d054e75c0c05a8b25a1075d"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Fragments.cpp",
+      "change": "created",
+      "sha256": "ee43d8df8a7b9b2b4a1f782b783eefe0a779b742a348c4662b5c411f48410444"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Fragments.hpp",
+      "change": "created",
+      "sha256": "0b648320d687d18854e17aaaa35bae56c357584274fe28159edc56297ce87a2a"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/HostCrypto.cpp",
+      "change": "created",
+      "sha256": "89d4fe657908ea773d64fb427547c401f06df4d2c8446eea48cf377bc3eb5826"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/HostCrypto.hpp",
+      "change": "created",
+      "sha256": "857bd1518503d033ed5f3b036e301a1083747f8c9e2737241aaa1780cb9470e5"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Interfaces.hpp",
+      "change": "created",
+      "sha256": "4e5051f367e35ede1334c65e398636c592e9a66f99abb0bef56af6674830e55e"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Native.c",
+      "change": "created",
+      "sha256": "f3429722831083dee1a98095bc3cc32b244a72f4e167be35695724dfdc2ca25c"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Native.h",
+      "change": "created",
+      "sha256": "848c6ad91a006ead5e8d8e00103479feec4f5b05e2e450bf7739126075500392"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/NativeConfig.h",
+      "change": "created",
+      "sha256": "ea2951536039458964bf4010e93f201d1707bf17a36ed943099b1133052e3924"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/README.md",
+      "change": "created",
+      "sha256": "5aff99a11e91f01fcf88df8659541599f3b088998bfaef3a48a19e52231598cd"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/S31Adapter.hpp",
+      "change": "created",
+      "sha256": "dd189e9be71b27f8c540589f27c06bf03b9875eb6182efa92bacc662223dd732"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Storage.cpp",
+      "change": "created",
+      "sha256": "679be9748f8d3753913029cf153e13c8b816e0c4f9aad6dead91601d1d944173"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Storage.hpp",
+      "change": "created",
+      "sha256": "d2512a6e8c9605ba1a02f6e13b429d77b23be440d93d6c4f64292d79ccffe13f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Traffic.cpp",
+      "change": "created",
+      "sha256": "625cb2cd23bd7c9c6dd5ec826ec34892b6a68f631701e51d7506f21344fb604c"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Traffic.hpp",
+      "change": "created",
+      "sha256": "25400ac2fcd5c427abe97ea0e5771ea46f9025d95ccc430812bf636006bffa5f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Worker.cpp",
+      "change": "created",
+      "sha256": "7220977e3d1aa0d435973d6000d40c9695706659eb9b66efd013fa2b22d2e0d8"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/Worker.hpp",
+      "change": "created",
+      "sha256": "de12a93c4ed0bf479797157b82c90f6ed7c7d8087da19ae3fa8173a0dd6afb5f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/LICENSE",
+      "change": "created",
+      "sha256": "1c730e3c2cd4f70e058519ef3e910d8bdd4ed822ae2ce689f3c63d32fc52314b"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/PROVENANCE.json",
+      "change": "created",
+      "sha256": "5231d15a507a130ee8030c272f961079ed90ea3ba89ac2f037089720e9bf9514"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/mlkem_native.c",
+      "change": "created",
+      "sha256": "e533497ae0c31d5023d00cdb25ae5f8646727eee53323fba4107818231ad8956"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/mlkem_native.h",
+      "change": "created",
+      "sha256": "3546f0f7318fc08d007097add98a77d48a8c1f670e0d8db2c5222e1acaa88ce1"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/mlkem_native_config.h",
+      "change": "created",
+      "sha256": "710b09e8003d19d13167af89575499ca2790668e87b0dce7cdc6c590c32daafa"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/cbmc.h",
+      "change": "created",
+      "sha256": "180bf239c5d7b84fa451727546d4fbc9595008382cfc86d4ae5791e0e5a6b910"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/common.h",
+      "change": "created",
+      "sha256": "833c4d8e52822d5a209fdc72ef655f6eb7801fd712c515805d2c5360e58bdaab"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c",
+      "change": "created",
+      "sha256": "a13d44b3a96962ae982722fba8b1ff6744f16e7b3b760883edfe762061cb26b5"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.h",
+      "change": "created",
+      "sha256": "746ce7e55d088f75220ca0a5b08fc515c033167cbcacfd74be127e14f1f5e128"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/context.h",
+      "change": "created",
+      "sha256": "e6788b29f4883f57752fd8327a80dfc978eb21ad72a0055cbbaaa7b433637edf"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/debug.c",
+      "change": "created",
+      "sha256": "263ac19f2b2bf5c784cbf04fd4c968762abedc6961d44f507c8953b52a38827e"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/debug.h",
+      "change": "created",
+      "sha256": "d1fab329b439fc6dd9c4234f3fe053e74b000d416e0f4e4464542813667f3750"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c",
+      "change": "created",
+      "sha256": "fb0654c0b33c45c929fdb2af2287807a7b8f312ac7f3baa3ddfaef0c030ef0b2"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.h",
+      "change": "created",
+      "sha256": "a5efcf58893aa589dfe25a1069e11ab58408b2ad14e389014a785205300468a1"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c",
+      "change": "created",
+      "sha256": "2e481ccbafc00765b210725c8e454f2b4dc622844eccf6a0c1e025657fcb5fe8"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.h",
+      "change": "created",
+      "sha256": "c8d2e50f7ccce19822030786a1a99f0892db63ebe5b020fa91a5383c9700dd22"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c",
+      "change": "created",
+      "sha256": "461c278b0abb9fde098ee6b34a47056445573cb7aa5c4362d59e35041d0997e5"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.h",
+      "change": "created",
+      "sha256": "88c06d4c546f46920a65001bcfad8cabb6173fb01ae071e02412c46043bdf54f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c",
+      "change": "created",
+      "sha256": "526505cbf09ab80e9644563eb808373c502aad2270a0b53c8370510ea4c0b70d"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.h",
+      "change": "created",
+      "sha256": "ac6f47c959fdc97aa1882bca5f78ecfcee595ff21769f937866f2c1d1bf29109"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c",
+      "change": "created",
+      "sha256": "3922156826521429eb250ccb3d54d7beacce14adce26bb3be6d1ef7864342dd3"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.h",
+      "change": "created",
+      "sha256": "ba22bd6de66141138329aaf53aedc73350c4ceaa241a341d0e5136c5df493dbd"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/params.h",
+      "change": "created",
+      "sha256": "450fe3e0e50496921920473ae4321660f178c23d51f1453f3c537ee63c4158cb"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c",
+      "change": "created",
+      "sha256": "f0e0643a2c3743181b7927a9d47af0930ce7870a9d79671f64e6089fe028982e"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.h",
+      "change": "created",
+      "sha256": "86224c6d1e7ec5a4c0dcd829ae90c0cb43b4855d84dd719973d47e71b8e962d4"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c",
+      "change": "created",
+      "sha256": "56130249963b5b62e97dc6413adeed21f4e542da6531e34cf640baca161fa5ff"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.h",
+      "change": "created",
+      "sha256": "839852fd9c8d155f37a7a07dc1116c2ea18fade754b1d882f73c4affef5e62d3"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/randombytes.h",
+      "change": "created",
+      "sha256": "137eb6e5854b8e58c2caec6eea86530c8e7495706f6f5b3e007e25a9875e164f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c",
+      "change": "created",
+      "sha256": "9263037c401d0cc4130a6f0dba76299d170b498c330f5d5c32b5ae5921bacd5f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.h",
+      "change": "created",
+      "sha256": "d25df90afc96a02a794dcb737236b2cb42cbd2db411ccaf274cf5ea3bf5e3c87"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/symmetric.h",
+      "change": "created",
+      "sha256": "168d0ec3bf50bd45cb0a103d7984e9ccf52f78697718b7e85efdf1beda7abc95"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sys.h",
+      "change": "created",
+      "sha256": "0ead27bb8c8879b62b29b9bb86c36aeaac270598d42ee2f2258a478eed8efa5c"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/verify.c",
+      "change": "created",
+      "sha256": "f8f89f1b8c8e5811ce134c0d90fb7828027336afeed231dc3ccb7ee6b73b9335"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/verify.h",
+      "change": "created",
+      "sha256": "76fd0af32577f9118d1ea90a66ff77e18cdf99d08dcf1c9df137833041e8492f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/zetas.inc",
+      "change": "created",
+      "sha256": "303d1abccc4757d49a5c8df5f88080fefef617b7360056db5311bd94354096d4"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/acvp/acvp_mlkem.c",
+      "change": "created",
+      "sha256": "b82503e5360c1d444f7f395e37412717e1c60967cf498ffa3444d61888d803da"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/notrandombytes/notrandombytes.c",
+      "change": "created",
+      "sha256": "a11629c3372cd8b1ceb7ac6df80b9e1344c63b1df2f55a0d7d1cea2b34ddc12f"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/notrandombytes/notrandombytes.h",
+      "change": "created",
+      "sha256": "b7308b590b9d7bd57e9b6b37cbd5e0d1c2a6174926cefff72bbf4f90045cfd2b"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/decode_hex.h",
+      "change": "created",
+      "sha256": "bc2e0760ada631690b63b6161be00d91f1f200b40fb8f3037bee9b16b577dc69"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/test_common.h",
+      "change": "created",
+      "sha256": "378362122fd478984092edf95b3d996aa6735700192cc6e47369e7d3f6927efe"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/test_mlkem.c",
+      "change": "created",
+      "sha256": "b81864797821f4dc0b04fb6d9788655819e2c34861a93fffe685f09b3c929704"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/test_namespace.h",
+      "change": "created",
+      "sha256": "786bae578cb5c9b0f44f5880c5b60fda7fdb736f54db69a0d835ba1d4a98df99"
+    },
+    {
+      "path": "firmware/esp32/protocol_v4/vendor/mlkem-native/test/test_vectors/expected_test_vectors.h",
+      "change": "created",
+      "sha256": "af87225bf785ac824d06a2cadd0a9d1c79ee9a505b3ebce0b444c59b79a6d2c7"
+    },
+    {
+      "path": "scripts/check-v4-resources.py",
+      "change": "created",
+      "sha256": "af08ce958fa1536f60c938a25edb82022e275d3f3b7ab3dc9afcd8a57e8adf5f"
+    },
+    {
+      "path": "scripts/check-v4.py",
+      "change": "created",
+      "sha256": "9b247c1d537540217d1d3cddf48f4d6294fff23e8c833f72279e4494f3672465"
+    },
+    {
+      "path": "scripts/test-v4.sh",
+      "change": "created",
+      "sha256": "425717b235803d57b24ea66cc69a022e2cfc5f4ceaf0c9df7c587204a6490611"
+    },
+    {
+      "path": "scripts/tests/v4/CMakeLists.txt",
+      "change": "created",
+      "sha256": "e677fcd53b4357bc8fa28a22b3dd7fcbdf6c6d9b85021da7824cd908785052a7"
+    },
+    {
+      "path": "scripts/tests/v4/Checks.cpp",
+      "change": "created",
+      "sha256": "74fc5cf068873619376b3fdbb58282d589a9e994b643f03ed932b7ed4f2061ee"
+    },
+    {
+      "path": "scripts/tests/v4/Qualification.cpp",
+      "change": "created",
+      "sha256": "5d0e765418559d7eeb39bbed4d2efe1f2c0749a068011d2194779a1e89e1da9e"
+    },
+    {
+      "path": "scripts/tests/v4/Simulator.hpp",
+      "change": "created",
+      "sha256": "e506a2d300d0cbffa583d8d29e484d2ec050ae18bfaa436780c87e5912feedd7"
+    },
+    {
+      "path": "scripts/tests/v4/Sizes.cpp",
+      "change": "created",
+      "sha256": "d463d7d21374a1e37940b538018d1f7cf353f59ff053fe5f3efc72bb2ed52772"
+    },
+    {
+      "path": "scripts/tests/v4/Vectors.cpp",
+      "change": "created",
+      "sha256": "690bf890f9c93a4dde201e6f205159448fc9dd5ea1f2a4d01d8e12161daa37a1"
+    },
+    {
+      "path": "scripts/tests/v4/make_vectors.py",
+      "change": "created",
+      "sha256": "64d4d29fb82d47e3c917babc0a9e0c7edd9c46f714440772dbf55ef60e21027e"
+    },
+    {
+      "path": "scripts/tests/v4/test.cpp",
+      "change": "created",
+      "sha256": "24c9cc1024cab15da8f530d03bf30625ffd48d95a697f93978130cc9d98513a2"
+    },
+    {
+      "path": "scripts/tests/v4/vectors.json",
+      "change": "created",
+      "sha256": "ec2fc0a8d5d46f3a2f95dce45ec0e968606ff0804f547bf0e79ae512e23eb96c"
+    }
+  ],
+  "manifest_self_hash_note": "Self-entry is intentionally unhashed to avoid recursive hashing; its content is covered by the enclosing Git commit.",
+  "production_isolation": {
+    "baseline_commit": "8e6c0301b1bdbb231c3fb11083d976818fd3ecf0",
+    "active_selection": "unchanged ESP32-C3 / Protocol v3",
+    "checked_unchanged_files": 91,
+    "production_source_sha256": {
+      "firmware/PROT_OS7_MAX7219/Blink.ino": "97aeec833416f4becbb27a8473cfea1a6c363cf01741c1cb35c92dd1b056a43e",
+      "firmware/PROT_OS7_MAX7219/BlinkTiming.h": "9b926c9c1b5bd76d56a9820582df6ed8ed1056c49ebdc3a3e893296f35e872d6",
+      "firmware/PROT_OS7_MAX7219/ConfigStore.h": "cae7e6aee8f0ee4aab537adfd0d77fd15b56d98cd3400c08d0836eb8801a4b66",
+      "firmware/PROT_OS7_MAX7219/Configuration.h": "3698eb872d6fab003a5aa57d8fef14a49ae038d0c6830f5788cf6b9e0bd720c3",
+      "firmware/PROT_OS7_MAX7219/Control.ino": "f7209abff568af72d4f971e9f971f6fd72a98969b8cff7fd1197ab5338a9efe9",
+      "firmware/PROT_OS7_MAX7219/FFT.ino": "0df396c132f04cda95ee89217c950b0e0437d1b1b0144256ebd3ad0b2fc413ea",
+      "firmware/PROT_OS7_MAX7219/FaceRenderer.h": "f03c60a5bdcd82d5e6d4ab3dcbbb9493417b73c304994ad43eb1e217c33e5eaa",
+      "firmware/PROT_OS7_MAX7219/Glitch.ino": "3200905deff056bf4d572b1adb500e7968c222b7ee5eb6d1a9989062763a0432",
+      "firmware/PROT_OS7_MAX7219/Icons.h": "b977dbde17338799f8cdf658e13e08c91e20d7a67e68f255ac0c24f60e5bb645",
+      "firmware/PROT_OS7_MAX7219/Microphone.ino": "bfaa080310d805759d921830503af8a92e0c9fc38c10b281a02f69f3e2831cd1",
+      "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino": "3c01c169e58c98a0c110023b0bd4e052af1fc58ff0f4084c95f98363c366f9e3",
+      "firmware/PROT_OS7_MAX7219/PawLink.ino": "3ff336f78b7c06f03fe1464a252cc950cb7d4bfd8018ef929d977125db7406dd",
+      "firmware/PROT_OS7_MAX7219/SensorHardware.ino": "a7094ae3dfdfbefea60682c0ae905ca1a995042a34602fa2f02d1b1c1e1417a2",
+      "firmware/PROT_OS7_MAX7219/Settings.h": "30b6425ee2b80efaa68a513879b8712b390e26a3947c31bec1ebfd07d9a940a2",
+      "firmware/PROT_OS7_MAX7219/UartCryptoConfig.h": "d6553938bdca2198a70f693de0d7d9edbb0211c0773cb387bf82544ae6398423",
+      "firmware/PROT_OS7_MAX7219/UartCryptoSymbols.h": "4228b8d4687586db0b9dc03058e278d7d9756e06cf32c62b85542c0539d44cbf",
+      "firmware/PROT_OS7_MAX7219/UsbControl.ino": "3f9b0e78eeab99acf0d2419d4844b9814bd8e7081433c7cbe86f7c5fdebfcb84",
+      "firmware/PROT_OS7_MAX7219/VisorConnector.ino": "2dbc862efea9c1f80b51365638788af736874a1789e597eaa8ebabffb29491ca",
+      "firmware/PROT_OS7_MAX7219/mbedtls/build_info.h": "a9ff45f478969aae4b4f610634a02ff02355189b15beb25777ec1cf2f87cd749",
+      "firmware/PROT_OS7_MAX7219/mbedtls/check_config.h": "66696df9cc3f7cbbe84786046937242b18140963b94c34347404f7827c428efa",
+      "firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_legacy_crypto.h": "01e7322cbfac74ac36abb30e4c904b63c8c9492d8675d324281fbc5c04dcbc90",
+      "firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_ssl.h": "2d37a7552566e9fbd8a5a8b3e6cf6d4e21125a5e48a7e24ca30f3c683d141871",
+      "firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_x509.h": "92909d91c59340f13eb2b447cf44e0075a0ee742a18f22fb7843f6a18c5af5dc",
+      "firmware/PROT_OS7_MAX7219/mbedtls/error.h": "ddcb14c1bf9d6fd2f2f1d2eb62117ce9bf05a0f9430c6931d7555b23f9ed3ddb",
+      "firmware/PROT_OS7_MAX7219/mbedtls/md.h": "89c41b36251ab26facdedc7b379ad5236af8f941cae58941be7f6de690fecd4e",
+      "firmware/PROT_OS7_MAX7219/mbedtls/md5.h": "21893a1ffcb6d65057178a45977774ed249387ace6d733f32434d8546dd827f7",
+      "firmware/PROT_OS7_MAX7219/mbedtls/platform.h": "5f9e6ab749a7d9ddb24c10cfdec53fd1436ca36c7507fc2d543f43afedcc1bfb",
+      "firmware/PROT_OS7_MAX7219/mbedtls/platform_util.h": "1237d849e96bc15b479e8086160e4568c1de86563bb51c60eead45b99ad1b4ac",
+      "firmware/PROT_OS7_MAX7219/mbedtls/private_access.h": "c897213b3e534e8d5db83629177f9c01d90461ed6fea57906836262dba87056d",
+      "firmware/PROT_OS7_MAX7219/mbedtls/ripemd160.h": "138b3cd792a3301fb869e5303fe0dd317743b2009b7a8f8423a51511444e23dc",
+      "firmware/PROT_OS7_MAX7219/mbedtls/sha1.h": "e644d96d46d44da66e160eb69ad637f13caef1d192e3361616833b342c6a859b",
+      "firmware/PROT_OS7_MAX7219/mbedtls/sha256.h": "a2ee050ca15b7598a8d227cac0e0ec9fd6c38615b817737a8007e90b3feab0d9",
+      "firmware/PROT_OS7_MAX7219/mbedtls/sha3.h": "8cc0b3928976871e2a4847d0f6bf02da4663a94cc0779afdec3438a0c76a5499",
+      "firmware/PROT_OS7_MAX7219/mbedtls/sha512.h": "0f77abf1b4dfc18b865725e8a221d5d9279899c274e993005359be182b7574a2",
+      "firmware/PROT_OS7_MAX7219/mbedtls/threading.h": "5688b2bef81fa61b9d29bca9383931db26b7dcb8a96785dbc957b95e01292b72",
+      "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/HelmetProtocol.h": "ea50a65c4dae05a260bf579524de1a36b43b8e89f17daf80c10e161aed78614c",
+      "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/SecureZero.h": "ae3a03b1f006ac04e696f39c3a619cbe4a445f49f402159af34f10ebb11de39f",
+      "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/UartAuthentication.h": "58888964416fe559fecf33134877d85ded1dd25734cc04d8402b667833bd942e",
+      "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp": "f0875c557ae43cb76ebf5036ae45a10232870515681c51383d6e8d1dbae1b64e",
+      "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.h": "bb7c037a2757a034803f57ab9ba3fb97751f6545c05868e5fe85491d75e79dd8",
+      "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/README.md": "85901dd961718bbb75382e33584dba841b64d72277bd75eb077c855633c1655a",
+      "firmware/PROT_OS7_MAX7219/src/Max72xxPanel/license.txt": "c858ddb9ca5ee0ce7ae7a4a59910936b86540f3672056e268d77180715bbec29",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/LICENSE": "9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/UPSTREAM.json": "295d29fe5395206b9fb5188931289059f537df802a41a4596e4d3232b261bf3a",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/UartMac.h": "7ea66fa6cc3b8c2063bb5527561a4467ddc119568f7bff451dd0992614cc102e",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/alignment.h": "d18086bed998b4cf2a4b99e423f39b274287324f206d8aeb9da31e15947128bd",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/common.h": "60cd8ae44ed2537b178643f0426af9252f47e7211ca579498914324792613203",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/md.c": "bc0f63b36d66226cb47083324a5bc18b5fbbbd4ecb68d69d181ede33b3ffc824",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/md.inc": "5ba79d51ff85951cb4001a22b2428568e4bc1072b367222808f3eac1ad91884d",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/md_wrap.h": "383077e483c60893f8256db246a7bd1fb1fc30bc7dd8e15133d2cb16b9dc5c82",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.c": "0bc5d7f87bb4d376f61dd5c53b028c3208696179b5d5d3ac3661828dcbbefbce",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.inc": "5e195c161ebf03afc4640fb0c8f8aa1a962390fc447a02cd91f7545b5d224a4b",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.c": "31d3e35d53dc6a07bb50ef5190872da412a4b7013f48740a51c93f1b38e370ff",
+      "firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.inc": "4f928e5dcc0a2baf08634fc759309a3dbda52bb69ead14ff6c2dccafd8267453",
+      "firmware/esp32/CMakeLists.txt": "35810e522bf31728b040da085b6384a280bd594c325b2b8c66c3c6b1af033a81",
+      "firmware/esp32/platformio.ini": "c77569b1b6347062db1b74c2b8e9490f146bef161b7b02ff91709b17b973ddd7",
+      "firmware/esp32/sdkconfig.defaults": "771dbd80e6cf3322eb0c4c866bad5c1a681c69fec187dbd775d9c8e61f1f2f0e",
+      "firmware/esp32/sdkconfig.defaults.paw": "b3d1d479eec785aed6742f04ae8c90ef82a3c8b313b4cd32eff800f563112b1a",
+      "firmware/esp32/src/ActionQueue.h": "a45f49f7254c9cb3f2c8255d54b69bcfeee5bfe09986dcc3de67bb9a7c78c901",
+      "firmware/esp32/src/CMakeLists.txt": "0868617fc166520d201edaa79df7493e486115c90eadd63e5acadd7b35817bd9",
+      "firmware/esp32/src/DeviceConfig.h": "27bcb4e7c8d0a2f646155f0640ce4dfec3a304415512ad8480139dfc06f7eaab",
+      "firmware/esp32/src/EspNowTransport.cpp": "9a7dbb5dedc9ba88b4b09c373274daf2fafdc065de4c05aba5a9f8fa1ede9e73",
+      "firmware/esp32/src/EspNowTransport.h": "b871f957d42b0c8cb3b264a53b27c738c2ea98147932239deeb313fb3bcc3b05",
+      "firmware/esp32/src/IdentityRecovery.cpp": "88c0b375c9863db429b83a8f3bbe68c13f51a28d043fe45e9dae92ab7b1eda79",
+      "firmware/esp32/src/IdentityRecovery.h": "f25cabc0f8c7b3bd6adbaf8fa4cd5936cfe7866a298d50dd11042a9e0e3563a4",
+      "firmware/esp32/src/Kconfig.projbuild": "7bd3dc3214e8ac8256adfd7e3c7e8aa7ef0d75fe177902254156ce4f771cc2a0",
+      "firmware/esp32/src/PairingIndicator.cpp": "f2682420d05772db5b6dc26e94310a80f1f5651a88a999c14dcce93afd030a21",
+      "firmware/esp32/src/PairingIndicator.h": "874ad9445f711ad7e006a29e2dd82c4e49eb6bdc6eef3d91ba45c8dac8dd0eeb",
+      "firmware/esp32/src/ReplayWindow.h": "f65b91f0eeaee5ea58a3c36021f2cb8a4abc3f7a38e8b55b6e34fb62023d5e51",
+      "firmware/esp32/src/SecureSession.cpp": "033b49c8f2990183284d077a970ae01c421f11584d3ce992750695ec526f259b",
+      "firmware/esp32/src/SecureSession.h": "97f493709c0cf3a7224806460b76b8515be2bd8249a09673d2c1ccd392f63650",
+      "firmware/esp32/src/SecureStorage.cpp": "0e1595c01ecf10ab7d53ce7725660d8f425c814c4ce8367851bcc9c41e6a8d48",
+      "firmware/esp32/src/SecureStorage.h": "1b2295eda187109dca0d0d1eec38c3830b88c4d786a82fef92e2270554d8190d",
+      "firmware/esp32/src/SecurityState.h": "4e4e0abbae891e9ef7e3d1b0b3b74857db09d1deddba6c1f0d4937c671d3ea4c",
+      "firmware/esp32/src/SensorMath.h": "dd3bae77e815820624a5b3a31429eea09d0aac6bfa9e0b347aab873c2c6e8232",
+      "firmware/esp32/src/SessionHandshake.cpp": "92e6176172a3dd71cacee2602c31cc8b522f340c2d4f4d1cafb67d044f63d514",
+      "firmware/esp32/src/SessionHandshake.h": "83ab45b3c4dbba43ba0cce0028db2713426666e0b08814deae2bf5d96b8413c4",
+      "firmware/esp32/src/WearerIO.cpp": "c208feb9f88b5feef885103a207bb11881493bdf4d205f72e6cbaab48f00a02e",
+      "firmware/esp32/src/WearerIO.h": "5fc534346fcb3307f1e67f5fc981debc3190fbcd74357294327d10f7620d3caa",
+      "firmware/esp32/src/WirelessConfig.h": "e8c6c3a8525326c6684c5c8ed4ae666108e9ae105b77e792661dc329d4e9300f",
+      "firmware/esp32/src/WirelessCrypto.cpp": "459cb9af1da7af07044c99d44dc5a17d3705bc7d8f29120bd28a15abb676fd40",
+      "firmware/esp32/src/WirelessCrypto.h": "a40b479a357229a71509228ceaf200e382e4d3fbf63f15e73c34cd7d024466f8",
+      "firmware/esp32/src/WirelessLink.cpp": "12dce5a37e04baec0487ffcc5aa42bb944083fe5912c27cf6bf6f6ae1196da83",
+      "firmware/esp32/src/WirelessLink.h": "c681eb877dfdae9812be416d787f6fa0c4706bd8eedc789fa01392abd236d1ed",
+      "firmware/esp32/src/WirelessPairing.cpp": "3035ce90dfebbc50dad565f9f863d51d287109dcce41ddf2801b70737e006ba3",
+      "firmware/esp32/src/WirelessPairing.h": "66e944cd2e68cba0e7845ac40eb4c2cf817c6ba45a0b3d36113b20db0fe6a859",
+      "firmware/esp32/src/WirelessSession.cpp": "8737fed192794e5acf59ce6131a09a137f01540b880fa182665934b8217a8466",
+      "firmware/esp32/src/WirelessSession.h": "4627bedc5cfd65569e43b8c23c6c3df3c4bfa4cbcf6d0674e6cdb8ffe622a07f",
+      "firmware/esp32/src/WirelessTransport.h": "c8997242b6c865a28f5d26b943cc18b478d51a9360c4c9a0bc5104d1b2cdcf65",
+      "firmware/esp32/src/main.cpp": "0a50d3bc00780171f43aaa776f40f669c3f8e4118351f1043cd799af758c8a49",
+      "toolchain.lock.json": "ce29ca31381003e3ec1a45f38c431482bae69956f3ae870f5112e2b5551dd138"
+    },
+    "production_component_sha256": "0868617fc166520d201edaa79df7493e486115c90eadd63e5acadd7b35817bd9",
+    "activation_negative_compile_tests": 2,
+    "s31_security_subsystem_patched": false,
+    "uploaded_or_irreversible_changes": false
+  },
+  "cryptographic_backend": {
+    "purpose": "Isolated hardware-independent v4 core; not selected by production firmware",
+    "upstream": "https://github.com/pq-code-package/mlkem-native",
+    "version": "v2.0.0",
+    "commit": "d1b2fe782888bdb761a50336012923180be7f502",
+    "license_choice": "MIT (upstream offers Apache-2.0 OR ISC OR MIT)",
+    "backend": "portable C/FIPS202, default stack, PCT enabled, no native assembly; MIT selected",
+    "archive": {
+      "url": "https://codeload.github.com/pq-code-package/mlkem-native/tar.gz/d1b2fe782888bdb761a50336012923180be7f502",
+      "sha256": "7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3"
+    },
+    "source_sha256": {
+      "LICENSE": "1c730e3c2cd4f70e058519ef3e910d8bdd4ed822ae2ce689f3c63d32fc52314b",
+      "mlkem/mlkem_native.c": "e533497ae0c31d5023d00cdb25ae5f8646727eee53323fba4107818231ad8956",
+      "mlkem/mlkem_native.h": "3546f0f7318fc08d007097add98a77d48a8c1f670e0d8db2c5222e1acaa88ce1",
+      "mlkem/mlkem_native_config.h": "710b09e8003d19d13167af89575499ca2790668e87b0dce7cdc6c590c32daafa",
+      "mlkem/src/cbmc.h": "180bf239c5d7b84fa451727546d4fbc9595008382cfc86d4ae5791e0e5a6b910",
+      "mlkem/src/common.h": "833c4d8e52822d5a209fdc72ef655f6eb7801fd712c515805d2c5360e58bdaab",
+      "mlkem/src/compress.c": "a13d44b3a96962ae982722fba8b1ff6744f16e7b3b760883edfe762061cb26b5",
+      "mlkem/src/compress.h": "746ce7e55d088f75220ca0a5b08fc515c033167cbcacfd74be127e14f1f5e128",
+      "mlkem/src/context.h": "e6788b29f4883f57752fd8327a80dfc978eb21ad72a0055cbbaaa7b433637edf",
+      "mlkem/src/debug.c": "263ac19f2b2bf5c784cbf04fd4c968762abedc6961d44f507c8953b52a38827e",
+      "mlkem/src/debug.h": "d1fab329b439fc6dd9c4234f3fe053e74b000d416e0f4e4464542813667f3750",
+      "mlkem/src/fips202/fips202.c": "fb0654c0b33c45c929fdb2af2287807a7b8f312ac7f3baa3ddfaef0c030ef0b2",
+      "mlkem/src/fips202/fips202.h": "a5efcf58893aa589dfe25a1069e11ab58408b2ad14e389014a785205300468a1",
+      "mlkem/src/fips202/fips202x4.c": "2e481ccbafc00765b210725c8e454f2b4dc622844eccf6a0c1e025657fcb5fe8",
+      "mlkem/src/fips202/fips202x4.h": "c8d2e50f7ccce19822030786a1a99f0892db63ebe5b020fa91a5383c9700dd22",
+      "mlkem/src/fips202/keccakf1600.c": "461c278b0abb9fde098ee6b34a47056445573cb7aa5c4362d59e35041d0997e5",
+      "mlkem/src/fips202/keccakf1600.h": "88c06d4c546f46920a65001bcfad8cabb6173fb01ae071e02412c46043bdf54f",
+      "mlkem/src/indcpa.c": "526505cbf09ab80e9644563eb808373c502aad2270a0b53c8370510ea4c0b70d",
+      "mlkem/src/indcpa.h": "ac6f47c959fdc97aa1882bca5f78ecfcee595ff21769f937866f2c1d1bf29109",
+      "mlkem/src/kem.c": "3922156826521429eb250ccb3d54d7beacce14adce26bb3be6d1ef7864342dd3",
+      "mlkem/src/kem.h": "ba22bd6de66141138329aaf53aedc73350c4ceaa241a341d0e5136c5df493dbd",
+      "mlkem/src/params.h": "450fe3e0e50496921920473ae4321660f178c23d51f1453f3c537ee63c4158cb",
+      "mlkem/src/poly.c": "f0e0643a2c3743181b7927a9d47af0930ce7870a9d79671f64e6089fe028982e",
+      "mlkem/src/poly.h": "86224c6d1e7ec5a4c0dcd829ae90c0cb43b4855d84dd719973d47e71b8e962d4",
+      "mlkem/src/poly_k.c": "56130249963b5b62e97dc6413adeed21f4e542da6531e34cf640baca161fa5ff",
+      "mlkem/src/poly_k.h": "839852fd9c8d155f37a7a07dc1116c2ea18fade754b1d882f73c4affef5e62d3",
+      "mlkem/src/randombytes.h": "137eb6e5854b8e58c2caec6eea86530c8e7495706f6f5b3e007e25a9875e164f",
+      "mlkem/src/sampling.c": "9263037c401d0cc4130a6f0dba76299d170b498c330f5d5c32b5ae5921bacd5f",
+      "mlkem/src/sampling.h": "d25df90afc96a02a794dcb737236b2cb42cbd2db411ccaf274cf5ea3bf5e3c87",
+      "mlkem/src/symmetric.h": "168d0ec3bf50bd45cb0a103d7984e9ccf52f78697718b7e85efdf1beda7abc95",
+      "mlkem/src/sys.h": "0ead27bb8c8879b62b29b9bb86c36aeaac270598d42ee2f2258a478eed8efa5c",
+      "mlkem/src/verify.c": "f8f89f1b8c8e5811ce134c0d90fb7828027336afeed231dc3ccb7ee6b73b9335",
+      "mlkem/src/verify.h": "76fd0af32577f9118d1ea90a66ff77e18cdf99d08dcf1c9df137833041e8492f",
+      "test/acvp/acvp_mlkem.c": "b82503e5360c1d444f7f395e37412717e1c60967cf498ffa3444d61888d803da",
+      "test/notrandombytes/notrandombytes.c": "a11629c3372cd8b1ceb7ac6df80b9e1344c63b1df2f55a0d7d1cea2b34ddc12f",
+      "test/notrandombytes/notrandombytes.h": "b7308b590b9d7bd57e9b6b37cbd5e0d1c2a6174926cefff72bbf4f90045cfd2b",
+      "test/src/decode_hex.h": "bc2e0760ada631690b63b6161be00d91f1f200b40fb8f3037bee9b16b577dc69",
+      "test/src/test_common.h": "378362122fd478984092edf95b3d996aa6735700192cc6e47369e7d3f6927efe",
+      "test/src/test_mlkem.c": "b81864797821f4dc0b04fb6d9788655819e2c34861a93fffe685f09b3c929704",
+      "test/src/test_namespace.h": "786bae578cb5c9b0f44f5880c5b60fda7fdb736f54db69a0d835ba1d4a98df99",
+      "test/test_vectors/expected_test_vectors.h": "af87225bf785ac824d06a2cadd0a9d1c79ee9a505b3ebce0b444c59b79a6d2c7",
+      "mlkem/src/zetas.inc": "303d1abccc4757d49a5c8df5f88080fefef617b7360056db5311bd94354096d4"
+    },
+    "vectors": {
+      "upstream": "https://github.com/usnistgov/ACVP-Server",
+      "version": "v1.1.0.43",
+      "commit": "975de31eb83d87039ec88934fdc47d8c312b892d",
+      "files": {
+        "ML-KEM-encapDecap-FIPS203/expectedResults.json": "9089ec6ff2424da9f2782b89b2f831a329a3e28d6e5e24b802b78ff36ac61cdf",
+        "ML-KEM-encapDecap-FIPS203/prompt.json": "998e22dfb12efb14ce9fdff911ca634b13612819a1806f25da69adba7e16db91",
+        "ML-KEM-encapDecap-FIPS203-tr1/expectedResults.json": "aa846067d30bebcfe4e839b076b1df5cdeb14332912b3e02dfe8d00c614098b4",
+        "ML-KEM-encapDecap-FIPS203-tr1/prompt.json": "a25430d886a8212a21ed0d4015eb91aa30d555588465d47da04ffb45236d27fd",
+        "ML-KEM-keyGen-FIPS203/expectedResults.json": "a253d0ad91c95ebea5b409673defef0aa49d65d4ed72286399e2e798ddf073a4",
+        "ML-KEM-keyGen-FIPS203/prompt.json": "3f9ce34f6c836c77958bad2729e837c3b213f44ac36c3065976e7acca6389523"
+      }
+    },
+    "standards_reviewed_utc": "2026-10-06",
+    "standards": {
+      "FIPS203": {
+        "url": "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf",
+        "sha256": "fe1f12f32a7e44ec9fdebbf400cda843a40b506dee676725234dc6f7923b6cac"
+      },
+      "FIPS203-potential-updates": {
+        "url": "https://csrc.nist.gov/files/pubs/fips/203/final/docs/fips-203-potential-updates.xlsx",
+        "sha256": "edf899c89762449f43d7713883caeefc2e4ae9ae98d5a76b339547db22cb3ac7"
+      },
+      "SP800-227": {
+        "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-227.pdf",
+        "sha256": "41e427a461c1ae0ceed2a68dc29507400983d1d495c35631306d0f4803ca4614"
+      },
+      "SP800-56Cr2": {
+        "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Cr2.pdf",
+        "sha256": "668a8ad181a299afe1d8becc0062b1e00e8f9db402ecb291456f6fa3aa4cf85e"
+      }
+    }
+  },
+  "hybrid_combiner": {
+    "construction": "NIST SP 800-56C Rev.2 section 4.1 option 1, SHA3-256, one 256-bit output block; hybrid Z-prime and SP 800-227 sections 4.6.2/4.6.3 equations 14/15",
+    "root": "SHA3-256(BE32(1) || ECDH32 || MLKEM32 || ASCII(protogen/v4/hybrid/p256-mlkem1024/sha3-256,NUL) || BE32(256) || BE32(length(T)) || T)",
+    "transcript_bytes": 3825,
+    "transcript_hash": "SHA-256(T)",
+    "key_expansion": "HKDF-SHA-256(root, salt=transcript_hash, unique ASCII protogen/v4/ labels without NUL)",
+    "claim_limits": "Conditional one-surviving-secret protection under entropy, independence, KDF/hash, CSPRNG and endpoint/erasure assumptions; no blanket generic IND-CCA proof for arbitrary broken components, no FIPS 140 module certification."
+  },
+  "protocol_bounds": {
+    "data_frame_bytes": 128,
+    "handshake_frame_bytes": 128,
+    "fragment_metadata_bytes": 28,
+    "fragment_payload_bytes": 68,
+    "fragment_authentication_or_commitment_bytes": 32,
+    "public_key_fragments": 24,
+    "ciphertext_fragments": 24,
+    "public_key_bytes": 1568,
+    "decapsulation_key_bytes": 3168,
+    "ciphertext_bytes": 1568,
+    "shared_secret_bytes": 32,
+    "fragment_timeout_ms": 1500,
+    "session_deadline_ms": 8000,
+    "physical_pairing_window_ms": 60000,
+    "worker_request_slots": 1,
+    "active_kem_operations": 1,
+    "receive_frames_per_tick": 4,
+    "minimum_session_radio_frames": 58,
+    "minimum_session_radio_payload_bytes": 7424,
+    "pair_record_bytes": 112
+  },
+  "validation": {
+    "passed": true,
+    "authoritative_mlkem_cases": {
+      "ML-KEM-encapDecap-FIPS203/encapsulation": 25,
+      "ML-KEM-encapDecap-FIPS203/decapsulation": 10,
+      "ML-KEM-encapDecap-FIPS203/decapsulationKeyCheck": 10,
+      "ML-KEM-encapDecap-FIPS203/encapsulationKeyCheck": 10,
+      "ML-KEM-encapDecap-FIPS203-tr1/encapsulation": 25,
+      "ML-KEM-encapDecap-FIPS203-tr1/decapsulation": 20,
+      "ML-KEM-encapDecap-FIPS203-tr1/decapsulationKeyCheck": 10,
+      "ML-KEM-encapDecap-FIPS203-tr1/encapsulationKeyCheck": 10,
+      "ML-KEM-keyGen-FIPS203/keyGen": 25
+    },
+    "authoritative_mlkem_total": 145,
+    "upstream_functional_iterations": 1000,
+    "v4_protocol_events": 1000000,
+    "v4_protocol_seed": "713eddcca019",
+    "v4_successful_installations_including_setup": 148,
+    "v4_local_service_steps": 548940,
+    "v4_fragment_cases": 500000,
+    "v4_fragment_seed": "a43099813579",
+    "v4_storage_fault_cases": 135983,
+    "legacy_protocol_events": 1000000,
+    "legacy_aes_gcm_records": 1000000,
+    "legacy_corruption_cases": 52000,
+    "legacy_storage_fault_cases": 135983,
+    "legacy_malformed_uart_streams": 100000,
+    "research_worker_lifecycle_transitions": 1000000,
+    "research_worker_real_operations": 2571,
+    "research_worker_threaded_operations": 20,
+    "research_worker_admission_rejects": 12000,
+    "research_entropy_fault_cases": 2,
+    "research_arena_allocation_fault_cases": 77,
+    "asan_ubsan": "PASS; new core, native implementation and tests instrumented; not every third-party PSA path instrumented",
+    "release_assertions_disabled": "PASS; same full suites with test checks enabled",
+    "warnings_as_errors": "PASS",
+    "new_static_analyzer_translation_units": [
+      "Core.cpp",
+      "Derivation.cpp",
+      "Fragments.cpp",
+      "Storage.cpp",
+      "Traffic.cpp",
+      "Worker.cpp",
+      "HostCrypto.cpp",
+      "Native.c"
+    ],
+    "legacy_static_analyzer_modules": 10,
+    "c3_helmet_paw_builds_default_uart": 4,
+    "s31_preview_v3_helmet_paw_builds": "PASS; research only, no activation",
+    "teensy_builds": 17,
+    "existing_host_tooling": "PASS; retained full firmware sanitizer/tooling/pixel/archive tests",
+    "dependency_license_audit": "42 upstream files exact/hash-verified; upstream MIT option chosen; no wolfCrypt/GPL source linked or vendored into core",
+    "fresh_adversarial_review": "Manual implementation review plus targeted tests and Clang Static Analyzer; optional security-diff-scan service unavailable, no independent certification claimed",
+    "log_hashes": {
+      "v4-v3-regression.log": "5f0ae38dd5a062674dd5a8e1b4bab68d833070715c927ef3ac63312d898e89f6",
+      "v4-c3-build.log": "7bbe3a2e34d8e3730a08a5d49ae32648dff7468ef5fd1f417f99d72026e15e0e",
+      "v4-c3-uart-build.log": "7bbe3a2e34d8e3730a08a5d49ae32648dff7468ef5fd1f417f99d72026e15e0e",
+      "v4-s31-build.log": "f14549c1097a51208c7735f76cfd9a12759b42520f0a35659026eeb152870c41",
+      "v4-v3-analysis.log": "cbdc74ceaef45ea04ea495454ed3c09ebfa9d7fd75978b1ce937260d73826de4",
+      "v4-teensy.log": "b2423d7c831b5a470ca8a2b5967ff7a38e07bbff955139cea24246f6513c60b4",
+      "v4-firmware-test.log": "30bbc1d46ee3967946c5578009f733e50383f714f257835f418b825cc8bdd2a4",
+      "v4-worker-qualification.log": "56340394907382e9b1435ad96e3402f7b137b8a25cbda848bf10bf63b69d34fa",
+      "v4-release.log": "e41dbac1f111f7b0a3a63aba7ae45898cec74d988db20ce8c70df9d4d1441476"
+    }
+  },
+  "s31_static_resources": {
+    "scope": "UNLINKED S31 compiler static estimates; no platform activation, runtime or firmware image",
+    "compiler": "riscv32-esp-elf-gcc (crosstool-NG esp-15.2.0_20251204) 15.2.0",
+    "architecture_response_sha256": "11df9650a7a33633b722b8109b3f84945e7de95d85c8f956eb32adc13a6fbaba",
+    "sizes": {
+      "core": 30640,
+      "exchange": 9440,
+      "material": 340,
+      "reassembly": 1744,
+      "result": 6360,
+      "worker": 6392
+    },
+    "objects": [
+      {
+        "source": "firmware/esp32/protocol_v4/Core.cpp",
+        "text": 17462,
+        "data": 0,
+        "bss": 0,
+        "object_sha256": "8f37d41d8c032b12fd55e6230db1f7a471fef5ff8af8c36cb1b0afadde0392f1"
+      },
+      {
+        "source": "firmware/esp32/protocol_v4/Derivation.cpp",
+        "text": 3562,
+        "data": 0,
+        "bss": 0,
+        "object_sha256": "216eb70b0c1b0d35dbe28e104e89d0515dbedd20652ed48d26197daafc4600f4"
+      },
+      {
+        "source": "firmware/esp32/protocol_v4/Fragments.cpp",
+        "text": 1864,
+        "data": 0,
+        "bss": 0,
+        "object_sha256": "6b48a8b5f2495293b3b611af739b439f5ef15dd4fe4dd2dd51d7c6d65778bdac"
+      },
+      {
+        "source": "firmware/esp32/protocol_v4/Storage.cpp",
+        "text": 928,
+        "data": 0,
+        "bss": 0,
+        "object_sha256": "e6e2cc63b6466066f0370e84041c7848ded291ffd14319c32a2497af2f5a07ec"
+      },
+      {
+        "source": "firmware/esp32/protocol_v4/Traffic.cpp",
+        "text": 3638,
+        "data": 0,
+        "bss": 0,
+        "object_sha256": "ae5243422ce29d20d67e2edfdb6a3b0b558cd39a95fbb60efda7377be62a3ed8"
+      },
+      {
+        "source": "firmware/esp32/protocol_v4/Worker.cpp",
+        "text": 1486,
+        "data": 0,
+        "bss": 0,
+        "object_sha256": "743c0ebe2c1fdc3bed25bfa54c1bd1ba72fb23c604d311cd06efa6d60b4fd7a6"
+      },
+      {
+        "source": "scripts/tests/v4/Sizes.cpp",
+        "text": 0,
+        "data": 0,
+        "bss": 54916,
+        "object_sha256": "7c0b5614471a421151dacc5eff956075264e6f98b4970a313fd17f6c40e4d56d"
+      },
+      {
+        "source": "firmware/esp32/protocol_v4/Native.c",
+        "text": 15764,
+        "data": 0,
+        "bss": 8,
+        "object_sha256": "708256e31f293ce5b0e15024aae8c357eb6b420e3569c3f856a18f6ebd01010f"
+      }
+    ],
+    "frames": {
+      "firmware/esp32/protocol_v4/Core.cpp:9:6:bool ProtogenV4::{anonymous}::address(const ProtogenV4::Identity&)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:12:10:unsigned int ProtogenV4::{anonymous}::index(ProtogenV4::Object)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Interfaces.hpp:195:8:bool ProtogenV4::Budget::available(uint64_t)": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Interfaces.hpp:211:8:bool ProtogenV4::Budget::take(uint64_t)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Fragments.hpp:14:12:ProtogenV4::Reassembly::Reassembly(ProtogenV4::Crypto&)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.hpp:13:3:ProtogenV4::Traffic::Traffic(ProtogenV4::Crypto&, uint8_t)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.hpp:14:3:ProtogenV4::Traffic::~Traffic()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:14:1:ProtogenV4::Core::Core(uint8_t, ProtogenV4::Crypto&, ProtogenV4::Clock&, ProtogenV4::Storage&, ProtogenV4::Transport&, ProtogenV4::Worker&, ProtogenV4::Hooks&)": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:24:6:bool ProtogenV4::Core::pairing() const": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:28:6:bool ProtogenV4::Core::candidate() const": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:36:6:bool ProtogenV4::Core::invariant() const": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:32:6:void ProtogenV4::Core::transition(ProtogenV4::State)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:44:6:void ProtogenV4::Core::clearCandidate()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:18:1:ProtogenV4::Core::~Core()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:76:6:bool ProtogenV4::Core::freshIdentity()": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:119:6:void ProtogenV4::Core::reset()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:147:9:uint8_t ProtogenV4::Core::rendezvousChannel()": {
+        "bytes": 112,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:213:6:void ProtogenV4::Core::fail(bool)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:226:6:bool ProtogenV4::Core::makeOffer()": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:164:6:bool ProtogenV4::Core::beginCandidate(ProtogenV4::Mode)": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:132:6:bool ProtogenV4::Core::openPairing()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:202:6:void ProtogenV4::Core::recover()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:90:6:bool ProtogenV4::Core::begin()": {
+        "bytes": 144,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:246:16:const uint8_t* ProtogenV4::Core::fragmentKey(ProtogenV4::Object) const": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:253:6:bool ProtogenV4::Core::schedule(ProtogenV4::Operation)": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:411:6:void ProtogenV4::Core::derive()": {
+        "bytes": 112,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:286:6:void ProtogenV4::Core::result()": {
+        "bytes": 64,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:340:6:bool ProtogenV4::Core::acceptedObject(ProtogenV4::Object)": {
+        "bytes": 400,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:459:6:bool ProtogenV4::Core::sas(uint32_t&) const": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:475:6:bool ProtogenV4::Core::storePair()": {
+        "bytes": 272,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:465:6:bool ProtogenV4::Core::confirmPairing()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:505:6:bool ProtogenV4::Core::control(ProtogenV4::Kind, ProtogenV4::Frame&)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:532:6:bool ProtogenV4::Core::verifyControl(const ProtogenV4::Frame&, ProtogenV4::Kind)": {
+        "bytes": 64,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:722:6:bool ProtogenV4::Core::install()": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:556:6:void ProtogenV4::Core::receive(const ProtogenV4::Received&)": {
+        "bytes": 240,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:760:6:void ProtogenV4::Core::transmit()": {
+        "bytes": 208,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:858:6:void ProtogenV4::Core::completion(ProtogenV4::Ticket, bool)": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:881:6:bool ProtogenV4::Core::send(const HelmetLink::Packet&)": {
+        "bytes": 160,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:894:6:void ProtogenV4::Core::requestRekey()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:898:6:void ProtogenV4::Core::identityChanged()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:904:6:void ProtogenV4::Core::channelLost()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Core.cpp:910:6:void ProtogenV4::Core::tick()": {
+        "bytes": 176,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Derivation.cpp:97:18:ProtogenV4::deriveMaterial(Crypto&, const uint8_t*, const uint8_t*, Material&)::<lambda(const char*, uint8_t*, size_t)>": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Derivation.cpp:4:6:void ProtogenV4::objectHeader(Frame&, Mode, uint64_t, const Identity&, Object)": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Derivation.cpp:18:8:size_t ProtogenV4::canonical(Crypto&, const Exchange&, uint8_t*, size_t)": {
+        "bytes": 208,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Derivation.cpp:47:6:bool ProtogenV4::nonceCommit(Crypto&, Mode, uint64_t, uint8_t, const Identity&, const uint8_t*, const uint8_t*, uint8_t*)": {
+        "bytes": 320,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Derivation.cpp:62:6:bool ProtogenV4::hybridRoot(Crypto&, const uint8_t*, const uint8_t*, const uint8_t*, size_t, uint8_t*, DerivationWorkspace&)": {
+        "bytes": 128,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Derivation.cpp:94:6:bool ProtogenV4::deriveMaterial(Crypto&, const uint8_t*, const uint8_t*, Material&)": {
+        "bytes": 384,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Fragments.cpp:4:6:bool ProtogenV4::structuralFragment(const Frame&, const Identity&, Mode, uint64_t, Object)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Fragments.cpp:20:6:void ProtogenV4::Reassembly::clear()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Fragments.cpp:27:16:ProtogenV4::FragmentStatus ProtogenV4::Reassembly::accept(const ProtogenV4::Frame&, const ProtogenV4::Identity&, ProtogenV4::Mode, uint64_t, ProtogenV4::Object, const uint8_t*, uint64_t)": {
+        "bytes": 192,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Fragments.cpp:85:6:bool ProtogenV4::makeFragment(Crypto&, const Exchange&, Object, unsigned int, const uint8_t*, Frame&)": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/HelmetProtocol.h:22:17:uint16_t HelmetLink::crc16(const uint8_t*, size_t)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Storage.cpp:4:6:bool ProtogenV4::encodeRecord(Crypto&, uint8_t, const uint8_t*, const uint8_t*, uint8_t*)": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Storage.cpp:26:12:ProtogenV4::PairStatus ProtogenV4::decodeRecord(Crypto&, uint8_t, const uint8_t*, size_t, uint8_t*)": {
+        "bytes": 64,
+        "kind": "static"
+      },
+      "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/HelmetProtocol.h:32:15:size_t HelmetLink::pack(const Packet&, uint8_t*, size_t)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/PROT_OS7_MAX7219/src/HelmetProtocol/HelmetProtocol.h:39:13:bool HelmetLink::unpack(const uint8_t*, size_t, Packet&)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.cpp:4:6:bool ProtogenV4::applicationValid(const HelmetLink::Packet&, uint8_t)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.cpp:33:6:void ProtogenV4::Traffic::clear()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.cpp:40:6:bool ProtogenV4::Traffic::begin(const ProtogenV4::Material&)": {
+        "bytes": 96,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.cpp:61:6:bool ProtogenV4::Traffic::seal(const HelmetLink::Packet*, bool, ProtogenV4::Frame&)": {
+        "bytes": 160,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Traffic.cpp:95:6:bool ProtogenV4::Traffic::open(const ProtogenV4::Frame&, HelmetLink::Packet&, bool&, bool&)": {
+        "bytes": 256,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.hpp:22:3:ProtogenV4::SlotWorker::~SlotWorker()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:81:6:virtual bool ProtogenV4::SlotWorker::poll(ProtogenV4::Result&)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:92:6:virtual void ProtogenV4::SlotWorker::cancel(uint64_t)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:4:6:virtual bool ProtogenV4::SlotWorker::submit(const ProtogenV4::Job&, ProtogenV4::Ticket&)": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.hpp:22:3:virtual ProtogenV4::SlotWorker::~SlotWorker()": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:34:6:bool ProtogenV4::SlotWorker::claim(ProtogenV4::Ticket&)": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:41:5:int ProtogenV4::SlotWorker::execute(ProtogenV4::Ticket)": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:47:6:void ProtogenV4::SlotWorker::finish(ProtogenV4::Ticket, int)": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Worker.cpp:73:6:bool ProtogenV4::SlotWorker::advance()": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/verify.h:338:27:mlk_ct_memcmp": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/verify.h:388:24:mlk_ct_cmov_zero": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:289:26:mlk_poly_compress_d5_c": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:353:26:mlk_poly_compress_d11_c": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:424:26:mlk_poly_decompress_d5_c": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:501:26:mlk_poly_decompress_d11_c": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:577:26:mlk_poly_tobytes_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:640:26:mlk_poly_frombytes_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:110:26:mlk_poly_tomont_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:187:26:mlk_poly_reduce_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:273:26:mlk_poly_mulcache_compute_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:347:13:mlk_ntt_butterfly_block": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:394:13:mlk_ntt_layer": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:431:26:mlk_poly_ntt_c": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:481:13:mlk_invntt_layer": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:523:26:mlk_poly_invntt_tomont_c": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:160:26:mlk_polyvec_basemul_acc_montgomery_cached_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c:33:30:mlk_rej_uniform_c": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c:115:17:mlk_rej_uniform": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c:265:17:mlk_load32_littleendian": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:208:6:mlk_keccakf1600_permute_c": {
+        "bytes": 272,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:325:6:pqv4_poly_compress_d5": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:399:6:pqv4_poly_compress_d11": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:477:6:pqv4_poly_decompress_d5": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:545:6:pqv4_poly_decompress_d11": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:622:6:pqv4_poly_tobytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:673:6:pqv4_poly_frombytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:696:6:pqv4_poly_frommsg": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c:736:6:pqv4_poly_tomsg": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:132:6:pqv4_poly_tomont": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:212:6:pqv4_poly_reduce": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:231:6:pqv4_poly_add": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:251:6:pqv4_poly_sub": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:305:6:pqv4_poly_mulcache_compute": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:460:6:pqv4_poly_ntt": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c:562:6:pqv4_poly_invntt_tomont": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:49:6:pqv4_polyvec_compress_du": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:139:13:mlk_pack_ciphertext": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:65:6:pqv4_polyvec_decompress_du": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:158:13:mlk_unpack_ciphertext": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:85:6:pqv4_polyvec_tobytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:103:13:mlk_pack_sk": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:59:13:mlk_pack_pk": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:105:6:pqv4_polyvec_frombytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:81:13:mlk_unpack_pk": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:120:13:mlk_unpack_sk": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:119:6:pqv4_polyvec_ntt": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:137:6:pqv4_polyvec_invntt_tomont": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:202:6:pqv4_polyvec_basemul_acc_montgomery_cached": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:326:13:mlk_matvec_mul": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:238:6:pqv4_polyvec_mulcache_compute": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:620:5:pqv4_indcpa_dec": {
+        "bytes": 6208,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:255:6:pqv4_polyvec_reduce": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:44:5:pqv4_check_pk": {
+        "bytes": 3648,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:270:6:pqv4_polyvec_add": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:295:6:pqv4_polyvec_tomont": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c:277:6:pqv4_poly_cbd2": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:199:6:pqv4_shake128_init": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:200:6:pqv4_shake128_release": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:137:6:pqv4_shake128x4_init": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:138:6:pqv4_shake128x4_release": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:36:6:pqv4_keccakf1600_extract_bytes": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:83:13:mlk_keccakf1600x4_extract_bytes_c": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:59:6:pqv4_keccakf1600_xor_bytes": {
+        "bytes": 0,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:130:13:mlk_keccakf1600x4_xor_bytes_c": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:113:6:pqv4_keccakf1600x4_extract_bytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:161:6:pqv4_keccakf1600x4_xor_bytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:479:6:pqv4_keccakf1600_permute": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:54:13:mlk_keccak_absorb_once": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:187:6:pqv4_shake128_absorb_once": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:114:13:mlk_keccak_squeezeblocks": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:193:6:pqv4_shake128_squeezeblocks": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c:219:6:pqv4_poly_rej_uniform": {
+        "bytes": 784,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:150:13:mlk_keccak_squeeze_once": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:208:6:pqv4_shake256": {
+        "bytes": 272,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:348:6:pqv4_poly_getnoise_eta1_4x": {
+        "bytes": 832,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:361:13:mlk_keypair_getnoise_eta1": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c:433:6:pqv4_poly_getnoise_eta2": {
+        "bytes": 208,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:409:13:mlk_enc_getnoise_eta1_eta2": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:221:6:pqv4_sha3_256": {
+        "bytes": 224,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:80:5:pqv4_check_sk": {
+        "bytes": 80,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c:233:6:pqv4_sha3_512": {
+        "bytes": 224,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c:179:6:pqv4_keccakf1600x4_permute": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:25:13:mlk_keccak_absorb_once_x4": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:120:6:pqv4_shake128x4_absorb_once": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:145:13:mlk_shake256x4_absorb_once": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:80:13:mlk_keccak_squeezeblocks_x4": {
+        "bytes": 48,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:129:6:pqv4_shake128x4_squeezeblocks": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c:155:6:pqv4_poly_rej_uniform_x4": {
+        "bytes": 2944,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:233:6:pqv4_gen_matrix": {
+        "bytes": 320,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:458:5:pqv4_indcpa_keypair_derand": {
+        "bytes": 15536,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c:540:5:pqv4_indcpa_enc": {
+        "bytes": 19056,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:315:5:pqv4_enc_derand": {
+        "bytes": 192,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:403:5:pqv4_dec": {
+        "bytes": 1792,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:155:13:mlk_shake256x4_squeezeblocks": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c:164:6:pqv4_shake256x4": {
+        "bytes": 1408,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Native.c:5:5:randombytes": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:365:5:pqv4_enc": {
+        "bytes": 96,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:148:12:mlk_check_pct": {
+        "bytes": 1680,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:233:5:pqv4_keypair_derand": {
+        "bytes": 32,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c:277:5:pqv4_keypair": {
+        "bytes": 112,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Native.c:8:5:pqv4_native": {
+        "bytes": 16,
+        "kind": "static"
+      },
+      "firmware/esp32/protocol_v4/Native.c:21:6:pqv4_sha3": {
+        "bytes": 16,
+        "kind": "static"
+      }
+    },
+    "native_call_paths": {
+      "pqv4_dec": {
+        "known_frames_sum_bytes": 24496,
+        "path": [
+          [
+            "pqv4_dec",
+            1792
+          ],
+          [
+            "pqv4_indcpa_enc",
+            19056
+          ],
+          [
+            "pqv4_gen_matrix",
+            320
+          ],
+          [
+            "pqv4_poly_rej_uniform_x4",
+            2944
+          ],
+          [
+            "pqv4_shake128x4_absorb_once",
+            32
+          ],
+          [
+            "mlk_keccak_absorb_once_x4",
+            48
+          ],
+          [
+            "pqv4_keccakf1600x4_permute",
+            16
+          ],
+          [
+            "pqv4_keccakf1600_permute",
+            16
+          ],
+          [
+            "mlk_keccakf1600_permute_c",
+            272
+          ]
+        ]
+      },
+      "pqv4_enc": {
+        "known_frames_sum_bytes": 22992,
+        "path": [
+          [
+            "pqv4_enc",
+            96
+          ],
+          [
+            "pqv4_enc_derand",
+            192
+          ],
+          [
+            "pqv4_indcpa_enc",
+            19056
+          ],
+          [
+            "pqv4_gen_matrix",
+            320
+          ],
+          [
+            "pqv4_poly_rej_uniform_x4",
+            2944
+          ],
+          [
+            "pqv4_shake128x4_absorb_once",
+            32
+          ],
+          [
+            "mlk_keccak_absorb_once_x4",
+            48
+          ],
+          [
+            "pqv4_keccakf1600x4_permute",
+            16
+          ],
+          [
+            "pqv4_keccakf1600_permute",
+            16
+          ],
+          [
+            "mlk_keccakf1600_permute_c",
+            272
+          ]
+        ]
+      },
+      "pqv4_keypair": {
+        "known_frames_sum_bytes": 26320,
+        "path": [
+          [
+            "pqv4_keypair",
+            112
+          ],
+          [
+            "pqv4_keypair_derand",
+            32
+          ],
+          [
+            "mlk_check_pct",
+            1680
+          ],
+          [
+            "pqv4_dec",
+            1792
+          ],
+          [
+            "pqv4_indcpa_enc",
+            19056
+          ],
+          [
+            "pqv4_gen_matrix",
+            320
+          ],
+          [
+            "pqv4_poly_rej_uniform_x4",
+            2944
+          ],
+          [
+            "pqv4_shake128x4_absorb_once",
+            32
+          ],
+          [
+            "mlk_keccak_absorb_once_x4",
+            48
+          ],
+          [
+            "pqv4_keccakf1600x4_permute",
+            16
+          ],
+          [
+            "pqv4_keccakf1600_permute",
+            16
+          ],
+          [
+            "mlk_keccakf1600_permute_c",
+            272
+          ]
+        ]
+      },
+      "pqv4_native": {
+        "known_frames_sum_bytes": 26336,
+        "path": [
+          [
+            "pqv4_native",
+            16
+          ],
+          [
+            "pqv4_keypair",
+            112
+          ],
+          [
+            "pqv4_keypair_derand",
+            32
+          ],
+          [
+            "mlk_check_pct",
+            1680
+          ],
+          [
+            "pqv4_dec",
+            1792
+          ],
+          [
+            "pqv4_indcpa_enc",
+            19056
+          ],
+          [
+            "pqv4_gen_matrix",
+            320
+          ],
+          [
+            "pqv4_poly_rej_uniform_x4",
+            2944
+          ],
+          [
+            "pqv4_shake128x4_absorb_once",
+            32
+          ],
+          [
+            "mlk_keccak_absorb_once_x4",
+            48
+          ],
+          [
+            "pqv4_keccakf1600x4_permute",
+            16
+          ],
+          [
+            "pqv4_keccakf1600_permute",
+            16
+          ],
+          [
+            "mlk_keccakf1600_permute_c",
+            272
+          ]
+        ]
+      }
+    },
+    "recommended_future_worker_stack": 49152,
+    "platform_stack_allowance": 6144,
+    "known_native_maximum_path": 26336,
+    "stack_margin_after_allowance": 16672,
+    "unlinked_total_text_estimate": 44704,
+    "roles": {
+      "helmet": {
+        "v3_baseline_static_data_bss": 49908,
+        "v3_baseline_contiguous_tail": 366912,
+        "core_worker_stack_static_reservation": 86184,
+        "conservative_unlinked_tail_after_all_core_text_and_6k_reserve": 229880
+      },
+      "paw": {
+        "v3_baseline_static_data_bss": 47992,
+        "v3_baseline_contiguous_tail": 383424,
+        "core_worker_stack_static_reservation": 86184,
+        "conservative_unlinked_tail_after_all_core_text_and_6k_reserve": 246392
+      }
+    },
+    "hardware_high_water_heap_timings_watchdog_radio_uart": "HARDWARE MEASUREMENT REQUIRED"
+  },
+  "s31_sdk_evidence": {
+    "pins": {
+      "purpose": "S31 public-preview research only; not a production SDK selection",
+      "esp_idf": "6.1.0",
+      "official_release_tag": "v6.1",
+      "official_release_commit": "fff9895c82d744c7237be8847347bdd1b07c6643",
+      "framework_package": "4.60100.0",
+      "compiler": "esp-15.2.0_20251204 / GCC 15.2.0",
+      "target": "esp32s31",
+      "official_supported_tag_minimum": "v6.1.1 (unpublished on 2026-10-06)",
+      "upstream": "https://github.com/espressif/esp-idf",
+      "license": "Apache-2.0 for these ESP-IDF source files; Wi-Fi archives have separate Espressif licensing",
+      "source_sha256": {
+        "tools/cmake/version.cmake": "09228291a5c5ee860c432c782a79bb2abd24e6989254d5d5614de7a8d822b747",
+        "tools/idf_py_actions/constants.py": "a8d755bcf76cc2cbec29330ebf2d4e8f133855899e27dbd3ce2b79b82ae6e03d",
+        "components/soc/esp32s31/include/soc/soc_caps.h": "6b85717b0b0e34c03b9a2c6a474415b8491b890ad5b2cc43891a1a35cfb4e814",
+        "components/esp_system/port/soc/esp32s31/system_internal.c": "9fbdc8c20080168c5e11e60e1bbbfece685fe7d8c5d8fa599870d8261735a709",
+        "components/esp_system/ld/esp32s31/ld.hp_mem_defs": "78cf82989175ef6c6a5ca3678872c0b68328520edd4618f3a5f63026083de8a6",
+        "components/esp_hw_support/port/esp32s31/cpu_region_protect.c": "9e1b389fd73c85aabf3f6111636a3a176d3cb2784df07986c8b4e803bf6b654d",
+        "components/bootloader_support/src/bootloader_mem.c": "58f69d35c70996252d0b020089b9d3b4a2ce93bece0fc6f2bf1d9ca05a64f38f"
+      }
+    },
+    "blocking_issue": "ESP-IDF 6.1 S31 cpu_region_protect.c unfinished IDF-15238; bootloader HP/LP permissions TODO IDF-14620. Supported SDK closure must be rechecked before integration. No workaround or SDK patch."
+  },
+  "host_qualification_sample": {
+    "scope": "HOST ONLY; sanitizer build; not S31 timing or RAM",
+    "iterations": 32,
+    "mean_keygen_us": 1553.904,
+    "mean_encaps_us": 502.094,
+    "mean_decaps_us": 613.359,
+    "sizeof_core_host": 30680,
+    "sizeof_worker_host": 6400,
+    "sizeof_result_host": 6360,
+    "sizeof_exchange_host": 9440,
+    "sizeof_material_host": 340,
+    "sizeof_reassembly_host": 1752,
+    "host_one_reconnect_cpu_ms": 74.336,
+    "simulated_reconnect_ms": 3195,
+    "simulated_reconnect_frames": 425,
+    "hardware_valid_mask": 0,
+    "stack_high_water": null,
+    "heap_minimum": null,
+    "largest_free_block": null,
+    "radio_latency": null,
+    "uart_latency": null,
+    "watchdog": null
+  },
+  "hardware_measurements": {
+    "stack_high_water": null,
+    "free_heap_before_worker": null,
+    "free_heap_after_worker": null,
+    "minimum_heap_keygen": null,
+    "minimum_heap_encaps": null,
+    "minimum_heap_decaps": null,
+    "largest_free_heap_block": null,
+    "heap_fragmentation": null,
+    "keygen_duration_s31": null,
+    "encaps_duration_s31": null,
+    "decaps_duration_s31": null,
+    "radio_service_latency": null,
+    "uart_service_latency": null,
+    "watchdog_behavior": null,
+    "rf_performance": null,
+    "current_consumption": null,
+    "thermal_behavior": null,
+    "real_power_loss_storage": null,
+    "secure_provisioning_workflow": null
+  },
+  "hardware_measurements_note": "HARDWARE MEASUREMENT REQUIRED. Host CPU/model timings and compiler static frames are not MCU measurements.",
+  "secret_scan": {
+    "status": "PASS after candidate review",
+    "tool": "detect-secrets 1.5.0",
+    "scope": "all 91 changed/created files",
+    "candidates_reviewed": 318,
+    "candidate_dispositions": "Published source/archive/log/commit hashes, protocol labels, source paths, authoritative case names, and explicitly synthetic project/standard test vectors only. No credentials or production private keys.",
+    "generated_binaries_or_temporary_artifacts_in_manifest": false
+  }
+}

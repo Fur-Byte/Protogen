@@ -4,8 +4,10 @@
 > for helmet and Paw; C3/v3 is retained as legacy development/regression.
 > Current production sources remain v3. Public S31 preview builds and a 48 KiB
 > ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
-> and its memory-protection implementation block the production migration/v4
-> phase. Physical S31 qualification is separately pending. See the
+> and its memory-protection implementation block production S31 integration.
+> The isolated [experimental v4 core](docs/WIRELESS_V4_PROTOCOL.md) implements
+> host-tested hybrid P-256 + ML-KEM-1024 establishment and is never selected by
+> production builds. Physical S31 qualification is separately pending. See the
 > [S31 preflight](docs/WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
 
 Open **[firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino](firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino)** in Arduino IDE.

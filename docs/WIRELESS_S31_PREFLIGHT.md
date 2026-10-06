@@ -6,9 +6,11 @@ Assessment date: 2026-10-06. Production source baseline:
 **Intended final controller: ESP32-S31, for both helmet and Paw.** Teensy 4.0
 remains the rendering/behavior controller. C3 is retained for legacy v3
 development/regression. The delivered firmware is still C3/v3. Neither an
-active production retarget nor Protocol v4 is complete.
+active production retarget nor S31 platform activation is complete. The
+isolated [v4 core](WIRELESS_V4_PROTOCOL.md) is now implemented and host-tested;
+that work does not change this SDK gate.
 
-**SOFTWARE STATUS: BLOCKED — supported-stable SDK and memory-protection gap.**
+**S31 PRODUCTION INTEGRATION STATUS: BLOCKED — supported-stable SDK and memory-protection gap.**
 **HARDWARE QUALIFICATION STATUS: PENDING PHYSICAL ESP32-S31 HARDWARE.**
 
 The software blocker is independent of missing boards and independent of the
