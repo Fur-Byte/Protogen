@@ -33,7 +33,7 @@ Tier 1 is qualified power, original IR boop, the two C3 boards, three paw button
 | Hall timing | DRV5032FC nominally samples every 50 ms, but the datasheet allows up to 75 ms. Qualify its digital state for **150 ms**. Repeated reads of its output do not constitute independent magnetic samples. Hall controls logical presence, never immediate electrical disconnection. |
 | Display limit | Measure RSET, operating current and inrush before choosing the eFuse limit. Check the **minimum** limit against legitimate load and the **maximum** against wiring, converter and contact limits. No fixed 5 A setting is approved. |
 | Paw battery | Measure actual prototype consumption, including reconnects. 1,000 mAh is an upper initial candidate, not a requirement. This implementation keeps RF awake for predictable latency; wake windows/deep sleep are a separate measured optimization. |
-| Crypto | Use Espressif's encrypted-peer API and **Mbed TLS DTLS 1.2 PSK**, replacing the earlier custom HMAC/challenge handshake proposal. No custom cipher, key derivation or cryptographic handshake. |
+| Crypto | Use Espressif's encrypted-peer API with PSA P-256, HMAC/HKDF-SHA-256 and AES-256-GCM. Wire v3 authenticates every ephemeral exchange and confirms new keys; no custom cipher or automatic downgrade. |
 | C3 pins | The maps target **Espressif DevKitM-1** and **Seeed XIAO ESP32-C3** specifically. Changes to either board require a pin and supply review. DevKitM-1 GPIO20/21 belong to its USB-UART bridge, so the Teensy link uses 18/19. |
 | Boop | Start with Feronium's original-style IR input and original `vwv`/`vwvL` artwork. Capacitive/piezo is a fallback after optical tests, not the initial sensor package. |
 
@@ -64,7 +64,7 @@ The fallback analog front end and classification firmware are deliberately defer
 | BLE | Standard secure pairing/connection services, useful if a phone is a primary controller, good low-power options | GATT/service and pairing UI work; bonding/reconnect behavior must still be designed |
 | ESP-NOW | Direct C3-to-C3 control without a phone or access point, small datagrams, straightforward dedicated controller | Shared RF channel; callbacks are not application acknowledgements; security/session freshness must be specified |
 
-The implemented v2 design uses **ESP-NOW** with native encrypted unicast and an
+The implemented v3 design uses **ESP-NOW** with native encrypted unicast and an
 independent PSA AES-256-GCM application envelope. Wireless pairing requires
 local gestures on both devices, ephemeral P-256 ECDH commit/reveal, comparison
 of all six LED authentication digits and second physical confirmations on both.
@@ -80,7 +80,7 @@ buttons keep working during wireless loss. Idle RF keepalives are randomized
 loss is detected after 12 s; the existing separate wired heartbeat lets Teensy
 clear paw-online within another 2 s. Keyed asymmetric channel recovery on
 1/6/11 establishes a fresh authenticated session without needing a message on
-the failed channel. Periodic idle renewal changes keys/MACs after 15–17 minutes.
+the failed channel. Fresh P-256 ECDH and new-key Finished precede every session. Renewal changes keys/MACs after 15–17 minutes or 1,000,000 authenticated records. Per-helmet UART HMAC authentication is an explicit build feature; the ordinary Teensy key-storage limitation is documented in the current protocol.
 
 Development remains recoverable with ordinary NVS. Production needs explicitly
 provisioned hardware-backed encrypted storage, Secure Boot v2, release flash

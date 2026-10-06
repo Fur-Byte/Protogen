@@ -1,111 +1,177 @@
-# Implementation review record
+# Focused v3 wireless hardening implementation
 
-The v2 implementation preserves the Teensy controller and UART contract and
-replaces the active USB-provisioned DTLS/factory-MAC radio path with deliberate
-wireless pairing, PSA application encryption and rotating identities.
+This pass extends the existing v2 architecture. Teensy 4.0 still renders and owns
+behavior; helmet ESP32 validates wireless commands before forwarding them.
+ESP-NOW native AES-128-CCMP encrypted unicast, PSA AES-256-GCM, HKDF/HMAC-SHA-256,
+P-256, 128-byte operational envelopes, local MAC identities, replay window,
+physical/SAS pairing, channel rendezvous and bounded queues remain intact.
+No SoftAP/SSID/scan, extra application cipher, negotiation or raw-frame disguise.
 
-Pair: gestures on both devices → 60 s LED window → committed ephemeral P-256
-ECDH → compare six LED digits → second local confirmation on both → atomic
-per-device NVS write → authenticated reconnect. Erase: hold the local gesture
-12 s; replace peers by re-pairing both units. No USB pairing or remote entry.
+Every reconnect uses new P-256 keys and random nonces. Paw Hello authenticates
+its contribution; helmet Response authenticates the complete ordered transcript;
+ECDH plus its digest derives traffic, identity, CCMP, recovery and confirmation
+keys. Private keys/raw ECDH are destroyed immediately. Paw Finished → Helmet
+Finished → separately keyed Paw Commit precede ONLINE and MAC/radio installation.
+[WIRELESS_PROTOCOL.md](WIRELESS_PROTOCOL.md) contains the exact layouts, key labels
+and state diagram, including the unavoidable lost-final-ack readiness limitation.
 
-Session: paw and helmet contribute fresh random challenges, prove possession
-of the pairing secret using transcript-bound HMAC, then use labelled
-HKDF-SHA-256 for directional AES-256-GCM keys, ESP-NOW LMK/PMK, session ID,
-identity MACs and channel recovery material. 128-byte operational unicast
-packets have a 64-record replay window and cannot dispatch before full validation.
+Rekey by randomized 15–17 minutes, 1,000,000 authenticated records, or near
+sequence exhaustion. The codec stops at the record limit, and fresh keys are
+required for any production sequence reset. Crypto budgets survive handshake
+resets: four ECC credits refilling every 500 ms; two creation credits every 1 s;
+eight verification credits every 50 ms. Eight invalid tags produce bounded
+250 ms backoff. Existing ONLINE data is independent of these unauthenticated
+budgets. Duplicate in-flight handshakes use cached replies; four recent authenticated
+Hello digests suppress short-lived replay across attempts. No permanent lockout.
 
-Identity/recovery: random local rendezvous addresses; transcript-derived local
-session addresses; disjoint role bits; session renewal at 15–17 idle minutes;
-disconnected address rotation around 30 s. Stop/reinitialize the native radio
-when changing MAC/peer keys. Recovery uses keyed channel order and asymmetric
-400/2400 ms dwell, session material initially and pairing-secret fallback after
-15 s. This works without synchronized boot clocks or failed-channel messages.
+Link, Handshake, Pairing and Session now use explicit phase enums. Production
+ONLINE/dispatch checks and transition checks enforce paired/active/confirmed
+state; debug assertions check impossible internal combinations. Timeouts and
+failed confirmation wipe candidates before retry. Invalid pairing curve points
+return immediately to recovery; both directional traffic keys must change before
+a session counter can reset. Dedicated regressions cover these failure paths. Pairing never overlaps an
+operational session. Storage decoding clears invalid destinations; configuration
+copies wipe on destruction. Atomic whole-blob NVS storage remains schema 2, with
+no unreviewed future migration. Failed read/save/security-config paths wipe
+buffers and fail closed. Production hardware safeguards remain mandatory.
 
-Timing: idle requests every random 3–5 s; immediate gesture/status requests;
-100 ms active and degraded polling; 1.5 s active tail; 12 s RF disconnect, with
-Teensy's existing local 2 s UART timeout clearing its paw-online indication
-within another 2 s. Rendering and local controls continue throughout.
+`SECURITY STATUS` reports only phase, age, authenticated record count, renewal
+interval, channel and saturating non-secret counters. It never exposes secret
+keys, tags, nonces, SAS or factory MAC/history and never changes authentication.
+A SAS mismatch requires comparing two devices and cannot be diagnosed locally;
+no misleading mismatch counter is fabricated.
 
-## Every changed/created source or documentation file
+`PROTOGEN_UART_AUTH` is an explicit optional build feature, with one generated
+secret per helmet/Teensy pair and no universal key. Authenticated COBS/CRC16
+UART envelopes bind version, role, boot epoch, new receiver session ID, sequence,
+command and complete payload. PSA and a small unmodified upstream Mbed TLS 3.6.5
+MAC subset interoperate. The enabled parser rejects CRC-only commands. A replayed
+request cannot replace an active UART session without new authenticated confirmation.
+The normal Teensy keeps its secret in extractable firmware flash; the feature
+is not secure boot or physical tamper resistance. Disabled development builds
+retain the explicitly trusted wire boundary. [PRODUCTION_PROVISIONING.md](PRODUCTION_PROVISIONING.md)
+describes safe private provisioning and required manual production decisions.
 
-Paths below are relative to the repository root. Paired header/source names
-list both files explicitly; the header defines the bounded API and the source
-implements it. Existing DTLS sources/tests and WearerIO remain unchanged.
+The wipe audit covers volatile PSA private handles, raw shared secrets, temporary
+HKDF outputs, superseded session/Finished/CCMP/recovery material, decrypted temporary
+buffers, pairing candidates, Config copies and raw console/storage records.
+ESP-NOW application peer structs are wiped; peer removal, PMK replacement and
+driver deinitialization retire native keys. Proprietary driver-internal physical
+zeroization cannot be inspected or promised from these APIs. No eFuses are
+programmed, no firmware uploaded, and development remains recoverable.
 
-| File(s) | Change |
+## Validation evidence and remaining limits
+
+[WIRELESS_VALIDATION.md](WIRELESS_VALIDATION.md) enumerates automated counts,
+reproducible event seeds, storage-fault assumptions and hardware qualification.
+The suite includes one million state-event steps, one million real AES-GCM
+records, 135,983 storage faults, 52,000 radio corruption cases, 100,000 UART
+streams, and actual Teensy behavior tests with malformed authenticated input.
+Test fixtures are public material, never firmware defaults. Clang Static Analyzer
+covers ten portable protocol/storage/UART translation units; warnings are errors.
+Target validation includes four ESP32 and seventeen Teensy builds. The Teensy
+helper preserves the board definitions, uses the consumed `build.flags.defs`
+property, checks actual compiler commands, and verifies linked UART HMAC/adapter
+symbols. A regression rejects ignored security flags. All final builds have zero
+warnings and match the final source digest recorded in WIRELESS_VALIDATION.md.
+
+A 64-session host benchmark records mean/max wall time, process CPU time, five
+control frames/640 bytes, object sizes and process RSS in the ignored build tree.
+Host `.su` stack frames and sanitizer RSS are not MCU stack/heap/energy data.
+Target ECDH/reconnect timing, heap/stack high-water, current draw, SSID visibility,
+RF injection/CCMP/MAC races, actual NVS power cuts, readable SAS LEDs and protected
+production hardware still require bench qualification. No invisibility, broadband
+jamming immunity, perfect physical zeroization or physical Teensy key protection
+is claimed. No field OTA/rollback implementation or irreversible factory station
+was added; those remain explicit production blockers.
+
+## Complete modified/created file manifest
+
+Paths are relative to the repository root. Build outputs and private provisioning
+headers are ignored, not source changes. Upstream hashes/license are recorded
+in `src/UartCrypto/UPSTREAM.json`; upstream `.inc` files and public headers are
+unmodified, with separate compile wrappers and symbol-isolation macros.
+
+Total: **79 files**.
+
+| File | Change |
 | --- | --- |
-| `README.md` | Points to v2 firmware and new test runner |
-| `SECURITY.md` | Threat boundary, protections, limits and production requirements |
-| `docs/ENGINEERING_PLAN.md` | Replaces obsolete USB/DTLS/fixed-channel plan with implemented design |
-| `docs/HARDWARE_WIRING.md` | Mandatory buffered pairing LED and C3 strap qualification |
-| `docs/WIRELESS_PROTOCOL.md` | Full wire layouts, pairing/session/identity/recovery/timing design and SDK limits |
-| `docs/PRODUCTION_PROVISIONING.md` | Separate reviewed irreversible factory steps, manual SDK selections and update blocker |
-| `docs/WIRELESS_VALIDATION.md` | Automated coverage and explicit physical test matrix |
-| `docs/WIRELESS_IMPLEMENTATION.md` | This review record and complete file manifest |
-| `firmware/esp32/README.md` | User pairing/erase/build/operation/migration instructions |
-| `firmware/esp32/sdkconfig.defaults` | PSA algorithms, no SoftAP and recoverable security defaults |
-| `firmware/esp32/src/CMakeLists.txt` | Builds v2 modules and documented SDK dependencies, warnings as errors |
-| `firmware/esp32/src/Kconfig.projbuild` | Explicit production-security guard selection |
-| `firmware/esp32/src/DeviceConfig.h` | Version-2 atomic secret record, strict decoding and LED wiring pin |
-| `firmware/esp32/src/main.cpp` | Integrates link/physical gestures, bounded intents, wireless telemetry and unchanged UART/Teensy handoff |
-| `firmware/esp32/src/WirelessConfig.h` | Central version, packet sizes, timings, replay/channel/retry and UI constants |
-| `firmware/esp32/src/WirelessCrypto.h`, `WirelessCrypto.cpp` | PSA HKDF/HMAC/SHA256/GCM/P-256 wrappers, RNG and secret wiping |
-| `firmware/esp32/src/ReplayWindow.h` | Bounded 64-record authenticated replay state |
-| `firmware/esp32/src/WirelessSession.h`, `WirelessSession.cpp` | Domain-separated material, fixed packet codec, AEAD and directional command validation |
-| `firmware/esp32/src/WirelessPairing.h`, `WirelessPairing.cpp` | Commit/reveal agreement, SAS, independent local confirmations, timeout and bounded candidate |
-| `firmware/esp32/src/SessionHandshake.h`, `SessionHandshake.cpp` | Fresh mutual challenge authentication and reconnect retries |
-| `firmware/esp32/src/IdentityRecovery.h`, `IdentityRecovery.cpp` | Local identities and keyed asymmetric channel rendezvous |
-| `firmware/esp32/src/WirelessTransport.h` | Fixed-frame transport abstraction used by real radio and host model |
-| `firmware/esp32/src/EspNowTransport.h`, `EspNowTransport.cpp` | STA-only documented APIs, pre-radio entropy, native encrypted peers and fixed callback queue |
-| `firmware/esp32/src/WirelessLink.h`, `WirelessLink.cpp` | Pair/session lifecycle, bounded TX/RX, keepalives, renewal, identity changes and failure recovery |
-| `firmware/esp32/src/SecureStorage.h`, `SecureStorage.cpp` | Atomic storage, production guards and read-only hardware-key initialization |
-| `firmware/esp32/src/PairingIndicator.h`, `PairingIndicator.cpp` | Six-digit LED waveform and pairing indication |
-| `firmware/esp32/src/ActionQueue.h` | Four expiring paw intents; no offline carryover |
-| `scripts/build-esp32.py` | Enforces no SoftAP, enabled algorithms and recoverable development SDK settings |
-| `scripts/pair-paw.py` | Retires plaintext USB key provisioning; migration guidance only |
-| `scripts/test-wireless.sh` | Builds/runs real PSA protocol tests with sanitizer instrumentation |
-| `scripts/analyze-wireless.py` | Clang Static Analyzer using actual module compile commands |
-| `scripts/tests/wireless.cpp` | Primitive vectors, pairing, AEAD/replay/fuzz, reset/renewal/MAC/channel/loss/queue tests |
-| `scripts/tests/wireless-config.h` | Crypto-only host library configuration |
-| `scripts/tests/wireless-crypto-config.h` | Host PSA algorithm/curve/entropy selections |
-| `scripts/tests/wireless/CMakeLists.txt` | Links exact project modules and SDK library; sanitizer/test flags |
-| `scripts/tests/wireless/compat/mbedtls/bignum.h` | Host alias for SDK software backend include-name compatibility |
-| `scripts/tests/wireless/compat/mbedtls/ecp.h` | Host alias for SDK software backend include-name compatibility |
-| `scripts/tests/helmet-protocol.cpp` | Updates secure-record regression checks to schema 2 |
-| `scripts/tests/test-pair-paw.py` | Verifies retired provisioner gives guidance without USB access/key generation |
-
-## Validation and practical limits
-
-Builds: both ESP32 firmware targets and all five Teensy extension combinations.
-Checks: wireless PSA/sanitizer suite, existing Teensy/packet/tool suite, retained
-DTLS regression, Clang Static Analyzer on seven portable source modules,
-`git diff --check`. Build evidence, artifact hashes and compiler output are
-under `build/`. No upload, eFuse write or production lockdown is performed.
-
-Not safely verifiable here: ordinary Wi-Fi scan visibility, real ESP-NOW/CCMP
-behavior during stop/start/MAC changes, range, RF replay/injection, battery
-endurance, physical LED comparison/strap circuitry, and production hardware
-security. See the physical matrix before release. The single-factory partition
-and prototype flashing workflow are not a field OTA/update system; qualify a
-signed update/recovery design before factory lockdown. Development NVS is not
-hardware protected. Interrupted pair commits can require re-pairing both devices.
-No forward secrecy is claimed for PSK-only reconnect after later secret theft.
-
-Manual production options and ESP-IDF limitations are listed in
-[PRODUCTION_PROVISIONING.md](PRODUCTION_PROVISIONING.md). In particular, this
-SDK exposes HKDF through PSA, not a `CONFIG_MBEDTLS_HKDF_C` switch, and encrypted
-NVS's normal initializer can generate/burn a missing HMAC eFuse: this design uses
-a read-only key lookup instead. Buffered pairing LEDs are a required hardware
-addition on these board maps. RF fingerprinting, timing/transition correlation
-and broadband jamming remain limitations; the system is not invisible or
-unjammable.
-
-Final workspace checks (2026-10-05): helmet binary 745,440 bytes; paw binary
-672,112 bytes; each has a 1,536,000-byte application partition. Both target builds
-succeeded with zero warnings and matching final source identity. Wireless
-sanitizer tests (52,000 random/corrupt frames plus named scenarios), the existing
-Teensy/tool suite, historical DTLS tests and all five Teensy extension builds
-passed. Clang Static Analyzer reported zero diagnostics across seven modules;
-`git diff --check` and Python syntax compilation passed. Physical tests remain
-unexecuted as specified above.
+| `README.md` | v3 validation entry point |
+| `SECURITY.md` | Threat boundary, forward secrecy, UART and production limitations |
+| `docs/ENGINEERING_PLAN.md` | Align active design with v3 primitives and lifecycle |
+| `docs/PRODUCTION_PROVISIONING.md` | Unique UART key build/provisioning boundary and ordinary Teensy limitation |
+| `docs/WIRELESS_IMPLEMENTATION.md` | Implementation decisions, wipe audit, limits and this exhaustive manifest |
+| `docs/WIRELESS_PROTOCOL.md` | Exact handshake, KDF, Finished, state/DoS/UART/storage/telemetry specification |
+| `docs/WIRELESS_VALIDATION.md` | Test counts, seeds, fault model, benchmark and hardware gates |
+| `firmware/PROT_OS7_MAX7219/PawLink.ino` | Compile-time authenticated UART adapter before the existing command gate |
+| `firmware/PROT_OS7_MAX7219/UartCryptoConfig.h` | Minimal upstream SHA256/MD configuration |
+| `firmware/PROT_OS7_MAX7219/UartCryptoSymbols.h` | Isolate upstream library symbols without changing algorithms |
+| `firmware/PROT_OS7_MAX7219/mbedtls/build_info.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/check_config.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_legacy_crypto.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_ssl.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_x509.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/error.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/md.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/md5.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/platform.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/platform_util.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/private_access.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/ripemd160.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/sha1.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/sha256.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/sha3.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/sha512.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/mbedtls/threading.h` | Unmodified pinned upstream public header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/src/HelmetProtocol/SecureZero.h` | Portable reviewed volatile secure-zero helper |
+| `firmware/PROT_OS7_MAX7219/src/HelmetProtocol/UartAuthentication.h` | Bounded authenticated UART handshake/codec, replay/session/epoch checks |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/LICENSE` | Upstream license |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/UPSTREAM.json` | Pinned version, archive and per-file upstream SHA256 evidence |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/UartMac.h` | Reusable upstream Mbed TLS HMAC context with per-helmet private header |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/alignment.h` | Unmodified upstream internal header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/common.h` | Unmodified upstream internal header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/md.c` | Compile-time wrapper for the unmodified upstream md implementation |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/md.inc` | Unmodified upstream md implementation (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/md_wrap.h` | Unmodified upstream internal header (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.c` | Compile-time wrapper for the unmodified upstream platform_util implementation |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.inc` | Unmodified upstream platform_util implementation (hash in UPSTREAM.json) |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.c` | Compile-time wrapper for the unmodified upstream sha256 implementation |
+| `firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.inc` | Unmodified upstream sha256 implementation (hash in UPSTREAM.json) |
+| `firmware/esp32/README.md` | v3 usage, security status and optional UART build documentation |
+| `firmware/esp32/platformio.ini` | Opt-in private UART provisioning build hook |
+| `firmware/esp32/src/DeviceConfig.h` | Securely erased Config copies and fail-closed decode destination |
+| `firmware/esp32/src/EspNowTransport.cpp` | Retire CCMP peers/PMK and wipe temporary native peer key copies |
+| `firmware/esp32/src/IdentityRecovery.cpp` | v3 domain context and superseded schedule wiping |
+| `firmware/esp32/src/IdentityRecovery.h` | v3 domain context and superseded schedule wiping |
+| `firmware/esp32/src/SecureStorage.cpp` | Validate saves, clear failed loads and wipe partial security-config buffers |
+| `firmware/esp32/src/SecurityState.h` | Explicit states, saturating diagnostics, wrap-safe token buckets and backoff |
+| `firmware/esp32/src/SessionHandshake.cpp` | Fresh authenticated ephemeral P-256, canonical transcript and new-key Finished/Commit |
+| `firmware/esp32/src/SessionHandshake.h` | Fresh authenticated ephemeral P-256, canonical transcript and new-key Finished/Commit |
+| `firmware/esp32/src/WirelessConfig.h` | Wire version 3, Commit type, centralized rekey/rate/backoff limits |
+| `firmware/esp32/src/WirelessCrypto.cpp` | PSA volatile lifetime, secure failure outputs, non-copyable private handles |
+| `firmware/esp32/src/WirelessCrypto.h` | PSA volatile lifetime, secure failure outputs, non-copyable private handles |
+| `firmware/esp32/src/WirelessLink.cpp` | Explicit production-gated security states, confirmation/recovery/rekey/telemetry integration |
+| `firmware/esp32/src/WirelessLink.h` | Explicit production-gated security states, confirmation/recovery/rekey/telemetry integration |
+| `firmware/esp32/src/WirelessPairing.cpp` | Explicit confirmation phases, shared crypto budgets and distinct confirmation subkey |
+| `firmware/esp32/src/WirelessPairing.h` | Explicit confirmation phases, shared crypto budgets and distinct confirmation subkey |
+| `firmware/esp32/src/WirelessSession.cpp` | ECDH-only labelled material, record budget, replay diagnostics and same-key reset prevention |
+| `firmware/esp32/src/WirelessSession.h` | ECDH-only labelled material, record budget, replay diagnostics and same-key reset prevention |
+| `firmware/esp32/src/main.cpp` | Security status console, UART adapter and temporary-secret wiping |
+| `scripts/analyze-wireless.py` | Deduplicate and expand analyzer coverage to ten radio/UART/storage translation units |
+| `scripts/build-esp32.py` | Record and select optional UART build configuration |
+| `scripts/build_support.py` | Warnings-as-errors and per-run optional compiler flags |
+| `scripts/check-uart-auth.py` | Three actual authenticated Teensy builds with temporary private keys |
+| `scripts/esp32-uart-build.py` | Append authenticated UART flags while preserving board roles |
+| `scripts/provision-uart-auth.py` | Exclusive 0600 unique per-helmet development provisioning header generator |
+| `scripts/test-firmware.sh` | Add actual authenticated Teensy dispatcher/local-fallback sanitizer test |
+| `scripts/test-wireless.sh` | Run expanded sanitized radio/storage/UART suites and benchmark |
+| `scripts/tests/helmet-protocol.cpp` | Update fail-closed persistent-record regression expectations |
+| `scripts/tests/test-tools.py` | Reject ignored compiler security flags and preserve pinned toolchain definitions |
+| `scripts/tests/storage-faults.cpp` | Whole-record power-loss/storage/schema fault injection model |
+| `scripts/tests/uart-auth.cpp` | Real PSA/upstream HMAC interoperability and 100000 malformed/replay cases |
+| `scripts/tests/uart-fixture/ProtogenUartKey.h` | Explicitly PUBLIC fixture, excluded from firmware builds |
+| `scripts/tests/uart-mbed-adapter.cpp` | Separate upstream MAC translation unit for host interoperability |
+| `scripts/tests/uart-rendering.cpp` | Actual Teensy authenticated dispatch and local control/rendering failure tests |
+| `scripts/tests/wireless-benchmark.cpp` | 64 loss-free ephemeral reconnects with host performance/resource measurements |
+| `scripts/tests/wireless.cpp` | Named v3 regressions, record quota, authenticated command oracle and million-event corpus |
+| `scripts/tests/wireless/CMakeLists.txt` | Warnings/sanitizers, independent upstream MAC target, storage/UART/benchmark targets |

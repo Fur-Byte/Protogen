@@ -1,20 +1,42 @@
+#ifdef PROTOGEN_UART_AUTH
+#include "src/HelmetProtocol/UartAuthentication.h"
+#include "src/UartCrypto/UartMac.h"
+#endif
 namespace PawLink {
 #ifdef WirelessPaw
+#ifdef PROTOGEN_UART_AUTH
+UartSecurity::MbedMac uartMac;
+bool authMac(void *,const uint8_t *p,size_t n,uint8_t out[32]) {return uartMac.authenticate(p,n,out);}
+bool authRandom(void *,uint8_t *p,size_t n) {
+  if(Entropy.available()<(n+3)/4)return false;
+  while(n) {const uint32_t value=Entropy.random();const size_t take=n<4?n:4;memcpy(p,&value,take);p+=take;n-=take;}
+  return true;
+}
+UartSecurity::Endpoint decoder(UartSecurity::Teensy,nullptr,authMac,authRandom);
+constexpr size_t UartMaxEncoded=UartSecurity::MaxEncoded;
+#else
 HelmetLink::Decoder decoder;
+constexpr size_t UartMaxEncoded=HelmetLink::MaxEncoded;
+#endif
 HelmetLink::Gate gate;
 uint32_t lastStatus = 0, ticket = 0, statusSequence = 0, heartbeatAt = 0;
-uint8_t tx[HelmetLink::MaxEncoded] = {}, serialRxMemory[256] = {};
+uint8_t tx[UartMaxEncoded] = {}, serialRxMemory[256] = {};
 size_t txLength = 0, txSent = 0;
 HelmetLink::Result lastResult = HelmetLink::Unavailable;
 bool haveHeartbeat = false;
 
 bool enqueue(const HelmetLink::Packet &packet) {
   if (txSent < txLength) return false;
+#ifdef PROTOGEN_UART_AUTH
+  txLength=decoder.seal(packet,tx,sizeof(tx));txSent=0;
+  return txLength!=0;
+#else
   uint8_t raw[HelmetLink::MaxRaw];
   const size_t n = HelmetLink::pack(packet, raw, sizeof(raw));
   if (!n) return false;
   txLength = HelmetLink::cobsEncode(raw, n, tx, sizeof(tx)); txSent = 0;
   return txLength != 0;
+#endif
 }
 void status(uint32_t now) {
   if (txSent < txLength) return;
@@ -114,7 +136,11 @@ uint32_t pawRejectedPackets() {
 void servicePawLink(uint32_t now) {
 #ifdef WirelessPaw
   using namespace PawLink;
-  if(!gate.epoch && Entropy.available()) {gate.epoch=Entropy.random();if(!gate.epoch)gate.epoch=1;}
+  if(!gate.epoch && Entropy.available()) {gate.epoch=Entropy.random();if(!gate.epoch)gate.epoch=1;
+#ifdef PROTOGEN_UART_AUTH
+    decoder.begin(gate.epoch,now);
+#endif
+  }
   if(txSent<txLength) {
     const int capacity=Serial1.availableForWrite();
     if(capacity>0) {
@@ -127,6 +153,9 @@ void servicePawLink(uint32_t now) {
     for(unsigned budget=0;budget<64 && Serial1.available();++budget) {
       if(decoder.feed(static_cast<uint8_t>(Serial1.read()),now,p)) {receive(p,now);break;}
     }
+#ifdef PROTOGEN_UART_AUTH
+    if(txSent>=txLength) {txLength=decoder.poll(now,tx,sizeof(tx));txSent=0;}
+#endif
     if(txSent>=txLength && now-lastStatus>=100) status(now);
   }
 #else

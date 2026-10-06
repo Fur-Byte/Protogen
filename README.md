@@ -180,7 +180,7 @@ Optional sensors remain disabled until enabled in the sketch.
 ./scripts/test-firmware.sh        # Sanitized host behavior + tooling/preview integration
 python3 scripts/check-features.py # All eight real Teensy sensor combinations
 python3 scripts/check-extensions.py # Five new UART/dock combinations
-bash scripts/test-wireless.sh      # Actual v2 pairing/AEAD/replay/recovery tests
+bash scripts/test-wireless.sh      # Actual v3 ephemeral ECDH/Finished/AEAD/state/storage/UART tests
 bash scripts/test-dtls.sh          # Retained historical DTLS regression tests
 python3 scripts/build-esp32.py     # Helmet and paw ESP32 builds
 ./scripts/build.sh                # Selected features; export HEX + source manifest

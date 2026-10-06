@@ -1,5 +1,6 @@
 #pragma once
 #include "HelmetProtocol.h"
+#include "SecureZero.h"
 #include <stdint.h>
 #include <string.h>
 namespace Device {
@@ -27,6 +28,7 @@ struct Config {
   bool paired = false;
   uint8_t channel = 6, features = 0, psk[32]{};
   uint32_t usableEnergyMWh = 0;
+  ~Config() { protogenSecureZero(psk, sizeof(psk)); }
 };
 constexpr size_t ConfigBytes = 46;
 inline void encode(const Config &c, uint8_t b[ConfigBytes]) {
@@ -41,6 +43,7 @@ inline void encode(const Config &c, uint8_t b[ConfigBytes]) {
   HelmetLink::put16(b + 44, HelmetLink::crc16(b, 44));
 }
 inline bool decode(const uint8_t *b, size_t n, Config &c) {
+  c = Config{};
   if (!b || n != ConfigBytes || b[0] != 2 || b[1] != Role || b[2] > 1 ||
       (b[3] != 1 && b[3] != 6 && b[3] != 11) ||
       (b[4] & ~(Role == 1 ? 15 : 2)) || b[5] || b[6] || b[7] ||

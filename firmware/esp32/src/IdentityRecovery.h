@@ -9,6 +9,13 @@ class Recovery {
   bool initialized = false;
 
 public:
+  ~Recovery() { clear(); }
+  void clear() {
+    Crypto::wipe(order, sizeof(order));
+    role = 0;
+    started = 0;
+    initialized = false;
+  }
   bool start(const uint8_t key[32], uint8_t ownRole, uint32_t now);
   uint8_t channel(uint32_t now) const;
 };

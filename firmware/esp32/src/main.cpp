@@ -52,19 +52,40 @@ bool queueSecure(const HelmetLink::Packet &p) {
   return wirelessLink.queue(p);
 }
 #ifdef HELMET_RECEIVER
+#ifdef PROTOGEN_UART_AUTH
+#include "UartAuthentication.h"
+#include <ProtogenUartKey.h>
+bool uartMac(void *, const uint8_t *p, size_t n, uint8_t out[32]) {
+  return Wireless::Crypto::hmac(PROTOGEN_UART_AUTH_KEY, p, n, out);
+}
+bool uartRandom(void *, uint8_t *p, size_t n) {
+  return Wireless::Crypto::random(p, n);
+}
+UartSecurity::Endpoint uartDecoder(UartSecurity::Esp, nullptr, uartMac,
+                                   uartRandom);
+constexpr size_t UartMaxEncoded = UartSecurity::MaxEncoded;
+bool uartAuthStarted = false;
+#else
 HelmetLink::Decoder uartDecoder;
-uint8_t uartTx[4][HelmetLink::MaxEncoded]{};
+constexpr size_t UartMaxEncoded = HelmetLink::MaxEncoded;
+#endif
+uint8_t uartTx[4][UartMaxEncoded]{};
 size_t uartLengths[4]{}, uartSent = 0;
 unsigned uartRead = 0, uartWrite = 0, uartCount = 0;
 bool queueUart(const HelmetLink::Packet &p) {
   if (uartCount == 4)
     return false;
+#ifdef PROTOGEN_UART_AUTH
+  uartLengths[uartWrite] =
+      uartDecoder.seal(p, uartTx[uartWrite], sizeof(uartTx[0]));
+#else
   uint8_t raw[HelmetLink::MaxRaw];
   const size_t n = HelmetLink::pack(p, raw, sizeof(raw));
   if (!n)
     return false;
   uartLengths[uartWrite] =
       HelmetLink::cobsEncode(raw, n, uartTx[uartWrite], sizeof(uartTx[0]));
+#endif
   if (!uartLengths[uartWrite])
     return false;
   uartWrite = (uartWrite + 1) % 4;
@@ -72,6 +93,19 @@ bool queueUart(const HelmetLink::Packet &p) {
   return true;
 }
 void serviceUart(uint32_t now) {
+#ifdef PROTOGEN_UART_AUTH
+  if (!uartAuthStarted)
+    uartAuthStarted = uartDecoder.begin(0, now);
+  if (!uartCount) {
+    const size_t n =
+        uartDecoder.poll(now, uartTx[uartWrite], sizeof(uartTx[0]));
+    if (n) {
+      uartLengths[uartWrite] = n;
+      uartWrite = (uartWrite + 1) % 4;
+      ++uartCount;
+    }
+  }
+#endif
   if (uartCount) {
     size_t n = uartLengths[uartRead] - uartSent;
     if (n > 64)
@@ -406,6 +440,41 @@ void consoleCommand(char *line) {
   const char *cmd = strtok_r(line, " \t", &save);
   if (!cmd)
     return;
+  if (!strcmp(cmd, "SECURITY")) {
+    const char *sub = strtok_r(nullptr, " \t", &save);
+    if (sub && !strcmp(sub, "STATUS") && !strtok_r(nullptr, " \t", &save)) {
+      const auto s = wirelessLink.securityStatus(
+          static_cast<uint32_t>(esp_timer_get_time() / 1000));
+      const auto &d = s.counters;
+      printf("{\"ok\":true,\"state\":\"%s\",\"age_ms\":%lu,\"records\":%llu,"
+             "\"renewal_ms\":%lu,\"channel\":%u,"
+             "\"aead_failures\":%lu,\"replay_rejects\":%lu,\"malformed\":%lu,"
+             "\"versions\":%lu,"
+             "\"pairing_failures\":%lu,\"pairing_timeouts\":%lu,\"handshake_"
+             "failures\":%lu,\"finished_failures\":%lu,"
+             "\"recoveries\":%lu,\"renewals\":%lu,\"channel_recoveries\":%lu,"
+             "\"identity_rotations\":%lu,\"rate_drops\":%lu,\"disconnects\":%"
+             "lu}\n",
+             Wireless::stateName(s.state), static_cast<unsigned long>(s.ageMs),
+             static_cast<unsigned long long>(s.records),
+             static_cast<unsigned long>(s.renewalInMs), s.channel,
+             static_cast<unsigned long>(d.aeadFailures),
+             static_cast<unsigned long>(d.replayRejects),
+             static_cast<unsigned long>(d.malformed),
+             static_cast<unsigned long>(d.versions),
+             static_cast<unsigned long>(d.pairingFailures),
+             static_cast<unsigned long>(d.pairingTimeouts),
+             static_cast<unsigned long>(d.handshakeFailures),
+             static_cast<unsigned long>(d.finishedFailures),
+             static_cast<unsigned long>(d.recoveries),
+             static_cast<unsigned long>(d.renewals),
+             static_cast<unsigned long>(d.channelRecoveries),
+             static_cast<unsigned long>(d.identityRotations),
+             static_cast<unsigned long>(d.rateDrops),
+             static_cast<unsigned long>(d.disconnects));
+      return;
+    }
+  }
   if (!strcmp(cmd, "INFO") && !strtok_r(nullptr, " \t", &save)) {
     const WearerIO::Status sensors = WearerIO::snapshot();
     char pawVolts[16] = "null";
@@ -452,7 +521,9 @@ void consoleCommand(char *line) {
   uint8_t blob[Device::ConfigBytes];
   Device::Config checked;
   Device::encode(candidate, blob);
-  if (!okay || !Device::decode(blob, sizeof(blob), checked)) {
+  const bool decoded = Device::decode(blob, sizeof(blob), checked);
+  Wireless::Crypto::wipe(blob, sizeof(blob));
+  if (!okay || !decoded) {
     puts("{\"ok\":false,\"error\":\"invalid_configuration\"}");
     return;
   }
@@ -460,6 +531,8 @@ void consoleCommand(char *line) {
     puts("{\"ok\":false,\"error\":\"storage_failed\"}");
     return;
   }
+  Wireless::Crypto::wipe(candidate.psk, sizeof(candidate.psk));
+  Wireless::Crypto::wipe(checked.psk, sizeof(checked.psk));
   puts("{\"ok\":true,\"restarting\":true}");
   fflush(stdout);
   vTaskDelay(pdMS_TO_TICKS(50));

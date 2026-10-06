@@ -24,6 +24,13 @@ def main():
         if not version.endswith(" "+locked["platformio"]):raise RuntimeError("PlatformIO version differs from toolchain.lock.json")
         ini=configparser.ConfigParser(interpolation=None);ini.read(root/"firmware/esp32/platformio.ini")
         if ini["env"]["platform"]!=locked["platform"]:raise RuntimeError("ESP32 platform differs from the lock")
+        uart_include=os.environ.get("PROTOGEN_UART_KEY_DIR")
+        if uart_include:
+            directory=Path(uart_include).resolve()
+            if not (directory/"ProtogenUartKey.h").is_file():raise RuntimeError("Missing per-helmet UART key header")
+            env["PROTOGEN_UART_KEY_DIR"]=str(directory)
+            record["uart_auth"]=True
+        else:record["uart_auth"]=False
         run=subprocess.run([pio,"run","--project-dir",str(root/"firmware/esp32"),"-e","helmet","-e","paw"],
             env=env,capture_output=True,text=True)
         output=run.stdout+run.stderr;(build/"esp32-build.log").write_text(output)

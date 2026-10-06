@@ -18,6 +18,9 @@ class Agreement {
   psa_key_id_t key = 0;
 
 public:
+  Agreement() = default;
+  Agreement(const Agreement &) = delete;
+  Agreement &operator=(const Agreement &) = delete;
   ~Agreement() { clear(); }
   void clear();
   bool generate(uint8_t publicKey[65]);

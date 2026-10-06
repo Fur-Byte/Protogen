@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 namespace Wireless {
-constexpr uint8_t Version = 2, Helmet = 1, Paw = 2;
+constexpr uint8_t Version = 3, Helmet = 1, Paw = 2;
 constexpr size_t PacketBytes = 128, HeaderBytes = 20, PlainBytes = 92,
                  TagBytes = 16, ControlTagAt = 96;
 constexpr uint64_t MaxSequence = 0x7fffffffffffffffULL;
@@ -25,6 +25,11 @@ constexpr uint32_t RecoveryIdentityMs = 30000;
 constexpr uint32_t SessionLifetimeMs = 900000, SessionJitterMs = 120000;
 constexpr uint32_t PawDwellMs = 400, HelmetDwellMs = 2400, AuthIntervalMs = 50,
                    EcdhIntervalMs = 1000;
+constexpr uint64_t RekeyRecords = 1000000, SequenceRenewMargin = 1024;
+constexpr unsigned CryptoBurst = 4, AuthBurst = 8, CreationBurst = 2;
+constexpr uint32_t CryptoRefillMs = 500, AuthRefillMs = 50,
+                   CreationRefillMs = 1000, InvalidBackoffMs = 250;
+constexpr uint32_t PairStoredGraceMs = 2000;
 constexpr uint8_t Channels[] = {1, 6, 11};
 constexpr size_t ChannelCount = sizeof(Channels);
 constexpr uint8_t PairChannel = 6;
@@ -35,7 +40,8 @@ enum Type : uint8_t {
   PairCommit = 4,
   PairReveal = 5,
   PairConfirm = 6,
-  Data = 7
+  Data = 7,
+  SessionCommit = 8
 };
 inline uint64_t get64(const uint8_t *p) {
   uint64_t v = 0;
@@ -83,6 +89,6 @@ inline void header(Frame &f, Type t, uint8_t role) {
 }
 inline bool valid(const uint8_t *b, size_t n, uint8_t role) {
   return b && n == PacketBytes && b[0] == 0x70 && b[1] == Version &&
-         b[2] >= SessionHello && b[2] <= Data && b[3] == role;
+         b[2] >= SessionHello && b[2] <= SessionCommit && b[3] == role;
 }
 } // namespace Wireless

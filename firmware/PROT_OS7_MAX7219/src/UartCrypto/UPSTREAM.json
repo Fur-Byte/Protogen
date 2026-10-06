@@ -1,0 +1,122 @@
+{
+  "version": "3.6.5",
+  "source": "https://github.com/Mbed-TLS/mbedtls/tree/v3.6.5",
+  "files": [
+    {
+      "upstream": "include/mbedtls/build_info.h",
+      "file": "mbedtls/build_info.h",
+      "sha256": "a9ff45f478969aae4b4f610634a02ff02355189b15beb25777ec1cf2f87cd749"
+    },
+    {
+      "upstream": "include/mbedtls/check_config.h",
+      "file": "mbedtls/check_config.h",
+      "sha256": "66696df9cc3f7cbbe84786046937242b18140963b94c34347404f7827c428efa"
+    },
+    {
+      "upstream": "include/mbedtls/config_adjust_legacy_crypto.h",
+      "file": "mbedtls/config_adjust_legacy_crypto.h",
+      "sha256": "01e7322cbfac74ac36abb30e4c904b63c8c9492d8675d324281fbc5c04dcbc90"
+    },
+    {
+      "upstream": "include/mbedtls/config_adjust_ssl.h",
+      "file": "mbedtls/config_adjust_ssl.h",
+      "sha256": "2d37a7552566e9fbd8a5a8b3e6cf6d4e21125a5e48a7e24ca30f3c683d141871"
+    },
+    {
+      "upstream": "include/mbedtls/config_adjust_x509.h",
+      "file": "mbedtls/config_adjust_x509.h",
+      "sha256": "92909d91c59340f13eb2b447cf44e0075a0ee742a18f22fb7843f6a18c5af5dc"
+    },
+    {
+      "upstream": "include/mbedtls/error.h",
+      "file": "mbedtls/error.h",
+      "sha256": "ddcb14c1bf9d6fd2f2f1d2eb62117ce9bf05a0f9430c6931d7555b23f9ed3ddb"
+    },
+    {
+      "upstream": "include/mbedtls/md.h",
+      "file": "mbedtls/md.h",
+      "sha256": "89c41b36251ab26facdedc7b379ad5236af8f941cae58941be7f6de690fecd4e"
+    },
+    {
+      "upstream": "include/mbedtls/md5.h",
+      "file": "mbedtls/md5.h",
+      "sha256": "21893a1ffcb6d65057178a45977774ed249387ace6d733f32434d8546dd827f7"
+    },
+    {
+      "upstream": "include/mbedtls/platform.h",
+      "file": "mbedtls/platform.h",
+      "sha256": "5f9e6ab749a7d9ddb24c10cfdec53fd1436ca36c7507fc2d543f43afedcc1bfb"
+    },
+    {
+      "upstream": "include/mbedtls/platform_util.h",
+      "file": "mbedtls/platform_util.h",
+      "sha256": "1237d849e96bc15b479e8086160e4568c1de86563bb51c60eead45b99ad1b4ac"
+    },
+    {
+      "upstream": "include/mbedtls/private_access.h",
+      "file": "mbedtls/private_access.h",
+      "sha256": "c897213b3e534e8d5db83629177f9c01d90461ed6fea57906836262dba87056d"
+    },
+    {
+      "upstream": "include/mbedtls/ripemd160.h",
+      "file": "mbedtls/ripemd160.h",
+      "sha256": "138b3cd792a3301fb869e5303fe0dd317743b2009b7a8f8423a51511444e23dc"
+    },
+    {
+      "upstream": "include/mbedtls/sha1.h",
+      "file": "mbedtls/sha1.h",
+      "sha256": "e644d96d46d44da66e160eb69ad637f13caef1d192e3361616833b342c6a859b"
+    },
+    {
+      "upstream": "include/mbedtls/sha256.h",
+      "file": "mbedtls/sha256.h",
+      "sha256": "a2ee050ca15b7598a8d227cac0e0ec9fd6c38615b817737a8007e90b3feab0d9"
+    },
+    {
+      "upstream": "include/mbedtls/sha3.h",
+      "file": "mbedtls/sha3.h",
+      "sha256": "8cc0b3928976871e2a4847d0f6bf02da4663a94cc0779afdec3438a0c76a5499"
+    },
+    {
+      "upstream": "include/mbedtls/sha512.h",
+      "file": "mbedtls/sha512.h",
+      "sha256": "0f77abf1b4dfc18b865725e8a221d5d9279899c274e993005359be182b7574a2"
+    },
+    {
+      "upstream": "include/mbedtls/threading.h",
+      "file": "mbedtls/threading.h",
+      "sha256": "5688b2bef81fa61b9d29bca9383931db26b7dcb8a96785dbc957b95e01292b72"
+    },
+    {
+      "upstream": "library/alignment.h",
+      "file": "src/UartCrypto/alignment.h",
+      "sha256": "d18086bed998b4cf2a4b99e423f39b274287324f206d8aeb9da31e15947128bd"
+    },
+    {
+      "upstream": "library/common.h",
+      "file": "src/UartCrypto/common.h",
+      "sha256": "60cd8ae44ed2537b178643f0426af9252f47e7211ca579498914324792613203"
+    },
+    {
+      "upstream": "library/md.c",
+      "file": "src/UartCrypto/md.inc",
+      "sha256": "5ba79d51ff85951cb4001a22b2428568e4bc1072b367222808f3eac1ad91884d"
+    },
+    {
+      "upstream": "library/md_wrap.h",
+      "file": "src/UartCrypto/md_wrap.h",
+      "sha256": "383077e483c60893f8256db246a7bd1fb1fc30bc7dd8e15133d2cb16b9dc5c82"
+    },
+    {
+      "upstream": "library/platform_util.c",
+      "file": "src/UartCrypto/platform_util.inc",
+      "sha256": "5e195c161ebf03afc4640fb0c8f8aa1a962390fc447a02cd91f7545b5d224a4b"
+    },
+    {
+      "upstream": "library/sha256.c",
+      "file": "src/UartCrypto/sha256.inc",
+      "sha256": "4f928e5dcc0a2baf08634fc759309a3dbda52bb69ead14ff6c2dccafd8267453"
+    }
+  ],
+  "archive_sha256": "b7cbbfb717f0c38521192d7954a2eb6b7ada5a10a44f72dadbae6655e7300023"
+}

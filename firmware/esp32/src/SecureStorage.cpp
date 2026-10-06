@@ -25,8 +25,10 @@ bool begin(nvs_handle_t &handle) {
   // scheme that can BURN an eFuse. Read-only security configuration here.
   nvs_sec_cfg_t security{};
   auto *scheme = nvs_flash_get_default_security_scheme();
-  if (!scheme || nvs_flash_read_security_cfg_v2(scheme, &security) != ESP_OK)
+  if (!scheme || nvs_flash_read_security_cfg_v2(scheme, &security) != ESP_OK) {
+    Wireless::Crypto::wipe(&security, sizeof(security));
     return false;
+  }
   const bool initialized = nvs_flash_secure_init(&security) == ESP_OK;
   Wireless::Crypto::wipe(&security, sizeof(security));
 #else
@@ -35,6 +37,7 @@ bool begin(nvs_handle_t &handle) {
   return initialized && nvs_open("protogen", NVS_READWRITE, &handle) == ESP_OK;
 }
 bool load(nvs_handle_t handle, Device::Config &config) {
+  config = Device::Config{};
   uint8_t blob[Device::ConfigBytes]{};
   size_t n = sizeof(blob);
   const bool okay = nvs_get_blob(handle, "config", blob, &n) == ESP_OK &&
@@ -45,8 +48,10 @@ bool load(nvs_handle_t handle, Device::Config &config) {
 bool save(nvs_handle_t handle, const Device::Config &config) {
   uint8_t blob[Device::ConfigBytes];
   Device::encode(config, blob);
+  Device::Config checked;
+  const bool valid = Device::decode(blob, sizeof(blob), checked);
   const bool okay =
-      nvs_set_blob(handle, "config", blob, sizeof(blob)) == ESP_OK &&
+      valid && nvs_set_blob(handle, "config", blob, sizeof(blob)) == ESP_OK &&
       nvs_commit(handle) == ESP_OK;
   Wireless::Crypto::wipe(blob, sizeof(blob));
   return okay;

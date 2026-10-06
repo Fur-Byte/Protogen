@@ -1,12 +1,17 @@
 #include "ActionQueue.h"
 #include "PairingIndicator.h"
+#include "UartAuthentication.h"
 #include "WirelessLink.h"
+#include <array>
 #include <cassert>
+#include <chrono>
 #include <cstring>
 #include <deque>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <random>
+#include <set>
 #include <vector>
 using namespace Wireless;
 using HelmetLink::Packet;
@@ -65,6 +70,8 @@ struct FakeRadio : Transport {
   }
   bool send(const Frame &f, const Mac *p) override {
     ++packets;
+    if (captured.size() == 256)
+      captured.erase(captured.begin());
     captured.push_back(f);
     assert(f.bytes[2] != Data || (p && encrypted));
     if (f.bytes[2] == SessionFinish && dropFinish) {
@@ -73,7 +80,7 @@ struct FakeRadio : Transport {
     }
     if (other && !blocked && !other->blocked && !(deniedChannels & (1 << c)) &&
         !(other->deniedChannels & (1 << c)) && other->c == c &&
-        (!p || same(*p, other->own)) && incoming.size() < RxSlots) {
+        (!p || same(*p, other->own)) && other->incoming.size() < RxSlots) {
       if (f.bytes[2] != Data || (other->encrypted && same(own, other->peer)))
         other->incoming.push_back({f, own, p == nullptr});
     }
@@ -94,19 +101,33 @@ struct DeviceTest {
   uint8_t secret[32]{};
   bool stored = false, allowStorage = true;
   unsigned actions = 0, connections = 0, losses = 0;
+  bool properties = false;
+  std::map<uint32_t, Mac> authority;
+  std::set<uint32_t> executed;
+  std::set<std::array<uint8_t, 6>> identities;
   std::unique_ptr<Link> link;
   explicit DeviceTest(uint8_t r) : role(r) { reset(0); }
   static void connection(void *p, bool online) {
     auto &d = *static_cast<DeviceTest *>(p);
-    if (online)
+    if (online) {
+      std::array<uint8_t, 6> address{};
+      memcpy(address.data(), d.radio.own.bytes, 6);
+      assert(d.identities.insert(address).second);
       ++d.connections;
-    else
+    } else
       ++d.losses;
   }
   static void packet(void *p, const Packet &v) {
     auto &d = *static_cast<DeviceTest *>(p);
-    if (v.kind == HelmetLink::Command)
+    assert(d.link->online());
+    if (v.kind == HelmetLink::Command) {
+      if (d.properties) {
+        const auto found = d.authority.find(v.sequence);
+        assert(found != d.authority.end() && same(found->second, d.radio.own));
+        assert(d.executed.insert(v.sequence).second);
+      }
       ++d.actions;
+    }
     if (d.role == Helmet && v.kind == HelmetLink::Status && !v.length)
       d.link->queue(status());
   }
@@ -219,6 +240,84 @@ void testPairing() {
   failure.step(10000);
   assert(!failure.h.stored && !failure.online());
 }
+void testSasMismatchAndReplacement() {
+  Pairing victimPaw, victimHelmet, rogueHelmet, roguePaw;
+  Mac rogueH{{2, 8, 9, 10, 11, 0}}, rogueP{{2, 8, 9, 10, 11, 1}};
+  assert(victimPaw.start(Paw, paw, 100) &&
+         victimHelmet.start(Helmet, helmet, 100));
+  assert(rogueHelmet.start(Helmet, rogueH, 100) &&
+         roguePaw.start(Paw, rogueP, 100));
+  const auto exchange = [](Pairing &from, Pairing &to, const Mac &source,
+                           uint32_t now) {
+    Frame f;
+    Mac dest;
+    bool broadcast = false;
+    if (from.tick(now, f, dest, broadcast))
+      to.receive(f, source, now);
+  };
+  for (uint32_t now = 100; now < 5000; now += 100) {
+    exchange(victimPaw, rogueHelmet, paw, now);
+    exchange(rogueHelmet, victimPaw, rogueH, now);
+    exchange(victimHelmet, roguePaw, helmet, now);
+    exchange(roguePaw, victimHelmet, rogueP, now);
+  }
+  assert(victimPaw.awaitingConfirmation() &&
+         victimHelmet.awaitingConfirmation());
+  // Model the documented human policy: unequal six-digit codes are not
+  // confirmed. A rare accidental 1/1,000,000 collision is the stated SAS limit.
+  if (victimPaw.authenticationCode() != victimHelmet.authenticationCode()) {
+    rogueHelmet.confirm();
+    roguePaw.confirm();
+    for (uint32_t now = 5000; now < 10000; now += 100) {
+      exchange(rogueHelmet, victimPaw, rogueH, now);
+      exchange(roguePaw, victimHelmet, rogueP, now);
+    }
+    assert(!victimPaw.ready() && !victimHelmet.ready());
+    uint8_t secret[32]{};
+    assert(!victimPaw.getSecret(secret) && !victimHelmet.getSecret(secret));
+  }
+  Frame f;
+  Mac dest;
+  bool broadcast = false;
+  victimPaw.tick(PairingMs + 100, f, dest, broadcast);
+  victimHelmet.tick(PairingMs + 100, f, dest, broadcast);
+  assert(!victimPaw.active() && !victimHelmet.active());
+  Rig old;
+  old.connect();
+  uint8_t saved[32];
+  memcpy(saved, old.p.secret, 32);
+  assert(old.p.link->startPairing(old.now));
+  old.step(PairingMs + 5);
+  old.connect();
+  assert(Crypto::equal(saved, old.p.secret, 32) &&
+         Crypto::equal(saved, old.h.secret, 32));
+  Crypto::wipe(saved, 32);
+}
+void testInvalidPairingPointRecovery() {
+  Rig r;
+  r.connect();
+  assert(r.h.link->startPairing(r.now));
+  const Mac attacker{{2, 9, 8, 7, 6, 1}};
+  uint8_t commitInput[89] = {Version, Paw};
+  memcpy(commitInput + 2, attacker.bytes, 6);
+  commitInput[8] = 4;
+  commitInput[73] = 1; // SEC1 (0,0) is NOT on P-256.
+  Frame f;
+  header(f, PairCommit, Paw);
+  assert(Crypto::hash(commitInput, 89, f.bytes + 4));
+  r.h.radio.incoming.push_back({f, attacker, true});
+  r.step(5);
+  header(f, PairReveal, Paw);
+  f.bytes[4] = 4;
+  f.bytes[69] = 1;
+  memcpy(f.bytes + 85, attacker.bytes, 6);
+  r.h.radio.incoming.push_back({f, attacker, false});
+  r.step(5);
+  assert(!r.h.link->pairingActive() && r.h.link->hasPair() &&
+         r.h.link->invariant());
+  assert(r.h.link->securityStatus(r.now).counters.pairingFailures > 0);
+  r.connect(); // Invalid peer points cannot leave a persistent remote lockout.
+}
 void testVectors() {
   const auto bytes = [](const char *hex) {
     std::vector<uint8_t> v;
@@ -248,9 +347,9 @@ void testVectors() {
   assert(Crypto::equal(encrypted, gcm.data(), 32));
 }
 void testSession() {
-  uint8_t key[32] = {1}, pn[32] = {2}, hn[32] = {3};
+  uint8_t key[32] = {1}, hn[32] = {3};
   Material m;
-  assert(deriveMaterial(key, pn, hn, paw, helmet, m));
+  assert(deriveMaterial(key, hn, m));
   assert(!Crypto::equal(m.pawKey, m.helmetKey, 32) && unicast(m.pawMac) &&
          unicast(m.helmetMac) && !same(m.pawMac, m.helmetMac));
   Session p, h;
@@ -270,21 +369,32 @@ void testSession() {
   assert(!h.open(f.bytes, PacketBytes, decoded));
   hn[0]++;
   Material next;
-  assert(deriveMaterial(key, pn, hn, paw, helmet, next));
+  assert(deriveMaterial(key, hn, next));
   assert(!same(next.pawMac, m.pawMac) &&
          !Crypto::equal(next.pawKey, m.pawKey, 32));
   h.begin(Helmet, next);
   assert(!h.open(original.bytes, PacketBytes, decoded));
   key[0]++;
   Material wrong;
-  assert(deriveMaterial(key, pn, hn, paw, helmet, wrong));
+  assert(deriveMaterial(key, hn, wrong));
   memcpy(wrong.id, m.id,
          8); // Known session identity and MAC still cannot replace the keys.
   h.begin(Helmet, wrong);
   assert(!h.open(original.bytes, PacketBytes, decoded));
-  h.begin(Helmet, m);
-  p.begin(Paw, m); // Tests only: fresh object with reused test material, no
-                   // production API reuse.
+  assert(!p.begin(Paw, m)); // Same traffic keys cannot reset the TX counter.
+  Material partial = m;
+  partial.helmetKey[0] ^= 1;
+  assert(!p.begin(
+      Paw, partial)); // Changing only the other direction is insufficient.
+  partial = m;
+  partial.pawKey[0] ^= 1;
+  assert(!p.begin(Paw, partial));
+  Crypto::wipe(&partial, sizeof(partial));
+  key[0]++;
+  hn[0]++;
+  assert(deriveMaterial(key, hn, m));
+  assert(h.begin(Helmet, m));
+  assert(p.begin(Paw, m));
   Packet invalid = command();
   invalid.payload[4] = 200;
   assert(!p.seal(invalid, f));
@@ -412,7 +522,7 @@ void testRecovery() {
   Rig lostFinish;
   lostFinish.p.radio.dropFinish = 1;
   lostFinish.connect();
-  assert(lostFinish.p.connections >= 2);
+  assert(lostFinish.p.connections == 1);
   // Queue saturation is bounded and disconnect clears actions.
   for (unsigned i = 0; i < TxSlots; ++i)
     assert(r.p.link->queue(command(100 + i)));
@@ -450,6 +560,206 @@ void testRecovery() {
   assert(r.p.losses >= 2);
   r.connect();
 }
+void testHandshakeAndForwardSecrecy() {
+  uint8_t psk[32] = {19};
+  Handshake p, h;
+  assert(p.start(psk, Paw, paw, 100) && h.start(psk, Helmet, helmet, 100));
+  Frame hello, response, finish, helmetFinish, commit;
+  Mac dest;
+  bool broadcast = false;
+  assert(p.tick(100, hello, dest, broadcast) && broadcast);
+  assert(h.receive(hello, paw, 100));
+  assert(!h.ready());
+  assert(h.tick(100, response, dest, broadcast) && !broadcast);
+  assert(p.receive(response, helmet, 100));
+  assert(!p.ready());
+  assert(p.tick(100, finish, dest, broadcast));
+  assert(h.receive(finish, paw, 100));
+  assert(!h.ready());
+  assert(h.tick(100, helmetFinish, dest, broadcast));
+  assert(p.receive(helmetFinish, helmet, 100));
+  assert(!p.ready());
+  assert(p.tick(100, commit, dest, broadcast));
+  p.sent(commit);
+  assert(h.receive(commit, paw, 100));
+  assert(p.ready() && h.ready());
+  Material old = p.keys();
+  assert(Crypto::equal(old.pawKey, h.keys().pawKey, 32));
+  // The public transcript + extracted PSK can authenticate this recording,
+  // but using the PSK as the KDF input cannot reproduce the ECDH traffic key.
+  uint8_t canonical[192], hash[32];
+  memcpy(canonical, hello.bytes, 96);
+  memcpy(canonical + 96, response.bytes, 96);
+  assert(Crypto::hash(canonical, sizeof(canonical), hash));
+  Material attacker;
+  assert(deriveMaterial(psk, hash, attacker));
+  assert(!Crypto::equal(attacker.pawKey, old.pawKey, 32));
+  Session sender, receiver;
+  assert(sender.begin(Paw, old));
+  assert(receiver.begin(Helmet, attacker));
+  Frame captured;
+  Packet decoded;
+  assert(sender.seal(command(), captured));
+  assert(!receiver.open(captured.bytes, 128, decoded));
+  assert(p.start(psk, Paw, paw, 1100) && h.start(psk, Helmet, helmet, 1100));
+  Frame newHello, newResponse, newFinished;
+  assert(p.tick(1100, newHello, dest, broadcast));
+  assert(!Crypto::equal(newHello.bytes + 4, hello.bytes + 4, 65));
+  assert(h.receive(newHello, paw, 1100));
+  assert(h.tick(1100, newResponse, dest, broadcast));
+  assert(p.receive(newResponse, helmet, 1100));
+  assert(!Crypto::equal(old.pawKey, p.keys().pawKey, 32) &&
+         !same(old.pawMac, p.keys().pawMac));
+  assert(!h.receive(finish, paw, 1100));
+  assert(!h.ready());
+  assert(p.tick(1100, newFinished, dest, broadcast));
+  newFinished.bytes[127] ^= 1;
+  assert(!h.receive(newFinished, paw, 1100));
+  assert(h.failed() && !h.ready());
+  Material zero{};
+  assert(Crypto::equal(&h.keys(), &zero, sizeof(zero)));
+  Crypto::wipe(&old, sizeof(old));
+  Crypto::wipe(&attacker, sizeof(attacker));
+  CryptoBudget budget;
+  unsigned allowed = 0;
+  for (unsigned i = 0; i < 1000; ++i)
+    if (budget.spend(budget.ecc, UINT32_MAX - 100))
+      ++allowed;
+  assert(allowed == CryptoBurst);
+  assert(budget.spend(budget.ecc, 600));
+  for (unsigned i = 0; i < AuthBurst; ++i)
+    budget.invalid(UINT32_MAX - 100);
+  assert(!budget.verify(UINT32_MAX - 50));
+  assert(budget.verify(200));
+  Diagnostics d;
+  d.aeadFailures = UINT32_MAX;
+  increment(d.aeadFailures);
+  assert(d.aeadFailures == UINT32_MAX);
+}
+void testRecordBudget() {
+  uint8_t ecdh[32]{42}, transcript[32]{43};
+  Material m;
+  assert(deriveMaterial(ecdh, transcript, m));
+  Session pawSession, helmetSession;
+  assert(pawSession.begin(Paw, m) && helmetSession.begin(Helmet, m));
+  Frame f;
+  Packet decoded;
+  for (uint64_t i = 0; i < RekeyRecords; ++i) {
+    assert(pawSession.seal(request(), f));
+    assert(get64(f.bytes + 12) == i + 1);
+    assert(helmetSession.open(f.bytes, 128, decoded));
+  }
+  assert(pawSession.needsRekey() && helmetSession.needsRekey());
+  assert(!pawSession.seal(request(), f) &&
+         !helmetSession.open(f.bytes, 128, decoded));
+  pawSession.clear();
+  assert(!pawSession.begin(Paw, m));
+  ecdh[0]++;
+  assert(deriveMaterial(ecdh, transcript, m));
+  assert(pawSession.begin(Paw, m));
+  assert(pawSession.seal(request(), f) && get64(f.bytes + 12) == 1);
+  std::cout << "PASS: 1000000 authenticated AES-GCM records, hard traffic "
+               "rekey limit and same-key sequence-reset rejection\n";
+}
+void testStateCorpus() {
+  const uint32_t seeds[] = {0x50524f33, 0x46494e49, 0x52535433, 0xdeadbeef};
+  uint64_t transitions = 0, localTicks = 0;
+  for (auto seed : seeds) {
+    std::mt19937 rng(seed);
+    Rig r;
+    r.connect();
+    r.h.properties = true;
+    if (seed == 0xdeadbeef) {
+      r.now = UINT32_MAX - 10000;
+      r.p.reset(r.now);
+      r.h.reset(r.now);
+      r.connect();
+    }
+    uint32_t commandSequence = 100000;
+    for (unsigned i = 0; i < 250000; ++i) {
+      const unsigned event = rng() % 1024;
+      // Frequent replay, corrupt ciphertext, random ordering and bounded
+      // bursts.
+      if (event < 128 && r.online()) {
+        if (r.p.link->queue(command(++commandSequence)))
+          r.h.authority[commandSequence] = r.h.radio.own;
+      } else if (event < 400 && !r.p.radio.captured.empty()) {
+        Frame f = r.p.radio.captured[rng() % r.p.radio.captured.size()];
+        if (event < 300)
+          f.bytes[rng() % 128] ^= uint8_t(1 + (rng() % 255));
+        if (r.h.radio.incoming.size() < RxSlots)
+          r.h.radio.incoming.push_back({f, r.p.radio.own, false});
+      } else if (event == 400)
+        r.p.radio.dropFinish = 1;
+      else if (event == 401) {
+        r.p.radio.blocked = true;
+        r.step(100);
+        r.p.radio.blocked = false;
+      } else if (event == 402) {
+        r.p.radio.deniedChannels = uint16_t(1 << r.p.radio.c);
+        r.h.radio.deniedChannels = r.p.radio.deniedChannels;
+      } else if (event == 403) {
+        r.p.radio.deniedChannels = r.h.radio.deniedChannels = 0;
+      } else if (event == 404 && i % 16 == 0)
+        r.p.reset(r.now);
+      else if (event == 405 && i % 16 == 0)
+        r.h.reset(r.now);
+      else if (event == 406 && i % 16 == 0) {
+        r.p.reset(r.now);
+        r.h.reset(r.now);
+      } else if (event == 407 && i % 32 == 0) {
+        r.p.allowStorage = r.h.allowStorage = (rng() % 2) != 0;
+        r.p.link->startPairing(r.now);
+        r.h.link->startPairing(r.now);
+      } else if (event == 408)
+        r.p.link->confirmPairing();
+      else if (event == 409)
+        r.h.link->confirmPairing();
+      else if (event == 410)
+        r.p.allowStorage = r.h.allowStorage = true;
+      else if (event == 411 && i % 64 == 0)
+        r.step(PairingMs + 5);
+      else if (event == 412 && i % 64 == 0)
+        r.step(SessionLifetimeMs + SessionJitterMs + 5);
+      else if (event == 413 && i % 32 == 0) {
+        r.p.radio.stuck = true;
+        r.step(HandshakeMs + 5);
+      }
+      if (event == 414 && i % 64 == 0) {
+        r.h.secret[0] ^= 1;
+        r.h.reset(r.now);
+      }
+      if (event == 415 && i % 32 == 0) {
+        memcpy(r.h.secret, r.p.secret, 32);
+        r.h.stored = r.p.stored;
+        r.h.reset(r.now);
+      }
+      r.step(5);
+      localTicks++;
+      assert(r.p.link->invariant() && r.h.link->invariant());
+      assert(r.p.radio.incoming.size() <= RxSlots &&
+             r.h.radio.incoming.size() <= RxSlots);
+      assert(r.p.link->queued() <= TxSlots + 1 &&
+             r.h.link->queued() <= TxSlots + 1);
+      ++transitions;
+    }
+    r.p.radio.blocked = r.h.radio.blocked = false;
+    r.p.radio.deniedChannels = r.h.radio.deniedChannels = 0;
+    r.p.allowStorage = r.h.allowStorage = true;
+    r.p.secret[0] = r.h.secret[0] = 9;
+    memset(r.p.secret + 1, 0, 31);
+    memset(r.h.secret + 1, 0, 31);
+    r.p.stored = r.h.stored = true;
+    r.p.reset(r.now);
+    r.h.reset(r.now);
+    r.connect();
+  }
+  assert(localTicks == transitions);
+  std::cout
+      << "PASS: " << transitions
+      << " deterministic protocol-event corpus transitions, four retained "
+         "seeds; bounded queues and online dispatch invariants\n";
+}
 void testIdentityAndActions() {
   uint8_t key[32] = {7};
   Recovery p, h;
@@ -483,12 +793,18 @@ void testIdentityAndActions() {
 }
 } // namespace
 int main() {
+  std::cout.setf(std::ios::unitbuf);
   assert(Crypto::init());
   testVectors();
   testPairing();
+  testSasMismatchAndReplacement();
+  testInvalidPairingPointRecovery();
   testSession();
   testRecovery();
   testIdentityAndActions();
+  testHandshakeAndForwardSecrecy();
+  testRecordBudget();
+  testStateCorpus();
   std::cout
       << "PASS: wireless pairing, physical confirmations, interruption/storage "
          "failures, AEAD, replay, 52000 fuzz/corruption cases, fresh "

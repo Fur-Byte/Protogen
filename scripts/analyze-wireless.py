@@ -14,10 +14,12 @@ def main():
     root=Path(__file__).resolve().parents[1]
     commands=json.loads((root/'build/wireless-test/compile_commands.json').read_text())
     compiler=os.environ.get('CXX','clang++')
-    results=[]
+    results=[];seen=set()
     for entry in commands:
         path=Path(entry['file'])
-        if path.parent!=root/'firmware/esp32/src':continue
+        if path.parent!=root/'firmware/esp32/src' and path.name not in ('uart-auth.cpp','storage-faults.cpp','uart-mbed-adapter.cpp'):continue
+        if str(path) in seen:continue
+        seen.add(str(path))
         args=entry.get('arguments') or shlex.split(entry['command'])
         selected=[];skip=False
         for arg in args[1:]:

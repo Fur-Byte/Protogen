@@ -50,7 +50,7 @@ int main() {
   assert(SensorMath::percent(30000,60000)==50 && SensorMath::percent(70000,60000)==0 && SensorMath::percent(0,0)==-1);
   Device::Config config;config.paired=true;config.psk[0]=1;config.usableEnergyMWh=60000;
   uint8_t b[Device::ConfigBytes];Device::encode(config,b);Device::Config loaded;assert(Device::decode(b,sizeof(b),loaded) && loaded.paired);
-  b[4]^=1;assert(!Device::decode(b,sizeof(b),loaded) && loaded.paired);
-  memset(b+8,0,32);put16(b+44,crc16(b,44));assert(!Device::decode(b,sizeof(b),loaded) && loaded.psk[0]==1);
+  b[4]^=1;assert(!Device::decode(b,sizeof(b),loaded) && !loaded.paired);
+  memset(b+8,0,32);put16(b+44,crc16(b,44));assert(!Device::decode(b,sizeof(b),loaded) && loaded.psk[0]==0);
   std::cout<<"PASS: 20000 framed packets, truncation/corruption/overflow, freshness, replay/dedup, epoch/session, rate limit, sensor CRC/conversions, provisioning records\n";
 }

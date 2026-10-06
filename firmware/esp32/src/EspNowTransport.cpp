@@ -1,4 +1,5 @@
 #include "EspNowTransport.h"
+#include "WirelessCrypto.h"
 #include "bootloader_random.h"
 #include "esp_event.h"
 #include "esp_now.h"
@@ -56,6 +57,10 @@ bool EspNowTransport::configure(const Mac &own, const Mac *peer,
   if (started) {
     esp_now_unregister_recv_cb();
     esp_now_unregister_send_cb();
+    if (native && unicast(destination))
+      esp_now_del_peer(destination.bytes);
+    const uint8_t clearedPmk[16]{};
+    esp_now_set_pmk(clearedPmk);
     esp_now_deinit();
     esp_wifi_stop();
     started = false;
@@ -87,11 +92,11 @@ bool EspNowTransport::configure(const Mac &own, const Mac *peer,
     native = true;
   } else
     memcpy(p.peer_addr, Broadcast.bytes, 6);
-  if (esp_now_add_peer(&p) != ESP_OK ||
-      esp_now_register_recv_cb(rx) != ESP_OK ||
-      esp_now_register_send_cb(tx) != ESP_OK)
-    return false;
-  return true;
+  const bool okay = esp_now_add_peer(&p) == ESP_OK &&
+                    esp_now_register_recv_cb(rx) == ESP_OK &&
+                    esp_now_register_send_cb(tx) == ESP_OK;
+  Crypto::wipe(&p, sizeof(p));
+  return okay;
 }
 bool EspNowTransport::channel(uint8_t c) {
   if (!started || !channelAllowed(c) || busy())

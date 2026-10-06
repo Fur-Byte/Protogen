@@ -36,9 +36,13 @@ bool random(void *p, size_t n) {
 }
 bool hash(const void *in, size_t n, uint8_t out[32]) {
   size_t size = 0;
-  return psa_hash_compute(PSA_ALG_SHA_256, static_cast<const uint8_t *>(in), n,
-                          out, 32, &size) == PSA_SUCCESS &&
-         size == 32;
+  const bool okay =
+      psa_hash_compute(PSA_ALG_SHA_256, static_cast<const uint8_t *>(in), n,
+                       out, 32, &size) == PSA_SUCCESS &&
+      size == 32;
+  if (!okay)
+    wipe(out, 32);
+  return okay;
 }
 bool hmac(const uint8_t key[32], const void *in, size_t n, uint8_t out[32]) {
   psa_key_attributes_t a = PSA_KEY_ATTRIBUTES_INIT;
@@ -55,6 +59,8 @@ bool hmac(const uint8_t key[32], const void *in, size_t n, uint8_t out[32]) {
                                     32, &size) == PSA_SUCCESS &&
                     size == 32;
   psa_destroy_key(id);
+  if (!okay)
+    wipe(out, 32);
   return okay;
 }
 bool hkdf(const uint8_t *secret, size_t n, const uint8_t *salt, size_t saltSize,
@@ -113,18 +119,27 @@ bool Agreement::generate(uint8_t publicKey[65]) {
   psa_key_attributes_t a = PSA_KEY_ATTRIBUTES_INIT;
   psa_set_key_type(&a, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
   psa_set_key_bits(&a, 256);
+  psa_set_key_lifetime(&a, PSA_KEY_LIFETIME_VOLATILE);
   psa_set_key_usage_flags(&a, PSA_KEY_USAGE_DERIVE);
   psa_set_key_algorithm(&a, PSA_ALG_ECDH);
   size_t n = 0;
-  return psa_generate_key(&a, &key) == PSA_SUCCESS &&
-         psa_export_public_key(key, publicKey, 65, &n) == PSA_SUCCESS &&
-         n == 65;
+  const bool okay =
+      psa_generate_key(&a, &key) == PSA_SUCCESS &&
+      psa_export_public_key(key, publicKey, 65, &n) == PSA_SUCCESS && n == 65;
+  if (!okay) {
+    clear();
+    wipe(publicKey, 65);
+  }
+  return okay;
 }
 bool Agreement::derive(const uint8_t publicKey[65], uint8_t shared[32]) {
   size_t n = 0;
-  return key && publicKey[0] == 4 &&
-         psa_raw_key_agreement(PSA_ALG_ECDH, key, publicKey, 65, shared, 32,
-                               &n) == PSA_SUCCESS &&
-         n == 32;
+  const bool okay = key && publicKey[0] == 4 &&
+                    psa_raw_key_agreement(PSA_ALG_ECDH, key, publicKey, 65,
+                                          shared, 32, &n) == PSA_SUCCESS &&
+                    n == 32;
+  if (!okay)
+    wipe(shared, 32);
+  return okay;
 }
 } // namespace Wireless::Crypto

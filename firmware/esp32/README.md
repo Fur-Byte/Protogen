@@ -5,7 +5,7 @@ behavior/rendering controller; the helmet ESP32 authenticates wireless commands
 before the existing 115200 8N1 COBS/CRC16 Serial1 bridge (Teensy pins 0/1).
 
 Normal radio mode is encrypted ESP-NOW unicast plus independent AES-256-GCM,
-128-byte application envelopes, fresh HKDF-SHA-256 session keys, replay checks,
+128-byte application envelopes, fresh ephemeral P-256 ECDH and HKDF-SHA-256 session keys, mutual Finished, replay checks,
 and locally administered rotating identities. No SoftAP, SSID, scan, Wi-Fi
 connection, IP interface or custom raw-frame disguise. See
 [protocol](../../docs/WIRELESS_PROTOCOL.md) and [security](../../SECURITY.md).
@@ -21,7 +21,9 @@ python3 scripts/build-esp32.py
 bash scripts/test-wireless.sh
 bash scripts/test-firmware.sh
 bash scripts/test-dtls.sh
+python3 scripts/check-features.py
 python3 scripts/check-extensions.py
+python3 scripts/check-uart-auth.py
 ```
 
 `PIO` can select another PlatformIO executable. Generated configurations and
@@ -78,7 +80,8 @@ voltage is not a promised percentage; energy percentage can be unknown after
 reset/gaps/sensor faults. Wireless battery/status packets use the same encrypted
 128-byte envelope as commands.
 
-Local console: `INFO` reports role/pair/connection/features/faults, without a MAC
+Local console: `SECURITY STATUS` reports non-secret security state, counters,
+session age, record count, renewal timing and channel. `INFO` reports role/pair/connection/features/faults, without a MAC
 or keys. `CONFIG mask usable_energy_mwh`, `FULL` and `FORGET` require the local
 physical unlock. CONFIG and FORGET restart. FULL requires a valid, calibrated
 energy monitor and an actually full bank. No console command enters pairing or
@@ -93,3 +96,24 @@ anti-rollback provisioning; see
 burns. Hardware security, RF discoverability, MAC-change races, antenna behavior,
 power, range and LED readability remain bench release gates. Do not treat a
 successful compilation or host test as their verification.
+
+## v3 hardening and authenticated UART
+
+Every new radio session performs fresh PSK-authenticated ephemeral P-256 ECDH,
+then directional new-key Finished and a paw Commit acknowledgement. Only a
+confirmed ONLINE session forwards actions. Operational packets remain 128 bytes.
+Version 2 radio traffic is rejected without downgrade; intentional upgrades of
+both peers can retain a valid schema-2 pairing record.
+
+Rekey after randomized 15–17 minutes, 1,000,000 authenticated records, or sequence
+safety limit. Token buckets limit ECC, attempt creation and handshake verification;
+invalid authentication backoff lasts 250 ms and clears automatically. Idle timing,
+MAC rotation, keyed channel recovery and local Teensy behavior remain intact.
+
+The optional `PROTOGEN_UART_AUTH` build feature authenticates both Serial1
+directions with per-helmet HMAC-SHA-256 while retaining COBS/CRC16 and the Teensy
+execution gate. A private provisioning header is required on both controllers:
+see [provisioning](../../docs/PRODUCTION_PROVISIONING.md). Ordinary Teensy firmware
+flash cannot protect this secret against physical extraction/reflash. Disabled
+development builds retain the trusted-wires boundary; enabled builds cannot fall
+back to CRC-only commands. No universal secret is provided.

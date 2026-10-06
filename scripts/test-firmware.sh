@@ -49,6 +49,20 @@ FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
   "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-extensions"
 "$TEST_TEMP/test-extensions"
+# Optional authenticated UART uses the production Mbed TLS subset, with PUBLIC
+# fixture material only. The actual sketch and command gate execute under ASan.
+UART_SOURCE="$ROOT/firmware/PROT_OS7_MAX7219/src/UartCrypto"
+for unit in md sha256 platform_util; do
+  "${CXX:-clang++}" -x c -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+    -DPROTOGEN_UART_AUTH=1 -I"$TEST_TEMP/PROT_OS7_MAX7219" \
+    -I"$ROOT/scripts/tests/uart-fixture" -c "$UART_SOURCE/$unit.c" -o "$TEST_TEMP/uart-$unit.o"
+done
+"${CXX:-clang++}" "${FLAGS[@]}" -DWirelessPaw -DPROTOGEN_UART_AUTH=1 \
+  -I"$ROOT/scripts/tests/uart-fixture" "$ROOT/scripts/tests/uart-rendering.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$TEST_TEMP/uart-md.o" "$TEST_TEMP/uart-sha256.o" "$TEST_TEMP/uart-platform_util.o" \
+  -o "$TEST_TEMP/test-uart-rendering"
+"$TEST_TEMP/test-uart-rendering"
 for mask in {0..7}; do
   FEATURES=()
   if (( mask & 1 )); then FEATURES+=(-DVisorSensor); fi

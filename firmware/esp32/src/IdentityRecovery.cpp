@@ -8,8 +8,9 @@ bool randomIdentity(Mac &m, uint8_t role) {
   return true;
 }
 bool Recovery::start(const uint8_t key[32], uint8_t r, uint32_t now) {
-  uint8_t derived[32];
-  if (!Crypto::hkdf(key, 32, nullptr, 0, "protogen/v2/recovery/channel-order",
+  clear();
+  uint8_t derived[32]{};
+  if (!Crypto::hkdf(key, 32, nullptr, 0, "protogen/v3/recovery/channel-order",
                     derived, 32))
     return false;
   for (unsigned i = 0; i < ChannelCount; ++i)

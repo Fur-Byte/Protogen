@@ -90,3 +90,47 @@ peer. NVS is log structured; old development secrets may remain in flash pages
 until erase/garbage collection. It is not forensic secure erasure. For disposal,
 use the reviewed flash sanitization/key-destruction process appropriate to locked
 hardware. Do not expose keys or full identifiers in reports or factory logs.
+
+## Per-helmet authenticated UART build boundary
+
+The v3 radio upgrade does not change eFuse provisioning or enable lockdown.
+P-256 ephemeral session keys are volatile PSA objects and must never be persisted.
+Both peers must be upgraded intentionally; a valid schema-2 pairing record can
+be retained, but v2 radio packets are rejected with no automatic downgrade.
+
+UART authentication is opt-in because an ordinary Teensy lacks protected key
+storage. Generate one unique development secret for each helmet/Teensy pair:
+
+```sh
+python3 scripts/provision-uart-auth.py --output /private/helmet-001/include
+PROTOGEN_UART_KEY_DIR=/private/helmet-001/include python3 scripts/build-esp32.py
+```
+
+The generator uses the OS cryptographic RNG, refuses overwrite, writes a private
+0600 `ProtogenUartKey.h`, and refuses tracked source locations. It neither prints
+the key nor touches hardware. Never use `scripts/tests/uart-fixture` in a firmware
+build: it is deliberately public test material. The ESP32 PlatformIO hook appends
+`PROTOGEN_UART_AUTH=1` and the private include directory while retaining board
+role flags. Teensy must be compiled with the same private include directory and
+`build.flags.defs` containing the installed board's original MCU/Teensyduino
+definitions **plus** `-DPROTOGEN_UART_AUTH=1 -I/private/helmet-001/include
+-I/path/to/PROT_OS7_MAX7219 -I/path/to/PROT_OS7_MAX7219/src/UartCrypto -Werror`,
+and `WirelessPaw` enabled. Missing key headers cause compilation failure, not a
+default key. `scripts/check-uart-auth.py` exercises three real Teensy variants
+using a temporary randomly generated key, then removes that private source.
+
+The compiled images necessarily contain their provisioned UART secret. Treat
+these artifacts as secret-bearing, keep them outside public release downloads,
+and include them only in an approved encrypted/signed provisioning workflow.
+No key is stored in the repository or build logs. The ignored build directory
+is not a secure vault. Retain private per-device key custody when field reflash
+is required; rotate both controllers together on compromise/replacement.
+
+On ESP32, production release Flash Encryption protects this compiled secret.
+On ordinary Teensy 4.0 it remains extractable from firmware flash: secure UART
+is not a substitute for Lockable Teensy, authenticated boot or physical tamper
+resistance. Qualify an appropriate protected controller if physical key extraction
+is inside the product threat model. The default trusted-wire development mode
+is visibly unauthenticated UART, not an automatic fallback from enabled builds.
+Before release, explicitly decide this compile-time policy and test mixed-build
+failure: either authenticated side must fail closed rather than execute commands.

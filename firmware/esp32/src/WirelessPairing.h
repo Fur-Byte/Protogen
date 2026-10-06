@@ -1,4 +1,5 @@
 #pragma once
+#include "SecurityState.h"
 #include "WirelessCrypto.h"
 namespace Wireless {
 // Commit/reveal binds the public key, role, random contribution and temporary
@@ -11,34 +12,58 @@ class Pairing {
       commitment[32]{}, peerCommitment[32]{}, transcript[32]{}, secret[32]{};
   uint32_t started = 0, nextSend = 0, lastEcdh = 0, lastAuth = 0,
            completedAt = 0, code = 0;
-  bool running = false, locked = false, derived = false, confirmed = false,
-       peerConfirmed = false, completed = false;
+  enum class Phase : uint8_t {
+    Idle,
+    Discovery,
+    Locked,
+    Sas,
+    LocalConfirmed,
+    PeerConfirmed,
+    Mutual,
+    Stored
+  };
+  Phase phase = Phase::Idle;
+  CryptoBudget ownedBudget;
+  CryptoBudget *budget;
+  uint8_t confirmKey[32]{};
+  bool locked() const {
+    return phase != Phase::Idle && phase != Phase::Discovery;
+  }
+  bool derived() const { return phase >= Phase::Sas; }
+  bool confirmed() const {
+    return phase == Phase::LocalConfirmed || phase == Phase::Mutual ||
+           phase == Phase::Stored;
+  }
+  bool completed() const { return phase == Phase::Stored; }
   bool makeCommit(uint8_t r, const Mac &m, const uint8_t pub[65],
                   const uint8_t random[16], uint8_t out[32]);
 
 public:
+  explicit Pairing(CryptoBudget *b = nullptr) : budget(b ? b : &ownedBudget) {}
   ~Pairing() { clear(); }
   void clear();
   bool start(uint8_t ownRole, const Mac &own, uint32_t now);
   bool tick(uint32_t now, Frame &out, Mac &destination, bool &broadcast);
   bool receive(const Frame &f, const Mac &source, uint32_t now);
   bool confirm() {
-    if (!derived || completed)
+    if (!derived() || completed())
       return false;
-    confirmed = true;
+    phase = phase == Phase::PeerConfirmed ? Phase::Mutual
+            : confirmed()                 ? phase
+                                          : Phase::LocalConfirmed;
     nextSend = 0;
     return true;
   }
-  bool active() const { return running; }
-  bool awaitingConfirmation() const { return derived && !completed; }
+  bool active() const { return phase != Phase::Idle; }
+  bool awaitingConfirmation() const { return derived() && !completed(); }
   uint32_t authenticationCode() const { return code; }
-  bool ready() const {
-    return running && confirmed && peerConfirmed && !completed;
-  }
+  bool ready() const { return phase == Phase::Mutual; }
   bool getSecret(uint8_t out[32]) const;
   void stored(uint32_t now) {
-    completed = true;
+    phase = Phase::Stored;
     completedAt = now;
+    // Grace-period retransmission only needs the dedicated confirmation key.
+    Crypto::wipe(secret, sizeof(secret));
   }
 };
 } // namespace Wireless

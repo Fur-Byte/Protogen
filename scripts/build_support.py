@@ -129,16 +129,38 @@ class BuildRun:
         self.publish()
         return sketch
 
-    def compile(self, cli, sketch, features, output_directory=None):
+    def compile(self, cli, sketch, features, output_directory=None, extra_flags=None):
         output_directory = output_directory or self.path / ("artifacts-" + str(len(self.record["results"])))
         command = [cli, "compile", "--fqbn", FQBN, "--warnings", "all", "--clean",
                    "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
+        extra_flags=extra_flags or "-Werror"
+        if "PROTOGEN_UART_AUTH" in features:
+            # Upstream Mbed TLS public headers use canonical mbedtls/... paths.
+            extra_flags += " -I" + str(sketch) + " -I" + str(sketch / "src/UartCrypto")
+        if extra_flags:
+            # Teensy's recipes consume build.flags.defs, not build.extra_flags.
+            # Preserve the installed board's definitions rather than replacing
+            # its MCU/Teensyduino flags with our security build options.
+            properties = subprocess.run(
+                [cli, "compile", "--fqbn", FQBN, "--show-properties=expanded", str(sketch)],
+                capture_output=True, text=True, check=True)
+            definitions = next((line.partition("=")[2] for line in properties.stdout.splitlines()
+                                if line.startswith("build.flags.defs=")), None)
+            if not definitions:
+                raise RuntimeError("Teensy board compiler definitions are missing")
+            command[2:2]=["--build-property", "build.flags.defs="+definitions+" "+extra_flags]
         run = subprocess.run(command, capture_output=True, text=True)
         output = run.stdout + run.stderr
         result = {"features": list(features), "exit_code": run.returncode,
                   "warnings": len(re.findall(r"\bwarning:", output)), "command": command,
                   "configured_source_sha256": hashlib.sha256((sketch / "PROT_OS7_MAX7219.ino").read_bytes()).hexdigest(),
                   "memory": memory_metrics(output)}
+        if run.returncode == 0:
+            database = output_directory / "objects" / "compile_commands.json"
+            units = json.loads(database.read_text()) if database.is_file() else []
+            required = ["-Werror"] + (["-DPROTOGEN_UART_AUTH=1"] if "PROTOGEN_UART_AUTH" in features else [])
+            if not units or any(not all(flag in unit.get("arguments", []) for flag in required) for unit in units):
+                result["dependency_error"] = "Required security flags absent from actual compiler commands"
         # libraries.cache records the paths actually selected by Arduino CLI.
         if run.returncode == 0:
             cache = output_directory / "objects" / "libraries.cache"

@@ -70,6 +70,7 @@ class FeatureChecks(unittest.TestCase):
             "version) printf '%s\\n' '" + json.dumps({"VersionString": locked["arduino_cli"]}) + "'; exit 0;;\n" +
             "core) printf '%s\\n' '" + json.dumps({"platforms": [{"id": locked["platform"]["id"], "installed_version": locked["platform"]["version"]}]}) + "'; exit 0;;\n" +
             "lib) printf '%s\\n' '" + json.dumps({"installed_libraries": [{"library": {"name": name, "version": version}} for name, version in locked["libraries"].items()]}) + "'; exit 0;;\n" +
+            "compile) case \"$*\" in *--show-properties=expanded*) printf '%s\\n' 'build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160'; exit 0;; esac;;\n" +
             "esac\nprintf '%s\\n' '" + output + "'\nexit " + str(status) + "\n")
         compiler.chmod(0o755)
         return compiler
@@ -150,12 +151,32 @@ class FeatureChecks(unittest.TestCase):
             output = root / "output"
             (output / "objects").mkdir(parents=True)
             (output / "objects/libraries.cache").write_text(json.dumps([str(library)]))
-            with patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+            (output / "objects/compile_commands.json").write_text(json.dumps([{"arguments": ["c++", "-Werror"]}]))
+            with patch("subprocess.run", return_value=subprocess.CompletedProcess(
+                    [], 0, "build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160\n", "")):
                 run.compile("fake-cli", sketch, (), output)
                 self.assertNotIn("dependency_error", run.record["results"][-1])
                 (library / "Entropy.cpp").write_bytes(b"a different implementation")
                 run.compile("fake-cli", sketch, (), output)
                 self.assertIn("Entropy", run.record["results"][-1]["dependency_error"])
+            self.assertFalse(run.finish())
+
+    def test_ignored_security_flags_in_actual_commands_fail_build(self):
+        with tempfile.TemporaryDirectory(prefix="protogen-security-flags-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            run = features.BuildRun(root, "build")
+            sketch = run.snapshot()
+            run.record["toolchain"] = {"libraries": {}, "bundled_libraries": {}}
+            output = root / "output"
+            (output / "objects").mkdir(parents=True)
+            (output / "objects/compile_commands.json").write_text(json.dumps([
+                {"arguments": ["c++", "-Werror"]}]))
+            with patch("subprocess.run", return_value=subprocess.CompletedProcess(
+                    [], 0, "build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160\n", "")):
+                run.compile("fake-cli", sketch, ("PROTOGEN_UART_AUTH",), output,
+                            extra_flags="-DPROTOGEN_UART_AUTH=1 -Werror")
+            self.assertIn("security flags", run.record["results"][-1]["dependency_error"])
             self.assertFalse(run.finish())
 
 
