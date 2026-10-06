@@ -1,0 +1,15 @@
+{
+  "upstream": "https://github.com/wolfSSL/wolfssl",
+  "version": "v5.9.4-stable",
+  "commit": "3c5eead44904df64e6a5a1f4ebdce377d35a849a",
+  "archive_url": "https://codeload.github.com/wolfSSL/wolfssl/tar.gz/3c5eead44904df64e6a5a1f4ebdce377d35a849a",
+  "archive_sha256": "20fceb75ecac0fdb241f6d683e8cd1b579db0297f6d506d13eca9656262d72a5",
+  "license": "GPL-3.0-or-later OR commercial; evaluation only",
+  "source_sha256": {
+    "wolfcrypt/src/wc_mlkem.c": "1f2ea3c64c9c6f3a1f5611f60d89c3c9478e4f6691df54b72fb6f62bb9dd2155",
+    "wolfcrypt/src/wc_mlkem_poly.c": "805eaa937c8f0fc895e23d06156628ae5c1a79091882383eb7fd9e23ef1afe2e",
+    "wolfcrypt/src/sha3.c": "eafb580ad87230ba06963244ab37e86ac4438d69959f040107be4676a213f3b6",
+    "COPYING": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+    "wolfssl/wolfcrypt/wc_mlkem.h": "2ac3f287e8506c8a97c2414178230bd095bec68a5865720347e25492fa383840"
+  }
+}

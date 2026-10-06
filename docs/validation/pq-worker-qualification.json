@@ -1,0 +1,3675 @@
+{
+  "scope": "qualification only; unchanged production v3; no upload",
+  "date_utc": "2026-10-06T05:34:35.323565+00:00",
+  "native_commit": "d1b2fe782888bdb761a50336012923180be7f502",
+  "wolf_commit": "3c5eead44904df64e6a5a1f4ebdce377d35a849a",
+  "target_compiler": "riscv32-esp-elf-gcc (crosstool-NG esp-15.2.0_20251204) 15.2.0",
+  "stress_asan_ubsan": {
+    "real_worker_operations": 2571,
+    "completed": 1427,
+    "cancelled_or_expired": 1287,
+    "admission_rejects": 12000,
+    "transitions": 1000000,
+    "threaded_operations": 20,
+    "simulated_uart_ticks": 17603,
+    "linux_service_max_gap_ms": 20.665477,
+    "host_mean_ms": [
+      0.354946,
+      0.111702,
+      0.163997
+    ],
+    "host_max_ms": [
+      2.559307,
+      0.451997,
+      0.561779
+    ]
+  },
+  "entropy_fault_cases": 2,
+  "native_pct_acvp": {
+    "ML-KEM-encapDecap-FIPS203/encapsulation": 25,
+    "ML-KEM-encapDecap-FIPS203/decapsulation": 10,
+    "ML-KEM-encapDecap-FIPS203/decapsulationKeyCheck": 10,
+    "ML-KEM-encapDecap-FIPS203/encapsulationKeyCheck": 10,
+    "ML-KEM-encapDecap-FIPS203-tr1/encapsulation": 25,
+    "ML-KEM-encapDecap-FIPS203-tr1/decapsulation": 20,
+    "ML-KEM-encapDecap-FIPS203-tr1/decapsulationKeyCheck": 10,
+    "ML-KEM-encapDecap-FIPS203-tr1/encapsulationKeyCheck": 10,
+    "ML-KEM-keyGen-FIPS203/keyGen": 25
+  },
+  "native_pct_acvp_total": 145,
+  "native_host": {
+    "vectors": {
+      "keygen": 25,
+      "encaps": 50,
+      "decaps": 30
+    },
+    "vectors_total": 105,
+    "host_ms": {
+      "keygen": {
+        "mean_ms": 0.19780885,
+        "max_ms": 0.514259,
+        "iterations": 200
+      },
+      "encaps": {
+        "mean_ms": 0.061137835,
+        "max_ms": 0.104204,
+        "iterations": 200
+      },
+      "decaps": {
+        "mean_ms": 0.077179935,
+        "max_ms": 0.180396,
+        "iterations": 200
+      }
+    },
+    "limitation": "40 validation fixtures remain covered by native default preflight only"
+  },
+  "native_target": {
+    "stack-pct": {
+      "text": 15512,
+      "data": 0,
+      "bss": 0,
+      "frames": {
+        "mlk_ct_memcmp": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ct_cmov_zero": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d11_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d11_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_tobytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_frombytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_tomont_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_reduce_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_mulcache_compute_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_butterfly_block": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_layer": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_poly_ntt_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_invntt_layer": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_invntt_tomont_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_polyvec_basemul_acc_montgomery_cached_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_load32_littleendian": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600_permute_c": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "pqqual_poly_compress_d5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_compress_d11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_decompress_d5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_decompress_d11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_frommsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqqual_poly_tomsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqqual_poly_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_add": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqqual_poly_sub": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqqual_poly_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_compress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_decompress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_basemul_acc_montgomery_cached": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_matvec_mul": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_polyvec_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_indcpa_dec": {
+          "bytes": 6208,
+          "kind": "static"
+        },
+        "pqqual_polyvec_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_check_pk": {
+          "bytes": 3648,
+          "kind": "static"
+        },
+        "pqqual_polyvec_add": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_polyvec_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_cbd2": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_shake128_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqqual_shake128_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_shake128x4_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqqual_shake128x4_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_keccakf1600_extract_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_extract_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_keccakf1600_xor_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_xor_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_keccakf1600x4_extract_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_keccakf1600x4_xor_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_keccakf1600_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqqual_shake128_absorb_once": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_shake128_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_rej_uniform": {
+          "bytes": 784,
+          "kind": "static"
+        },
+        "mlk_keccak_squeeze_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_shake256": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "pqqual_poly_getnoise_eta1_4x": {
+          "bytes": 832,
+          "kind": "static"
+        },
+        "mlk_keypair_getnoise_eta1": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_poly_getnoise_eta2": {
+          "bytes": 208,
+          "kind": "static"
+        },
+        "mlk_enc_getnoise_eta1_eta2": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_sha3_256": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "pqqual_check_sk": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "pqqual_sha3_512": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "pqqual_keccakf1600x4_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqqual_shake128x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_shake256x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqqual_shake128x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_poly_rej_uniform_x4": {
+          "bytes": 2944,
+          "kind": "static"
+        },
+        "pqqual_gen_matrix": {
+          "bytes": 320,
+          "kind": "static"
+        },
+        "pqqual_indcpa_keypair_derand": {
+          "bytes": 15536,
+          "kind": "static"
+        },
+        "pqqual_indcpa_enc": {
+          "bytes": 19056,
+          "kind": "static"
+        },
+        "pqqual_enc_derand": {
+          "bytes": 192,
+          "kind": "static"
+        },
+        "pqqual_enc": {
+          "bytes": 96,
+          "kind": "static"
+        },
+        "pqqual_dec": {
+          "bytes": 1792,
+          "kind": "static"
+        },
+        "mlk_check_pct": {
+          "bytes": 1680,
+          "kind": "static"
+        },
+        "pqqual_keypair_derand": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqqual_keypair": {
+          "bytes": 112,
+          "kind": "static"
+        },
+        "mlk_shake256x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqqual_shake256x4": {
+          "bytes": 1408,
+          "kind": "static"
+        }
+      },
+      "known_call_paths": {
+        "pqqual_enc": {
+          "known_frames_sum_bytes": 22992,
+          "path": [
+            [
+              "pqqual_enc",
+              96
+            ],
+            [
+              "pqqual_enc_derand",
+              192
+            ],
+            [
+              "pqqual_indcpa_enc",
+              19056
+            ],
+            [
+              "pqqual_gen_matrix",
+              320
+            ],
+            [
+              "pqqual_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pqqual_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pqqual_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pqqual_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        },
+        "pqqual_dec": {
+          "known_frames_sum_bytes": 24496,
+          "path": [
+            [
+              "pqqual_dec",
+              1792
+            ],
+            [
+              "pqqual_indcpa_enc",
+              19056
+            ],
+            [
+              "pqqual_gen_matrix",
+              320
+            ],
+            [
+              "pqqual_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pqqual_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pqqual_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pqqual_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        },
+        "pqqual_keypair": {
+          "known_frames_sum_bytes": 26320,
+          "path": [
+            [
+              "pqqual_keypair",
+              112
+            ],
+            [
+              "pqqual_keypair_derand",
+              32
+            ],
+            [
+              "mlk_check_pct",
+              1680
+            ],
+            [
+              "pqqual_dec",
+              1792
+            ],
+            [
+              "pqqual_indcpa_enc",
+              19056
+            ],
+            [
+              "pqqual_gen_matrix",
+              320
+            ],
+            [
+              "pqqual_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pqqual_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pqqual_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pqqual_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        }
+      }
+    },
+    "stack-no-pct": {
+      "text": 15294,
+      "data": 0,
+      "bss": 0,
+      "frames": {
+        "mlk_ct_memcmp": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ct_cmov_zero": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d11_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d11_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_tobytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_frombytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_check_pct": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_tomont_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_reduce_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_mulcache_compute_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_butterfly_block": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_layer": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_poly_ntt_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_invntt_layer": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_invntt_tomont_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_polyvec_basemul_acc_montgomery_cached_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_load32_littleendian": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600_permute_c": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_compress_d5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_compress_d11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_decompress_d5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_decompress_d11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_frommsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_tomsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_add": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_sub": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_compress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_decompress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_basemul_acc_montgomery_cached": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_matvec_mul": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_indcpa_dec": {
+          "bytes": 6208,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_check_pk": {
+          "bytes": 3648,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_add": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_polyvec_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_cbd2": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128x4_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128x4_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keccakf1600_extract_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_extract_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keccakf1600_xor_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_xor_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keccakf1600x4_extract_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keccakf1600x4_xor_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keccakf1600_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128_absorb_once": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_rej_uniform": {
+          "bytes": 784,
+          "kind": "static"
+        },
+        "mlk_keccak_squeeze_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake256": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_getnoise_eta1_4x": {
+          "bytes": 832,
+          "kind": "static"
+        },
+        "mlk_keypair_getnoise_eta1": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_getnoise_eta2": {
+          "bytes": 208,
+          "kind": "static"
+        },
+        "mlk_enc_getnoise_eta1_eta2": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_sha3_256": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_check_sk": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_sha3_512": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keccakf1600x4_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_shake256x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake128x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_poly_rej_uniform_x4": {
+          "bytes": 2944,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_gen_matrix": {
+          "bytes": 320,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_indcpa_keypair_derand": {
+          "bytes": 15536,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keypair_derand": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_keypair": {
+          "bytes": 112,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_indcpa_enc": {
+          "bytes": 19056,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_enc_derand": {
+          "bytes": 192,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_enc": {
+          "bytes": 96,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_dec": {
+          "bytes": 1792,
+          "kind": "static"
+        },
+        "mlk_shake256x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "PQCP_MLKEM_NATIVE_MLKEM1024_shake256x4": {
+          "bytes": 1408,
+          "kind": "static"
+        }
+      },
+      "known_call_paths": {}
+    },
+    "768-comparison-only": {
+      "text": 15028,
+      "data": 0,
+      "bss": 0,
+      "frames": {
+        "mlk_ct_memcmp": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ct_cmov_zero": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d4_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d10_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d4_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d10_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_tobytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_frombytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_tomont_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_reduce_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_mulcache_compute_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_butterfly_block": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_layer": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_poly_ntt_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_invntt_layer": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_invntt_tomont_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_polyvec_basemul_acc_montgomery_cached_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_load32_littleendian": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600_permute_c": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "pq768_poly_compress_d4": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_compress_d10": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_decompress_d4": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_decompress_d10": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_frommsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq768_poly_tomsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq768_poly_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_add": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq768_poly_sub": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq768_poly_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_compress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_decompress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_basemul_acc_montgomery_cached": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_matvec_mul": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_polyvec_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_indcpa_dec": {
+          "bytes": 4928,
+          "kind": "static"
+        },
+        "pq768_polyvec_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_check_pk": {
+          "bytes": 2736,
+          "kind": "static"
+        },
+        "pq768_polyvec_add": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_polyvec_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_cbd2": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_shake128_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq768_shake128_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_shake128x4_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq768_shake128x4_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_keccakf1600_extract_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_extract_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_keccakf1600_xor_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_xor_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_keccakf1600x4_extract_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_keccakf1600x4_xor_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_keccakf1600_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pq768_shake128_absorb_once": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_shake128_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_rej_uniform": {
+          "bytes": 784,
+          "kind": "static"
+        },
+        "mlk_keccak_squeeze_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_shake256": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "pq768_poly_getnoise_eta1_4x": {
+          "bytes": 832,
+          "kind": "static"
+        },
+        "mlk_keypair_getnoise_eta1": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_enc_getnoise_eta1_eta2": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_sha3_256": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "pq768_check_sk": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "pq768_sha3_512": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "pq768_keccakf1600x4_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pq768_shake128x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_shake256x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pq768_shake128x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_poly_rej_uniform_x4": {
+          "bytes": 2944,
+          "kind": "static"
+        },
+        "pq768_gen_matrix": {
+          "bytes": 320,
+          "kind": "static"
+        },
+        "pq768_indcpa_keypair_derand": {
+          "bytes": 10160,
+          "kind": "static"
+        },
+        "pq768_indcpa_enc": {
+          "bytes": 13168,
+          "kind": "static"
+        },
+        "pq768_enc_derand": {
+          "bytes": 192,
+          "kind": "static"
+        },
+        "pq768_enc": {
+          "bytes": 96,
+          "kind": "static"
+        },
+        "pq768_dec": {
+          "bytes": 1312,
+          "kind": "static"
+        },
+        "mlk_check_pct": {
+          "bytes": 1200,
+          "kind": "static"
+        },
+        "pq768_keypair_derand": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pq768_keypair": {
+          "bytes": 112,
+          "kind": "static"
+        },
+        "mlk_shake256x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pq768_shake256x4": {
+          "bytes": 1408,
+          "kind": "static"
+        }
+      },
+      "known_call_paths": {
+        "pq768_enc": {
+          "known_frames_sum_bytes": 17104,
+          "path": [
+            [
+              "pq768_enc",
+              96
+            ],
+            [
+              "pq768_enc_derand",
+              192
+            ],
+            [
+              "pq768_indcpa_enc",
+              13168
+            ],
+            [
+              "pq768_gen_matrix",
+              320
+            ],
+            [
+              "pq768_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pq768_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pq768_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pq768_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        },
+        "pq768_dec": {
+          "known_frames_sum_bytes": 18128,
+          "path": [
+            [
+              "pq768_dec",
+              1312
+            ],
+            [
+              "pq768_indcpa_enc",
+              13168
+            ],
+            [
+              "pq768_gen_matrix",
+              320
+            ],
+            [
+              "pq768_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pq768_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pq768_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pq768_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        },
+        "pq768_keypair": {
+          "known_frames_sum_bytes": 19472,
+          "path": [
+            [
+              "pq768_keypair",
+              112
+            ],
+            [
+              "pq768_keypair_derand",
+              32
+            ],
+            [
+              "mlk_check_pct",
+              1200
+            ],
+            [
+              "pq768_dec",
+              1312
+            ],
+            [
+              "pq768_indcpa_enc",
+              13168
+            ],
+            [
+              "pq768_gen_matrix",
+              320
+            ],
+            [
+              "pq768_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pq768_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pq768_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pq768_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        }
+      }
+    },
+    "arena-pct": {
+      "text": 17030,
+      "data": 0,
+      "bss": 0,
+      "frames": {
+        "pq_arena_alloc": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pq_arena_free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ct_memcmp": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ct_cmov_zero": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_compress_d11_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_decompress_d11_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_poly_tobytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_frombytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_tomont_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_reduce_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_mulcache_compute_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_butterfly_block": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_ntt_layer": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_poly_ntt_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_invntt_layer": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_poly_invntt_tomont_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_polyvec_basemul_acc_montgomery_cached_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_rej_uniform": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_load32_littleendian": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600_permute_c": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "pqarena_poly_compress_d5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_compress_d11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_decompress_d5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_decompress_d11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_frommsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqarena_poly_tomsg": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqarena_poly_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_add": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqarena_poly_sub": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqarena_poly_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_compress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_decompress_du": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_ciphertext": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_tobytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_pack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_frombytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_pk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_unpack_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_ntt": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_invntt_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_basemul_acc_montgomery_cached": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_matvec_mul": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_polyvec_mulcache_compute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_indcpa_dec": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqarena_polyvec_reduce": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_check_pk": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_polyvec_add": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_polyvec_tomont": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_cbd2": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_shake128_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqarena_shake128_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_shake128x4_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "pqarena_shake128x4_release": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_keccakf1600_extract_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_extract_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_keccakf1600_xor_bytes": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlk_keccakf1600x4_xor_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_keccakf1600x4_extract_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_keccakf1600x4_xor_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_keccakf1600_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqarena_shake128_absorb_once": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_shake128_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_rej_uniform": {
+          "bytes": 784,
+          "kind": "static"
+        },
+        "mlk_keccak_squeeze_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_shake256": {
+          "bytes": 272,
+          "kind": "static"
+        },
+        "pqarena_poly_getnoise_eta1_4x": {
+          "bytes": 832,
+          "kind": "static"
+        },
+        "mlk_keypair_getnoise_eta1": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_poly_getnoise_eta2": {
+          "bytes": 208,
+          "kind": "static"
+        },
+        "mlk_enc_getnoise_eta1_eta2": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_sha3_256": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "pqarena_check_sk": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_sha3_512": {
+          "bytes": 224,
+          "kind": "static"
+        },
+        "pqarena_keccakf1600x4_permute": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlk_keccak_absorb_once_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqarena_shake128x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_shake256x4_absorb_once": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_keccak_squeezeblocks_x4": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqarena_shake128x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_poly_rej_uniform_x4": {
+          "bytes": 2944,
+          "kind": "static"
+        },
+        "pqarena_gen_matrix": {
+          "bytes": 320,
+          "kind": "static"
+        },
+        "pqarena_indcpa_keypair_derand": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqarena_indcpa_enc": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "pqarena_enc_derand": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "pqarena_enc": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_dec": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "mlk_check_pct": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_keypair_derand": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "pqarena_keypair": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlk_shake256x4_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "pqarena_shake256x4": {
+          "bytes": 1408,
+          "kind": "static"
+        }
+      },
+      "known_call_paths": {
+        "pqarena_enc": {
+          "known_frames_sum_bytes": 3808,
+          "path": [
+            [
+              "pqarena_enc",
+              32
+            ],
+            [
+              "pqarena_enc_derand",
+              48
+            ],
+            [
+              "pqarena_indcpa_enc",
+              80
+            ],
+            [
+              "pqarena_gen_matrix",
+              320
+            ],
+            [
+              "pqarena_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pqarena_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pqarena_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pqarena_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        },
+        "pqarena_dec": {
+          "known_frames_sum_bytes": 3776,
+          "path": [
+            [
+              "pqarena_dec",
+              48
+            ],
+            [
+              "pqarena_indcpa_enc",
+              80
+            ],
+            [
+              "pqarena_gen_matrix",
+              320
+            ],
+            [
+              "pqarena_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pqarena_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pqarena_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pqarena_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        },
+        "pqarena_keypair": {
+          "known_frames_sum_bytes": 3904,
+          "path": [
+            [
+              "pqarena_keypair",
+              32
+            ],
+            [
+              "pqarena_keypair_derand",
+              32
+            ],
+            [
+              "mlk_check_pct",
+              32
+            ],
+            [
+              "pqarena_enc",
+              32
+            ],
+            [
+              "pqarena_enc_derand",
+              48
+            ],
+            [
+              "pqarena_indcpa_enc",
+              80
+            ],
+            [
+              "pqarena_gen_matrix",
+              320
+            ],
+            [
+              "pqarena_poly_rej_uniform_x4",
+              2944
+            ],
+            [
+              "pqarena_shake128x4_absorb_once",
+              32
+            ],
+            [
+              "mlk_keccak_absorb_once_x4",
+              48
+            ],
+            [
+              "pqarena_keccakf1600x4_permute",
+              16
+            ],
+            [
+              "pqarena_keccakf1600_permute",
+              16
+            ],
+            [
+              "mlk_keccakf1600_permute_c",
+              272
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "isolated_links": {
+    "helmet": {
+      "baseline": {
+        "sections": {
+          ".rtc.text": 0,
+          ".rtc.force_fast": 0,
+          ".rtc_noinit": 0,
+          ".rtc.force_slow": 36,
+          ".rtc_reserved": 24,
+          ".iram0.text": 87148,
+          ".iram0.text_end": 404,
+          ".iram0.data": 0,
+          ".iram0.bss": 0,
+          ".iram0.end": 0,
+          ".dram0.dummy": 87552,
+          ".dram0.data": 14044,
+          ".noinit": 0,
+          ".dram0.bss": 20872,
+          ".flash.text": 551124,
+          ".flash_rodata_dummy": 589824,
+          ".flash.appdesc": 256,
+          ".flash.rodata": 98956,
+          ".flash.init_array": 252,
+          ".flash.tdata": 16,
+          ".flash.rodata_noload": 18201,
+          ".dram0.heap_start": 8,
+          ".noload": 4,
+          ".debug_aranges": 50608,
+          ".debug_info": 3051029,
+          ".debug_abbrev": 331428,
+          ".debug_line": 1858342,
+          ".debug_frame": 178648,
+          ".debug_str": 447806,
+          ".debug_loc": 1427568,
+          ".debug_ranges": 90912,
+          ".debug_line_str": 6146,
+          ".debug_loclists": 20938,
+          ".debug_rnglists": 2571,
+          ".comment": 134,
+          ".riscv.attributes": 81
+        },
+        "symbols": {
+          "_bss_end": 1070194280,
+          "_heap_start": 1070194288
+        },
+        "static_data_bss": 34916,
+        "linker_contiguous_tail_before_runtime_allocations": 198816
+      },
+      "cpu_mhz": 160,
+      "sdk_stacks": {
+        "COMPILER_STACK_CHECK_MODE_ALL": false,
+        "COMPILER_STACK_CHECK_MODE_NONE": true,
+        "COMPILER_STACK_CHECK_MODE_NORM": false,
+        "COMPILER_STACK_CHECK_MODE_STRONG": false,
+        "ESP_IPC_TASK_STACK_SIZE": 1024,
+        "ESP_MAIN_TASK_STACK_SIZE": 12288,
+        "ESP_MINIMAL_SHARED_STACK_SIZE": 2048,
+        "ESP_SYSTEM_EVENT_TASK_STACK_SIZE": 2304,
+        "ESP_SYSTEM_HW_STACK_GUARD": true,
+        "ESP_TIMER_TASK_STACK_SIZE": 3584,
+        "ESP_TLS_CUSTOM_STACK": false,
+        "FATFS_LFN_STACK": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_CANARY": true,
+        "FREERTOS_CHECK_STACKOVERFLOW_NONE": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_PTRVAL": false,
+        "FREERTOS_IDLE_TASK_STACKSIZE": 1536,
+        "FREERTOS_ISR_STACKSIZE": 1536,
+        "FREERTOS_TIMER_TASK_STACK_DEPTH": 2048,
+        "FREERTOS_WATCHPOINT_END_OF_STACK": false,
+        "LWIP_TCPIP_TASK_STACK_SIZE": 3072,
+        "NVS_BDL_STACK": false,
+        "PTHREAD_STACK_MIN": 768,
+        "PTHREAD_TASK_STACK_SIZE_DEFAULT": 3072
+      },
+      "main_stack_unchanged": 12288,
+      "candidates": {
+        "24576": {
+          "sections": {
+            ".rtc.text": 0,
+            ".rtc.force_fast": 0,
+            ".rtc_noinit": 0,
+            ".rtc.force_slow": 36,
+            ".rtc_reserved": 24,
+            ".iram0.text": 87086,
+            ".iram0.text_end": 466,
+            ".iram0.data": 0,
+            ".iram0.bss": 0,
+            ".iram0.end": 0,
+            ".dram0.dummy": 87552,
+            ".dram0.data": 20468,
+            ".noinit": 0,
+            ".dram0.bss": 45872,
+            ".flash.text": 568306,
+            ".flash_rodata_dummy": 589824,
+            ".flash.appdesc": 256,
+            ".flash.rodata": 99620,
+            ".flash.init_array": 256,
+            ".flash.tdata": 16,
+            ".flash.rodata_noload": 18201,
+            ".dram0.heap_start": 0,
+            ".noload": 4,
+            ".debug_aranges": 50800,
+            ".debug_info": 3061073,
+            ".debug_abbrev": 333546,
+            ".debug_line": 1866385,
+            ".debug_frame": 179176,
+            ".debug_str": 449390,
+            ".debug_loc": 1432838,
+            ".debug_ranges": 91240,
+            ".debug_line_str": 6146,
+            ".debug_loclists": 20938,
+            ".debug_rnglists": 2571,
+            ".comment": 134,
+            ".riscv.attributes": 81
+          },
+          "symbols": {
+            "_bss_end": 1070225712,
+            "_heap_start": 1070225712
+          },
+          "static_data_bss": 66340,
+          "linker_contiguous_tail_before_runtime_allocations": 167392,
+          "stack_allocation": 24576,
+          "probe": {
+            "text": 2875,
+            "data": 6404,
+            "bss": 24964,
+            "frames": {
+              "pqqual::Worker::~Worker()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "uint64_t {anonymous}::now_ms()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void __static_initialization_and_destruction_0()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::submit(pqqual::Op, bool, uint64_t, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::enqueue_failed(pqqual::Token)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "pqqual::Buffers* pqqual::Worker::begin(pqqual::Token, uint64_t, pqqual::Op&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::finish(pqqual::Token, int, uint64_t)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::take(pqqual::Token, uint64_t, pqqual::Buffers&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::cancel()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::expire(uint64_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void {anonymous}::run(void*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "int randombytes(uint8_t*, size_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_probe()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_submit(pqqual::Op, bool, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "void pq_qualification_cancel()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_take(pqqual::Token, pqqual::Buffers*)": {
+                "bytes": 32,
+                "kind": "static"
+              },
+              "cpp)": {
+                "bytes": 16,
+                "kind": "static"
+              }
+            }
+          },
+          "static_ram_increase": 31424,
+          "allocated_flash_sections_delta": 24208
+        },
+        "32768": {
+          "sections": {
+            ".rtc.text": 0,
+            ".rtc.force_fast": 0,
+            ".rtc_noinit": 0,
+            ".rtc.force_slow": 36,
+            ".rtc_reserved": 24,
+            ".iram0.text": 87086,
+            ".iram0.text_end": 466,
+            ".iram0.data": 0,
+            ".iram0.bss": 0,
+            ".iram0.end": 0,
+            ".dram0.dummy": 87552,
+            ".dram0.data": 20468,
+            ".noinit": 0,
+            ".dram0.bss": 54064,
+            ".flash.text": 568306,
+            ".flash_rodata_dummy": 589824,
+            ".flash.appdesc": 256,
+            ".flash.rodata": 99620,
+            ".flash.init_array": 256,
+            ".flash.tdata": 16,
+            ".flash.rodata_noload": 18201,
+            ".dram0.heap_start": 0,
+            ".noload": 4,
+            ".debug_aranges": 50800,
+            ".debug_info": 3061073,
+            ".debug_abbrev": 333546,
+            ".debug_line": 1866385,
+            ".debug_frame": 179176,
+            ".debug_str": 449390,
+            ".debug_loc": 1432838,
+            ".debug_ranges": 91240,
+            ".debug_line_str": 6146,
+            ".debug_loclists": 20938,
+            ".debug_rnglists": 2571,
+            ".comment": 134,
+            ".riscv.attributes": 81
+          },
+          "symbols": {
+            "_bss_end": 1070233904,
+            "_heap_start": 1070233904
+          },
+          "static_data_bss": 74532,
+          "linker_contiguous_tail_before_runtime_allocations": 159200,
+          "stack_allocation": 32768,
+          "probe": {
+            "text": 2875,
+            "data": 6404,
+            "bss": 33156,
+            "frames": {
+              "pqqual::Worker::~Worker()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "uint64_t {anonymous}::now_ms()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void __static_initialization_and_destruction_0()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::submit(pqqual::Op, bool, uint64_t, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::enqueue_failed(pqqual::Token)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "pqqual::Buffers* pqqual::Worker::begin(pqqual::Token, uint64_t, pqqual::Op&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::finish(pqqual::Token, int, uint64_t)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::take(pqqual::Token, uint64_t, pqqual::Buffers&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::cancel()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::expire(uint64_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void {anonymous}::run(void*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "int randombytes(uint8_t*, size_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_probe()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_submit(pqqual::Op, bool, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "void pq_qualification_cancel()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_take(pqqual::Token, pqqual::Buffers*)": {
+                "bytes": 32,
+                "kind": "static"
+              },
+              "cpp)": {
+                "bytes": 16,
+                "kind": "static"
+              }
+            }
+          },
+          "static_ram_increase": 39616,
+          "allocated_flash_sections_delta": 24208
+        }
+      }
+    },
+    "paw": {
+      "baseline": {
+        "sections": {
+          ".rtc.text": 0,
+          ".rtc.force_fast": 0,
+          ".rtc_noinit": 0,
+          ".rtc.force_slow": 36,
+          ".rtc_reserved": 24,
+          ".iram0.text": 72958,
+          ".iram0.text_end": 258,
+          ".iram0.data": 0,
+          ".iram0.bss": 0,
+          ".iram0.end": 0,
+          ".dram0.dummy": 73216,
+          ".dram0.data": 13660,
+          ".noinit": 0,
+          ".dram0.bss": 19336,
+          ".flash.text": 507550,
+          ".flash_rodata_dummy": 524288,
+          ".flash.appdesc": 256,
+          ".flash.rodata": 83780,
+          ".flash.init_array": 260,
+          ".flash.tdata": 16,
+          ".flash.rodata_noload": 18201,
+          ".dram0.heap_start": 8,
+          ".noload": 4,
+          ".debug_aranges": 47720,
+          ".debug_info": 2767988,
+          ".debug_abbrev": 314993,
+          ".debug_line": 1696361,
+          ".debug_frame": 167568,
+          ".debug_str": 425387,
+          ".debug_loc": 1323967,
+          ".debug_ranges": 85376,
+          ".debug_line_str": 5488,
+          ".debug_loclists": 19487,
+          ".debug_rnglists": 2451,
+          ".comment": 134,
+          ".riscv.attributes": 81
+        },
+        "symbols": {
+          "_bss_end": 1070178024,
+          "_heap_start": 1070178032
+        },
+        "static_data_bss": 32996,
+        "linker_contiguous_tail_before_runtime_allocations": 215072
+      },
+      "cpu_mhz": 160,
+      "sdk_stacks": {
+        "COMPILER_STACK_CHECK_MODE_ALL": false,
+        "COMPILER_STACK_CHECK_MODE_NONE": true,
+        "COMPILER_STACK_CHECK_MODE_NORM": false,
+        "COMPILER_STACK_CHECK_MODE_STRONG": false,
+        "ESP_IPC_TASK_STACK_SIZE": 1024,
+        "ESP_MAIN_TASK_STACK_SIZE": 12288,
+        "ESP_MINIMAL_SHARED_STACK_SIZE": 2048,
+        "ESP_SYSTEM_EVENT_TASK_STACK_SIZE": 2304,
+        "ESP_SYSTEM_HW_STACK_GUARD": true,
+        "ESP_TIMER_TASK_STACK_SIZE": 3584,
+        "ESP_TLS_CUSTOM_STACK": false,
+        "FATFS_LFN_STACK": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_CANARY": true,
+        "FREERTOS_CHECK_STACKOVERFLOW_NONE": false,
+        "FREERTOS_CHECK_STACKOVERFLOW_PTRVAL": false,
+        "FREERTOS_IDLE_TASK_STACKSIZE": 1536,
+        "FREERTOS_ISR_STACKSIZE": 1536,
+        "FREERTOS_TIMER_TASK_STACK_DEPTH": 2048,
+        "FREERTOS_WATCHPOINT_END_OF_STACK": false,
+        "LWIP_TCPIP_TASK_STACK_SIZE": 3072,
+        "NVS_BDL_STACK": false,
+        "PTHREAD_STACK_MIN": 768,
+        "PTHREAD_TASK_STACK_SIZE_DEFAULT": 3072
+      },
+      "main_stack_unchanged": 12288,
+      "candidates": {
+        "24576": {
+          "sections": {
+            ".rtc.text": 0,
+            ".rtc.force_fast": 0,
+            ".rtc_noinit": 0,
+            ".rtc.force_slow": 36,
+            ".rtc_reserved": 24,
+            ".iram0.text": 72944,
+            ".iram0.text_end": 272,
+            ".iram0.data": 0,
+            ".iram0.bss": 0,
+            ".iram0.end": 0,
+            ".dram0.dummy": 73216,
+            ".dram0.data": 20060,
+            ".noinit": 0,
+            ".dram0.bss": 44320,
+            ".flash.text": 524712,
+            ".flash_rodata_dummy": 589824,
+            ".flash.appdesc": 256,
+            ".flash.rodata": 84452,
+            ".flash.init_array": 264,
+            ".flash.tdata": 16,
+            ".flash.rodata_noload": 18201,
+            ".dram0.heap_start": 0,
+            ".noload": 4,
+            ".debug_aranges": 47912,
+            ".debug_info": 2778032,
+            ".debug_abbrev": 317111,
+            ".debug_line": 1704404,
+            ".debug_frame": 168096,
+            ".debug_str": 426968,
+            ".debug_loc": 1329237,
+            ".debug_ranges": 85704,
+            ".debug_line_str": 5488,
+            ".debug_loclists": 19487,
+            ".debug_rnglists": 2451,
+            ".comment": 134,
+            ".riscv.attributes": 81
+          },
+          "symbols": {
+            "_bss_end": 1070209408,
+            "_heap_start": 1070209408
+          },
+          "static_data_bss": 64380,
+          "linker_contiguous_tail_before_runtime_allocations": 183696,
+          "stack_allocation": 24576,
+          "probe": {
+            "text": 2875,
+            "data": 6404,
+            "bss": 24964,
+            "frames": {
+              "pqqual::Worker::~Worker()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "uint64_t {anonymous}::now_ms()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void __static_initialization_and_destruction_0()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::submit(pqqual::Op, bool, uint64_t, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::enqueue_failed(pqqual::Token)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "pqqual::Buffers* pqqual::Worker::begin(pqqual::Token, uint64_t, pqqual::Op&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::finish(pqqual::Token, int, uint64_t)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::take(pqqual::Token, uint64_t, pqqual::Buffers&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::cancel()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::expire(uint64_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void {anonymous}::run(void*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "int randombytes(uint8_t*, size_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_probe()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_submit(pqqual::Op, bool, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "void pq_qualification_cancel()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_take(pqqual::Token, pqqual::Buffers*)": {
+                "bytes": 32,
+                "kind": "static"
+              },
+              "cpp)": {
+                "bytes": 16,
+                "kind": "static"
+              }
+            }
+          },
+          "static_ram_increase": 31384,
+          "allocated_flash_sections_delta": 24220
+        },
+        "32768": {
+          "sections": {
+            ".rtc.text": 0,
+            ".rtc.force_fast": 0,
+            ".rtc_noinit": 0,
+            ".rtc.force_slow": 36,
+            ".rtc_reserved": 24,
+            ".iram0.text": 72944,
+            ".iram0.text_end": 272,
+            ".iram0.data": 0,
+            ".iram0.bss": 0,
+            ".iram0.end": 0,
+            ".dram0.dummy": 73216,
+            ".dram0.data": 20060,
+            ".noinit": 0,
+            ".dram0.bss": 52512,
+            ".flash.text": 524712,
+            ".flash_rodata_dummy": 589824,
+            ".flash.appdesc": 256,
+            ".flash.rodata": 84452,
+            ".flash.init_array": 264,
+            ".flash.tdata": 16,
+            ".flash.rodata_noload": 18201,
+            ".dram0.heap_start": 0,
+            ".noload": 4,
+            ".debug_aranges": 47912,
+            ".debug_info": 2778032,
+            ".debug_abbrev": 317111,
+            ".debug_line": 1704404,
+            ".debug_frame": 168096,
+            ".debug_str": 426968,
+            ".debug_loc": 1329237,
+            ".debug_ranges": 85704,
+            ".debug_line_str": 5488,
+            ".debug_loclists": 19487,
+            ".debug_rnglists": 2451,
+            ".comment": 134,
+            ".riscv.attributes": 81
+          },
+          "symbols": {
+            "_bss_end": 1070217600,
+            "_heap_start": 1070217600
+          },
+          "static_data_bss": 72572,
+          "linker_contiguous_tail_before_runtime_allocations": 175504,
+          "stack_allocation": 32768,
+          "probe": {
+            "text": 2875,
+            "data": 6404,
+            "bss": 33156,
+            "frames": {
+              "pqqual::Worker::~Worker()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "uint64_t {anonymous}::now_ms()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void __static_initialization_and_destruction_0()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::submit(pqqual::Op, bool, uint64_t, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::enqueue_failed(pqqual::Token)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "pqqual::Buffers* pqqual::Worker::begin(pqqual::Token, uint64_t, pqqual::Op&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::finish(pqqual::Token, int, uint64_t)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "bool pqqual::Worker::take(pqqual::Token, uint64_t, pqqual::Buffers&)": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::cancel()": {
+                "bytes": 0,
+                "kind": "static"
+              },
+              "void pqqual::Worker::expire(uint64_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "void {anonymous}::run(void*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "int randombytes(uint8_t*, size_t)": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_probe()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_submit(pqqual::Op, bool, const uint8_t*, size_t, const uint8_t*, size_t, pqqual::Token*)": {
+                "bytes": 80,
+                "kind": "static"
+              },
+              "void pq_qualification_cancel()": {
+                "bytes": 16,
+                "kind": "static"
+              },
+              "bool pq_qualification_take(pqqual::Token, pqqual::Buffers*)": {
+                "bytes": 32,
+                "kind": "static"
+              },
+              "cpp)": {
+                "bytes": 16,
+                "kind": "static"
+              }
+            }
+          },
+          "static_ram_increase": 39576,
+          "allocated_flash_sections_delta": 24220
+        }
+      }
+    }
+  },
+  "arena_host": {
+    "vectors": {
+      "keygen": 25,
+      "encaps": 50,
+      "decaps": 30
+    },
+    "vectors_total": 105,
+    "host_ms": {
+      "keygen": {
+        "mean_ms": 0.248577975,
+        "max_ms": 0.402564,
+        "iterations": 200
+      },
+      "encaps": {
+        "mean_ms": 0.0834825,
+        "max_ms": 0.293102,
+        "iterations": 200
+      },
+      "decaps": {
+        "mean_ms": 0.098950555,
+        "max_ms": 0.241516,
+        "iterations": 200
+      }
+    },
+    "limitation": "40 validation fixtures remain covered by native default preflight only",
+    "peak_bytes": {
+      "keygen": 22336,
+      "encaps": 19104,
+      "decaps": 20704
+    },
+    "allocation_fault_cases": 77
+  },
+  "wolf_host": {
+    "vectors": {
+      "keygen": 25,
+      "encaps": 50,
+      "decaps": 30
+    },
+    "vectors_total": 105,
+    "host_ms": {
+      "keygen": {
+        "mean_ms": 0.142314955,
+        "max_ms": 0.417476,
+        "iterations": 200
+      },
+      "encaps": {
+        "mean_ms": 0.05116545,
+        "max_ms": 0.242187,
+        "iterations": 200
+      },
+      "decaps": {
+        "mean_ms": 0.060662705,
+        "max_ms": 0.187517,
+        "iterations": 200
+      }
+    },
+    "limitation": "40 validation fixtures remain covered by native default preflight only",
+    "host_context_bytes": 5048
+  },
+  "wolf_target": {
+    "wc_mlkem.c": {
+      "text": 3590,
+      "data": 0,
+      "bss": 2,
+      "frames": {
+        "mlkemkey_get_k": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "ForceZero": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkemkey_encapsulate": {
+          "bytes": 6192,
+          "kind": "static"
+        },
+        "mlkemkey_decapsulate": {
+          "bytes": 2592,
+          "kind": "static"
+        },
+        "mlkemkey_decode_public": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_mlkem_opt_blocker": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_Init": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_MlKemKey_Free": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_MlKemKey_MakeKey": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_CipherTextSize": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_SharedSecretSize": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_Encapsulate": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_DecodePrivateKey": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_MlKemKey_DecodePublicKey": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_MlKemKey_PrivateKeySize": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_PublicKeySize": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_MlKemKey_EncodePublicKey": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_mlkemkey_check_h": {
+          "bytes": 1600,
+          "kind": "static"
+        },
+        "wc_MlKemKey_EncapsulateWithRandom": {
+          "bytes": 112,
+          "kind": "static"
+        },
+        "wc_MlKemKey_Decapsulate": {
+          "bytes": 1712,
+          "kind": "static"
+        },
+        "wc_MlKemKey_MakeKeyWithRandom": {
+          "bytes": 3792,
+          "kind": "static"
+        },
+        "wc_MlKemKey_EncodePrivateKey": {
+          "bytes": 32,
+          "kind": "static"
+        }
+      }
+    },
+    "wc_mlkem_poly.c": {
+      "text": 15932,
+      "data": 0,
+      "bss": 0,
+      "frames": {
+        "mlkem_ntt": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "mlkem_invntt": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "mlkem_basemul": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_basemul_mont": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_basemul_mont_add": {
+          "bytes": 112,
+          "kind": "static"
+        },
+        "mlkem_pointwise_acc_mont": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_ntt_add_to": {
+          "bytes": 80,
+          "kind": "static"
+        },
+        "mlkem_decapsulate_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_rej_uniform_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_cbd_eta2": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_cmp_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_csubq_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_vec_compress_11_c": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "mlkem_vec_decompress_11_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_compress_5_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_decompress_5_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_to_msg_c": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_from_bytes_c": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_to_bytes_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_xof_absorb": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_xof_squeezeblocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_gen_matrix_i": {
+          "bytes": 592,
+          "kind": "static"
+        },
+        "mlkem_prf": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "ForceZero": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_get_noise_eta1_c": {
+          "bytes": 144,
+          "kind": "static"
+        },
+        "mlkem_get_noise_eta2_c": {
+          "bytes": 144,
+          "kind": "static"
+        },
+        "mlkem_get_noise_c": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "mlkem_from_msg_c": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_init": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "mlkem_decapsulate": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_hash_new": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_hash_free": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_hash256": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_hash512": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_prf_init": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_get_noise_i": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_keygen_seeds": {
+          "bytes": 48,
+          "kind": "static"
+        },
+        "mlkem_prf_new": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_prf_free": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_derive_secret": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "mlkem_get_noise": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_cmp": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_vec_compress_11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_vec_decompress_11": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_compress_5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_decompress_5": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_from_msg": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_encapsulate_seeds": {
+          "bytes": 112,
+          "kind": "static"
+        },
+        "mlkem_to_msg": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_from_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_to_bytes": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "mlkem_check_reduced": {
+          "bytes": 0,
+          "kind": "static"
+        }
+      }
+    },
+    "sha3.c": {
+      "text": 7426,
+      "data": 0,
+      "bss": 0,
+      "frames": {
+        "XorWords": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "xorbuf": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "InitSha3": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_InitSha3": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3Copy": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "BlockSha3": {
+          "bytes": 480,
+          "kind": "static"
+        },
+        "Sha3Update": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_Sha3Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "Sha3Final": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_Sha3Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3GetHash": {
+          "bytes": 448,
+          "kind": "static"
+        },
+        "wc_InitSha3_224": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_224_Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_224_Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_224_Free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_Sha3_224_Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_224_GetHash": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_224_Copy": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_InitSha3_256": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_256_Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_256_Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_256_Free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_Sha3_256_Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_256_GetHash": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_256_Copy": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_InitSha3_384": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_384_Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_384_Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_384_Free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_Sha3_384_Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_384_GetHash": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_384_Copy": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_InitSha3_512": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_512_Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_512_Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_512_Free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_Sha3_512_Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_512_GetHash": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Sha3_512_Copy": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_InitShake128": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake128_Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake128_Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake128_Absorb": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_Shake128_SqueezeBlocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake128_Free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_Shake128_Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake128_Copy": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_InitShake256": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake256_Update": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake256_Final": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake256_Absorb": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "wc_Shake256_SqueezeBlocks": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake256_Free": {
+          "bytes": 0,
+          "kind": "static"
+        },
+        "wc_Shake256_Reset": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "wc_Shake256_Copy": {
+          "bytes": 16,
+          "kind": "static"
+        }
+      }
+    },
+    "wolf_shim.c": {
+      "text": 468,
+      "data": 0,
+      "bss": 5024,
+      "frames": {
+        "clear": {
+          "bytes": 16,
+          "kind": "static"
+        },
+        "qual_keygen": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "qual_enc": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "qual_dec": {
+          "bytes": 32,
+          "kind": "static"
+        },
+        "qual_context_size": {
+          "bytes": 0,
+          "kind": "static"
+        }
+      }
+    }
+  },
+  "wolf_known_call_paths": {
+    "qual_keygen": {
+      "known_frames_sum_bytes": 12992,
+      "path": [
+        [
+          "qual_keygen",
+          32
+        ],
+        [
+          "wc_MlKemKey_MakeKeyWithRandom",
+          3792
+        ],
+        [
+          "wc_MlKemKey_Decapsulate",
+          1712
+        ],
+        [
+          "mlkemkey_encapsulate",
+          6192
+        ],
+        [
+          "mlkem_encapsulate_seeds",
+          112
+        ],
+        [
+          "mlkem_gen_matrix_i",
+          592
+        ],
+        [
+          "mlkem_xof_absorb",
+          16
+        ],
+        [
+          "wc_Shake128_Absorb",
+          32
+        ],
+        [
+          "Sha3Update",
+          32
+        ],
+        [
+          "BlockSha3",
+          480
+        ]
+      ]
+    },
+    "qual_enc": {
+      "known_frames_sum_bytes": 7600,
+      "path": [
+        [
+          "qual_enc",
+          32
+        ],
+        [
+          "wc_MlKemKey_EncapsulateWithRandom",
+          112
+        ],
+        [
+          "mlkemkey_encapsulate",
+          6192
+        ],
+        [
+          "mlkem_encapsulate_seeds",
+          112
+        ],
+        [
+          "mlkem_gen_matrix_i",
+          592
+        ],
+        [
+          "mlkem_xof_absorb",
+          16
+        ],
+        [
+          "wc_Shake128_Absorb",
+          32
+        ],
+        [
+          "Sha3Update",
+          32
+        ],
+        [
+          "BlockSha3",
+          480
+        ]
+      ]
+    },
+    "qual_dec": {
+      "known_frames_sum_bytes": 9200,
+      "path": [
+        [
+          "qual_dec",
+          32
+        ],
+        [
+          "wc_MlKemKey_Decapsulate",
+          1712
+        ],
+        [
+          "mlkemkey_encapsulate",
+          6192
+        ],
+        [
+          "mlkem_encapsulate_seeds",
+          112
+        ],
+        [
+          "mlkem_gen_matrix_i",
+          592
+        ],
+        [
+          "mlkem_xof_absorb",
+          16
+        ],
+        [
+          "wc_Shake128_Absorb",
+          32
+        ],
+        [
+          "Sha3Update",
+          32
+        ],
+        [
+          "BlockSha3",
+          480
+        ]
+      ]
+    }
+  },
+  "backend_sanitizer_stress": {
+    "arena": "PASS 77 allocation faults: exact OOM status, zeroized LIFO cleanup\nPASS 1000 complete round trips and 1000 modified ciphertext implicit rejections",
+    "wolf": "PASS 1000 complete round trips and 1000 modified ciphertext implicit rejections"
+  },
+  "host_guarded_stack": {
+    "24576": {
+      "exit_code": -11,
+      "measurements": null,
+      "limitation": "Linux x86-64 pthread startup and written canary extent; not MCU high-water or reserved-frame depth"
+    },
+    "32768": {
+      "exit_code": 0,
+      "measurements": {
+        "host_stack_bytes": 32768,
+        "host_canary_untouched_bytes": 1816,
+        "host_written_extent_bytes": 30952,
+        "operations": 300
+      },
+      "limitation": "Linux x86-64 pthread startup and written canary extent; not MCU high-water or reserved-frame depth"
+    }
+  },
+  "worker_analyzer": "Debian clang version 19.1.7 (3+b1); no diagnostics; host core/harness only",
+  "limits": {
+    "physical_sram_bytes": 409600,
+    "cache_excluded_diram_bytes": 393216,
+    "linker_app_diram_region_bytes": 321296,
+    "normal_link_object_rv32_bytes": 2664,
+    "worker_slot_bytes": 6336,
+    "queue_depth": 1,
+    "inflight_operations": 1,
+    "candidate_stack_bytes": 32768,
+    "stack_approval": "pending measured MCU high-water",
+    "wearer_io_stack_bytes": 6144,
+    "interrupt_stack_bytes": 1536,
+    "heap_delta_creation": "static worker buffers already reserved at boot; dynamic IDF/libc overhead unmeasured",
+    "startup_reserved_region_later_released_bytes": 71920,
+    "rtc_optional_region_less_reserved_bytes": 8168,
+    "actual_idf_main_stack_macro_bytes": 12800,
+    "configured_main_stack_bytes": 12288
+  },
+  "v3_regression": {
+    "run_by_this_tool": false,
+    "separate_command": "bash scripts/test-wireless.sh",
+    "task_run_result": "See qualification document for separately observed results; this tool does not assert a regression pass"
+  },
+  "input_hashes": {
+    "scripts/tests/pq-worker/arena_config.h": "260a060b7e73d811d1cb68825bde9da810224123a84b43811ba9fb1226c26f74",
+    "scripts/tests/pq-worker/arena_shim.c": "5ce0879f5a88d638abebb0f53574dc1dd64859e388efbd40042999dc601535af",
+    "scripts/tests/pq-worker/freertos_probe.cpp": "7d29dbc1af015130c856afeab6069e65b647acf6a7cc3626e57a223d05734b02",
+    "scripts/tests/pq-worker/guarded_stack.c": "470a7e924b1fd61aa619d74bdc2898eecbd203c305719d7c08244f3ede289c90",
+    "scripts/tests/pq-worker/kem.cpp": "6bd1c5eca7846a360cafe969b4731ac6456982e8881cdbe2bbe291dcf3ad35b5",
+    "scripts/tests/pq-worker/native_config.h": "d228661e1978503ea61a30d04508a8654360c1871e1c01800a0e21df79632f59",
+    "scripts/tests/pq-worker/native_shim.c": "2940a29280fcb7361f702fdec3df5cde0c6d8c9f32df6604717a0a0a8806b802",
+    "scripts/tests/pq-worker/primitive_stress.c": "bcbfb26be8633926e5a94720dc06d0a6286f6707429be86f4058f4420c813e22",
+    "scripts/tests/pq-worker/stress.cpp": "394eed5c44bb7739f48885c6b8868316eca61d350fb57dfaf876fd3dcbd22ee8",
+    "scripts/tests/pq-worker/wolf_settings.h": "7b2b72f63c80f20e4b75599ed77648145279dba845e48d6096b227f88dd332e2",
+    "scripts/tests/pq-worker/wolf_shim.c": "5dbbbaa2cc5aff6cecfe3ecd599aa0fc6917fc36b573d0430b5c56fbe10887ae",
+    "scripts/tests/pq-worker/worker.hpp": "b4c21661d6733b4bea95f5884cb6851768101fcd22f1cb1d3ea82d1ed5b1383a",
+    "scripts/check-pq-worker.py": "8aeb52f5cd48b115dbbb444cfbec82ee441c1f990639d948686c07d65eee6d30",
+    "scripts/check-mlkem-preflight.py": "e7560ad4c33b44eb8a30d294955ca5262c56cda3e8e8a75773c76e213503175b",
+    "scripts/tests/mlkem-preflight-pins.json": "af04e08dd392e42c9d3c2164747ac84edd46a5b9fa80aa4a391c2ce5304dbeef",
+    "scripts/tests/pq-worker-pins.json": "8d701948db65a639be1111fca9b893e036e8d0f880365db2e9c726befbe3c325"
+  },
+  "runtime_mcu": {
+    "heap_before": null,
+    "heap_after": null,
+    "minimum_heap_keygen": null,
+    "minimum_heap_encaps": null,
+    "minimum_heap_decaps": null,
+    "largest_heap_block": null,
+    "stack_high_water": null,
+    "watchdogs": null,
+    "uart_latency": null,
+    "radio_latency": null,
+    "operation_times": null
+  },
+  "verdict": "ML-KEM-1024 NOT SAFE TO INTEGRATE",
+  "reason": "MCU stack high-water, post-Wi-Fi heap fragmentation, operation timing and scheduling/watchdog gates have not been measured; static/host evidence cannot approve integration.",
+  "supplementary_host_cpu": {
+    "method": "Linux single-CPU affinity; process_time_ns around each ctypes call; 200 fixed-fixture KeyGen/Encaps/Decaps; PCT; includes FFI; excludes vector parser and radio; not MCU estimates",
+    "backends": {
+      "native": {
+        "keygen": {
+          "mean_cpu_ms": 0.19235325,
+          "max_cpu_ms": 0.420202,
+          "calls": 200
+        },
+        "encaps": {
+          "mean_cpu_ms": 0.061855135,
+          "max_cpu_ms": 0.157964,
+          "calls": 200
+        },
+        "decaps": {
+          "mean_cpu_ms": 0.07816012,
+          "max_cpu_ms": 0.293475,
+          "calls": 200
+        },
+        "all_600_calls_cpu_ms": 66.473701
+      },
+      "arena": {
+        "keygen": {
+          "mean_cpu_ms": 0.235607965,
+          "max_cpu_ms": 0.422135,
+          "calls": 200
+        },
+        "encaps": {
+          "mean_cpu_ms": 0.078689125,
+          "max_cpu_ms": 0.162571,
+          "calls": 200
+        },
+        "decaps": {
+          "mean_cpu_ms": 0.09561051,
+          "max_cpu_ms": 0.176501,
+          "calls": 200
+        },
+        "all_600_calls_cpu_ms": 81.98152
+      },
+      "wolf": {
+        "keygen": {
+          "mean_cpu_ms": 0.14071146,
+          "max_cpu_ms": 0.308967,
+          "calls": 200
+        },
+        "encaps": {
+          "mean_cpu_ms": 0.048747940000000003,
+          "max_cpu_ms": 0.116623,
+          "calls": 200
+        },
+        "decaps": {
+          "mean_cpu_ms": 0.060380525,
+          "max_cpu_ms": 0.113257,
+          "calls": 200
+        },
+        "all_600_calls_cpu_ms": 49.967985
+      }
+    }
+  }
+}
