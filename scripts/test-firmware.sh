@@ -12,11 +12,12 @@ PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT" "$TEST_TEMP" <<'PY'
 from pathlib import Path
 import runpy, shutil, sys
 root, temporary = map(Path, sys.argv[1:])
-configure = runpy.run_path(str(root / 'scripts/check-features.py'))['configure_features']
+feature_checks = runpy.run_path(str(root / 'scripts/check-features.py'))
+configure = feature_checks['configure_features']
 sketch = temporary / 'PROT_OS7_MAX7219'
 shutil.copytree(root / 'firmware/PROT_OS7_MAX7219', sketch)
 main = sketch / 'PROT_OS7_MAX7219.ino'
-main.write_text(configure(main.read_text(), ()))
+main.write_text(configure(main.read_text(), (), feature_checks['ALL_FEATURES']))
 PY
 FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize=address,undefined
   -fno-sanitize-recover=all -DARDUINO=10819 -DARDUINO_TEENSY40
@@ -44,6 +45,17 @@ FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
 "${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER \
   -I"$ROOT/firmware/esp32/src" "$ROOT/scripts/tests/helmet-protocol.cpp" -o "$TEST_TEMP/test-protocol"
 "$TEST_TEMP/test-protocol"
+"${CXX:-clang++}" "${FLAGS[@]}" -I"$ROOT/firmware/esp32/src" \
+  "$ROOT/scripts/tests/application-status.cpp" -o "$TEST_TEMP/test-application-status"
+"$TEST_TEMP/test-application-status"
+"${CXX:-clang++}" "${FLAGS[@]}" \
+  "$ROOT/scripts/tests/retry-delay.cpp" -o "$TEST_TEMP/test-retry-delay"
+"$TEST_TEMP/test-retry-delay"
+"${CXX:-clang++}" "${FLAGS[@]}" -DVisorConnector \
+  "$ROOT/scripts/tests/connector-timing.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  -o "$TEST_TEMP/test-connector-timing"
+"$TEST_TEMP/test-connector-timing"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw -DVisorConnector \
   "$ROOT/scripts/tests/extensions.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
@@ -77,6 +89,8 @@ for mask in {0..7}; do
   "$TEST_TEMP/features-$mask"
 done
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-tools.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-pq-worker.py"
+PYTHONDONTWRITEBYTECODE=1 python3 -O "$ROOT/scripts/tests/test-pq-worker.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-helmet-tool.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-pair-paw.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/compare-archive-faces.py"

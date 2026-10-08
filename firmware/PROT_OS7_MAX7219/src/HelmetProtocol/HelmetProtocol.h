@@ -125,5 +125,15 @@ private:
   Result fail(Result r){++rejected;return r;}
 };
 constexpr size_t StatusBytes=20;
+constexpr size_t ExtendedStatusBytes=StatusBytes+4;
 enum StatusFlag : uint8_t { Sleeping=1, Visible=2, Booping=4, Speaking=8, MicEnabled=16, DisplayReady=32, PawOnline=64 };
+// Both the radio record validator and the paw application consume this schema.
+inline bool validHelmetStatus(const Packet &p) {
+  return p.kind==Status &&
+         (p.length==StatusBytes ||
+          (p.length==ExtendedStatusBytes &&
+           (u16(p.payload+StatusBytes)==0xffff || u16(p.payload+StatusBytes)<=100))) &&
+         p.epoch && u32(p.payload) && p.payload[4]<6 &&
+         !(p.payload[5]&0x80) && p.payload[19]==0;
+}
 }

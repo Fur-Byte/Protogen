@@ -55,13 +55,7 @@ bool applicationValid(const HelmetLink::Packet &p, uint8_t sender) {
             (p.length == 4 && HelmetLink::u16(p.payload) <= 6000));
   }
   return sender == Helmet &&
-         ((p.kind == Status &&
-           (p.length == StatusBytes ||
-            (p.length == StatusBytes + 4 &&
-             (u16(p.payload + StatusBytes) == 0xffff ||
-              u16(p.payload + StatusBytes) <= 100))) &&
-           p.epoch && u32(p.payload) && p.payload[4] < 6 &&
-           !(p.payload[5] & 0x80) && p.payload[19] == 0) ||
+         (validHelmetStatus(p) ||
           (p.kind == Ack && p.length == 5 && p.sequence && p.epoch &&
            u32(p.payload) && p.payload[4] <= Unavailable));
 }

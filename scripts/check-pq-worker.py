@@ -75,6 +75,12 @@ def target_flags():
             '-Wall','-Wextra','-Werror','-fstack-usage','-fcallgraph-info=su']
 
 
+def require(condition, message):
+    """Qualification checks must execute even under Python optimization."""
+    if not condition:
+        raise RuntimeError(message)
+
+
 def direct_vectors(lib):
     api=ctypes.CDLL(str(lib)); ptr=ctypes.POINTER(ctypes.c_ubyte)
     for name, n in [('keygen',3),('enc',4),('dec',3)]:
@@ -93,21 +99,30 @@ def direct_vectors(lib):
             for case in g['tests']:
                 exp=groups[g['tgId']][case['tcId']]
                 pk,sk,ct,ss=[(ctypes.c_ubyte*n)() for n in (1568,3168,1568,32)]
+                context=f'{directory.name} group {g["tgId"]} case {case["tcId"]}'
                 if fn=='keyGen':
-                    assert api.qual_keygen(pk,sk,hx(case['d']+case['z']))==0
-                    assert bytes(pk).hex().upper()==exp['ek'] and bytes(sk).hex().upper()==exp['dk']
+                    require(api.qual_keygen(pk,sk,hx(case['d']+case['z']))==0,
+                            'Key generation failed: '+context)
+                    require(bytes(pk).hex().upper()==exp['ek'] and bytes(sk).hex().upper()==exp['dk'],
+                            'Key generation vector mismatch: '+context)
                     counts['keygen']+=1
                 elif fn=='encapsulation':
-                    assert api.qual_enc(ct,ss,hx(case['ek']),hx(case['m']))==0
-                    assert bytes(ct).hex().upper()==exp['c'] and bytes(ss).hex().upper()==exp['k']
+                    require(api.qual_enc(ct,ss,hx(case['ek']),hx(case['m']))==0,
+                            'Encapsulation failed: '+context)
+                    require(bytes(ct).hex().upper()==exp['c'] and bytes(ss).hex().upper()==exp['k'],
+                            'Encapsulation vector mismatch: '+context)
                     counts['encaps']+=1
                 else:
                     if 'dk' not in case:
-                        assert api.qual_keygen(pk,sk,hx(case['d']+case['z']))==0
+                        require(api.qual_keygen(pk,sk,hx(case['d']+case['z']))==0,
+                                'Decapsulation fixture key generation failed: '+context)
                     else: sk=hx(case['dk'])
-                    assert api.qual_dec(ss,hx(case['c']),sk)==0
-                    assert bytes(ss).hex().upper()==exp['k']; counts['decaps']+=1
-    assert sum(counts.values())==105
+                    require(api.qual_dec(ss,hx(case['c']),sk)==0,
+                            'Decapsulation failed: '+context)
+                    require(bytes(ss).hex().upper()==exp['k'],
+                            'Decapsulation vector mismatch: '+context)
+                    counts['decaps']+=1
+    require(sum(counts.values())==105, f'Expected 105 vectors; checked {sum(counts.values())}')
     timings={}
     coins=buf(os.urandom(64)); message=buf(os.urandom(32))
     samples={k:[] for k in ('keygen','encaps','decaps')}
@@ -115,11 +130,33 @@ def direct_vectors(lib):
         for name,fn,args in [('keygen',api.qual_keygen,(pk,sk,coins)),
                              ('encaps',api.qual_enc,(ct,ss,pk,message)),
                              ('decaps',api.qual_dec,(ss,ct,sk))]:
-            start=time.perf_counter_ns(); assert fn(*args)==0
+            start=time.perf_counter_ns()
+            require(fn(*args)==0, 'Benchmark operation failed: '+name)
             samples[name].append((time.perf_counter_ns()-start)/1e6)
     for name,s in samples.items():timings[name]={'mean_ms':statistics.mean(s),'max_ms':max(s),'iterations':200}
     return api,{'vectors':counts,'vectors_total':105,'host_ms':timings,
                 'limitation':'40 validation fixtures remain covered by native default preflight only'}
+
+
+def allocation_faults(api):
+    api.qual_peak.restype=ctypes.c_size_t
+    api.qual_attempts.restype=ctypes.c_size_t
+    pk,sk,ct,ss,coins,m=[(ctypes.c_ubyte*n)() for n in (1568,3168,1568,32,64,32)]
+    peaks={};failures=0
+    for name,fn,args in [('keygen',api.qual_keygen,(pk,sk,coins)),
+                         ('encaps',api.qual_enc,(ct,ss,pk,m)),
+                         ('decaps',api.qual_dec,(ss,ct,sk))]:
+        require(fn(*args)==0, 'Arena baseline operation failed: '+name)
+        peaks[name]=api.qual_peak(); attempts=api.qual_attempts()
+        for fault in range(1,attempts+1):
+            api.qual_fail_at(fault)
+            require(fn(*args)==-2, f'Arena allocation fault {fault} was not reported: {name}')
+            failures+=1
+        api.qual_fail_at(0)
+        require(fn(*args)==0, 'Arena recovery operation failed: '+name)
+        if name=='keygen':
+            require(api.qual_enc(ct,ss,pk,m)==0, 'Arena fixture encapsulation failed')
+    return {'peak_bytes':peaks, 'allocation_fault_cases':failures}
 
 
 def section_record(elf):
@@ -239,18 +276,7 @@ def main():
     aflags=['-I'+str(T),'-I'+str(SOURCE/'mlkem'),'-DMLK_CONFIG_FILE="arena_config.h"']
     run(['cc']+host_flags+['-fPIC','-shared']+aflags+[str(T/'arena_shim.c'),str(SOURCE/'mlkem/mlkem_native.c'),'-o',str(arena)],B/'arena-build.log')
     api,record=direct_vectors(arena); report['arena_host']=record
-    api.qual_peak.restype=ctypes.c_size_t; api.qual_attempts.restype=ctypes.c_size_t
-    ptr=ctypes.POINTER(ctypes.c_ubyte)
-    pk,sk,ct,ss,coins,m=[(ctypes.c_ubyte*n)() for n in (1568,3168,1568,32,64,32)]
-    peaks={};failures=0
-    for name,fn,args in [('keygen',api.qual_keygen,(pk,sk,coins)),('encaps',api.qual_enc,(ct,ss,pk,m)),('decaps',api.qual_dec,(ss,ct,sk))]:
-        assert fn(*args)==0;peaks[name]=api.qual_peak(); attempts=api.qual_attempts()
-        for fault in range(1,attempts+1):
-            api.qual_fail_at(fault); assert fn(*args)==-2;failures+=1
-        api.qual_fail_at(0)
-        assert fn(*args)==0
-        if name=='keygen':assert api.qual_enc(ct,ss,pk,m)==0
-    report['arena_host'].update(peak_bytes=peaks,allocation_fault_cases=failures)
+    report['arena_host'].update(allocation_faults(api))
     wflags=['-DWOLFSSL_USER_SETTINGS','-I'+str(config),'-I'+str(wolf)]
     files=[wolf/'wolfcrypt/src'/n for n in ('wc_mlkem.c','wc_mlkem_poly.c','sha3.c')]
     library=B/'wolf.so'

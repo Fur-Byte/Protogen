@@ -1,4 +1,5 @@
 #include "ActionQueue.h"
+#include "ApplicationStatus.h"
 #include "EspNowTransport.h"
 #include "PairingIndicator.h"
 #include "SecureStorage.h"
@@ -28,25 +29,18 @@ Wireless::Link wirelessLink(transport, Device::Role,
                             {nullptr, connectionChanged, wirelessPacket,
                              storePair});
 Wireless::Indicator indicator;
-bool radioStarted = false, connected = false, haveStatus = false;
-uint32_t bridge = 0, statusAt = 0;
+bool radioStarted = false, connected = false;
+Wireless::HelmetStatus helmetStatus;
 #ifdef HELMET_RECEIVER
 uint32_t helloAt = 0, uartHeartbeatAt = 0, statusSentAt = 0;
 HelmetLink::Packet lastSentStatus{};
 #endif
-HelmetLink::Packet latestStatus{};
 bool queueSecure(const HelmetLink::Packet &p) {
 #ifdef HELMET_RECEIVER
   if (p.kind == HelmetLink::Status && p.length == HelmetLink::StatusBytes) {
-    HelmetLink::Packet extended = p;
-    extended.length += 4;
     const auto sensors = WearerIO::snapshot();
-    HelmetLink::put16(extended.payload + HelmetLink::StatusBytes,
-                      sensors.remainingPercent < 0 ? 0xffff
-                                                   : sensors.remainingPercent);
-    HelmetLink::put16(extended.payload + HelmetLink::StatusBytes + 2,
-                      sensors.faults);
-    return wirelessLink.queue(extended);
+    return wirelessLink.queue(Wireless::extendHelmetStatus(
+        p, sensors.remainingPercent, sensors.faults));
   }
 #endif
   return wirelessLink.queue(p);
@@ -129,11 +123,11 @@ void serviceUart(uint32_t now) {
       continue;
     if (p.kind == HelmetLink::Status && p.length == HelmetLink::StatusBytes &&
         p.epoch) {
-      latestStatus = p;
-      statusAt = now;
-      haveStatus = true;
+      helmetStatus.packet = p;
+      helmetStatus.at = now;
+      helmetStatus.available = true;
       WearerIO::face(p, connected);
-      if (connected && HelmetLink::u32(p.payload) == bridge &&
+      if (connected && HelmetLink::u32(p.payload) == helmetStatus.bridge &&
           (now - statusSentAt >= Wireless::ActivePollMs &&
            (memcmp(p.payload + 4, lastSentStatus.payload + 4, 4) ||
             memcmp(p.payload + 10, lastSentStatus.payload + 10, 2)))) {
@@ -143,32 +137,34 @@ void serviceUart(uint32_t now) {
         }
       }
     } else if (p.kind == HelmetLink::Ack && p.length == 5 && connected &&
-               p.epoch == latestStatus.epoch &&
-               HelmetLink::u32(p.payload) == bridge)
+               p.epoch == helmetStatus.packet.epoch &&
+               HelmetLink::u32(p.payload) == helmetStatus.bridge)
       queueSecure(p);
   }
   // Wired Teensy liveness causes no RF traffic.
-  if (connected && haveStatus && now - statusAt < Wireless::FreshStatusMs &&
-      HelmetLink::u32(latestStatus.payload) == bridge &&
+  if (connected && helmetStatus.available &&
+      now - helmetStatus.at < Wireless::FreshStatusMs &&
+      HelmetLink::u32(helmetStatus.packet.payload) == helmetStatus.bridge &&
       now - uartHeartbeatAt >= Wireless::UartHeartbeatMs) {
     HelmetLink::Packet p;
     p.kind = HelmetLink::Heartbeat;
     p.length = 4;
-    p.epoch = latestStatus.epoch;
-    p.ticket = latestStatus.ticket;
-    HelmetLink::put32(p.payload, bridge);
+    p.epoch = helmetStatus.packet.epoch;
+    p.ticket = helmetStatus.packet.ticket;
+    HelmetLink::put32(p.payload, helmetStatus.bridge);
     if (queueUart(p))
       uartHeartbeatAt = now;
   }
-  if (connected && haveStatus && now - statusAt < Wireless::FreshStatusMs &&
-      HelmetLink::u32(latestStatus.payload) != bridge &&
+  if (connected && helmetStatus.available &&
+      now - helmetStatus.at < Wireless::FreshStatusMs &&
+      HelmetLink::u32(helmetStatus.packet.payload) != helmetStatus.bridge &&
       now - helloAt >= Wireless::ActivePollMs) {
     HelmetLink::Packet p;
     p.kind = HelmetLink::Hello;
     p.length = 4;
-    p.epoch = latestStatus.epoch;
-    p.ticket = latestStatus.ticket;
-    HelmetLink::put32(p.payload, bridge);
+    p.epoch = helmetStatus.packet.epoch;
+    p.ticket = helmetStatus.packet.ticket;
+    HelmetLink::put32(p.payload, helmetStatus.bridge);
     if (queueUart(p))
       helloAt = now;
   }
@@ -210,21 +206,20 @@ void serviceCommands(uint32_t now) {
       retriedAt = now;
     return;
   }
-  if (!actions.pending() || !connected || !haveStatus ||
-      now - statusAt >= Wireless::FreshStatusMs)
+  if (!actions.pending() || !connected || !helmetStatus.available ||
+      now - helmetStatus.at >= Wireless::FreshStatusMs)
     return;
   Wireless::Intent intent;
   if (!actions.pop(now, intent))
     return;
   if (intent.action == Wireless::Actions::Next ||
       intent.action == Wireless::Actions::Previous) {
-    intent.value = (latestStatus.payload[4] +
-                    (intent.action == Wireless::Actions::Next ? 1 : 5)) %
-                   6;
+    intent.value = (helmetStatus.packet.payload[4] +
+                    (intent.action == Wireless::Actions::Next ? 1 : 5)) % 6;
     intent.action = HelmetLink::Expression;
   } else if (intent.action == Wireless::Actions::ToggleSleep) {
     intent.action = HelmetLink::Sleep;
-    intent.value = !(latestStatus.payload[5] & HelmetLink::Sleeping);
+    intent.value = !(helmetStatus.packet.payload[5] & HelmetLink::Sleeping);
   }
   if (commandSequence == UINT32_MAX) {
     buttonsArmed = false;
@@ -234,10 +229,10 @@ void serviceCommands(uint32_t now) {
   HelmetLink::Packet p;
   p.kind = HelmetLink::Command;
   p.length = 8;
-  p.epoch = latestStatus.epoch;
-  p.ticket = latestStatus.ticket;
+  p.epoch = helmetStatus.packet.epoch;
+  p.ticket = helmetStatus.packet.ticket;
   p.sequence = ++commandSequence;
-  HelmetLink::put32(p.payload, bridge);
+  HelmetLink::put32(p.payload, helmetStatus.bridge);
   p.payload[4] = intent.action;
   p.payload[5] = intent.value;
   HelmetLink::put16(p.payload + 6, intent.duration);
@@ -304,18 +299,18 @@ void connectionChanged(void *, bool online) {
   uartSent = 0;
   if (online) {
     do {
-      Wireless::Crypto::random(&bridge, sizeof(bridge));
-    } while (!bridge);
+      Wireless::Crypto::random(&helmetStatus.bridge, sizeof(helmetStatus.bridge));
+    } while (!helmetStatus.bridge);
     lastSentStatus = HelmetLink::Packet{};
   }
-  WearerIO::face(latestStatus, online);
+  WearerIO::face(helmetStatus.packet, online);
 #else
   commandWaiting = buttonsArmed = false;
   commandSequence = 0;
   actions.clear();
-  haveStatus = false;
-  bridge = 0;
-  WearerIO::face(latestStatus, online);
+  helmetStatus.available = false;
+  helmetStatus.bridge = 0;
+  WearerIO::face(helmetStatus.packet, online);
 #endif
   printf("{\"event\":\"%s\"}\n", online ? "connected" : "disconnected");
 }
@@ -335,38 +330,35 @@ void wirelessPacket(void *, const HelmetLink::Packet &p) {
   if (p.kind == HelmetLink::Status && p.length == 4)
     return; // authenticated paw cell/fault telemetry
   if (p.kind == HelmetLink::Status && p.length == 0) {
-    if (haveStatus && now - statusAt < Wireless::FreshStatusMs &&
-        HelmetLink::u32(latestStatus.payload) == bridge)
-      queueSecure(latestStatus);
+    if (helmetStatus.available &&
+        now - helmetStatus.at < Wireless::FreshStatusMs &&
+        HelmetLink::u32(helmetStatus.packet.payload) == helmetStatus.bridge)
+      queueSecure(helmetStatus.packet);
     return;
   }
   if ((p.kind == HelmetLink::Command && p.length == 8) ||
       (p.kind == HelmetLink::Heartbeat && p.length == 4)) {
-    if (haveStatus && now - statusAt < Wireless::FreshStatusMs &&
-        p.epoch == latestStatus.epoch && HelmetLink::u32(p.payload) == bridge)
+    if (helmetStatus.available &&
+        now - helmetStatus.at < Wireless::FreshStatusMs &&
+        p.epoch == helmetStatus.packet.epoch &&
+        HelmetLink::u32(p.payload) == helmetStatus.bridge)
       queueUart(p);
   }
 #else
-  if (p.kind == HelmetLink::Status && p.length == HelmetLink::StatusBytes &&
-      p.epoch && HelmetLink::u32(p.payload)) {
-    const uint32_t next = HelmetLink::u32(p.payload);
-    if ((haveStatus && p.epoch != latestStatus.epoch) ||
-        (bridge && next != bridge)) {
+  bool changed = false;
+  if (helmetStatus.receive(p, now, changed)) {
+    if (changed) {
       commandWaiting = buttonsArmed = false;
       commandSequence = 0;
       actions.clear();
     }
-    bridge = next;
-    latestStatus = p;
-    statusAt = now;
-    haveStatus = true;
     WearerIO::face(p, true);
   } else if (p.kind == HelmetLink::Ack && p.length == 5 && commandWaiting &&
              p.epoch == pendingCommand.epoch &&
              p.sequence == pendingCommand.sequence &&
-             HelmetLink::u32(p.payload) == bridge) {
+             HelmetLink::u32(p.payload) == helmetStatus.bridge) {
     commandWaiting = false;
-    haveStatus = false;
+    helmetStatus.available = false;
     wirelessLink.activity(now);
     printf("{\"event\":\"ack\",\"result\":%u}\n", p.payload[4]);
   }

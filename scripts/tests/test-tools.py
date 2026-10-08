@@ -39,6 +39,59 @@ class FeatureChecks(unittest.TestCase):
             with self.assertRaises(ValueError):
                 features.configure_features(malformed, ())
 
+    def test_all_sensor_and_extension_combinations_are_identified(self):
+        original = (ROOT / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino").read_text()
+        combinations = [tuple(name for name, flag in zip(features.ALL_FEATURES, flags) if flag)
+                        for flags in itertools.product((False, True), repeat=len(features.ALL_FEATURES))]
+        for initial in combinations:
+            source = features.configure_features(original, initial, features.ALL_FEATURES)
+            for enabled in combinations:
+                with self.subTest(initial=initial, enabled=enabled):
+                    configured = features.configure_features(source, enabled, features.ALL_FEATURES)
+                    self.assertEqual(features.enabled_features(configured), list(enabled))
+            # Preview callers configure sensors without silently enabling extensions.
+            configured = features.configure_features(source, features.FEATURES)
+            self.assertEqual(features.enabled_features(configured),
+                             list(features.FEATURES) + [n for n in initial if n not in features.FEATURES])
+
+    def test_all_feature_declarations_are_validated(self):
+        source = "\n".join("\t//\t# define\t" + name + " // optional" for name in features.ALL_FEATURES)
+        self.assertEqual(features.enabled_features(source), [])
+        for name in features.ALL_FEATURES:
+            with self.subTest(feature=name):
+                configured = features.configure_features(source, (name,), features.ALL_FEATURES)
+                self.assertEqual(features.enabled_features(configured), [name])
+                self.assertIn(" // optional", configured)
+                for malformed in (configured.replace("#define " + name, "#define RemovedFlag"),
+                                  configured + "\n#define " + name):
+                    with self.assertRaisesRegex(ValueError, "exactly one declaration"):
+                        features.enabled_features(malformed)
+        with self.assertRaises(ValueError):
+            features.configure_features(source, ("Unknown",), features.ALL_FEATURES)
+
+    def test_sensor_matrix_disables_extensions_from_active_source(self):
+        def compile_fixture(run, cli, sketch, enabled):
+            actual = features.enabled_features((sketch / "PROT_OS7_MAX7219.ino").read_text())
+            self.assertEqual(actual, enabled)
+            self.assertFalse(set(actual) & {"WirelessPaw", "VisorConnector"})
+            run.record["results"].append({"features": list(enabled), "exit_code": 0, "warnings": 0})
+
+        with tempfile.TemporaryDirectory(prefix="protogen-sensor-matrix-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            source = root / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
+            source.write_text(features.configure_features(source.read_text(), features.ALL_FEATURES, features.ALL_FEATURES))
+            spec = importlib.util.spec_from_file_location("matrix_fixture", root / "scripts/check-features.py")
+            matrix = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(matrix)
+            with patch.object(matrix, "find_cli", return_value="synthetic-cli"), \
+                    patch.object(matrix, "check_toolchain", return_value={}), \
+                    patch.object(matrix.BuildRun, "compile", compile_fixture):
+                self.assertEqual(matrix.main(), 0)
+            record = json.loads((root / "build/feature-results.json").read_text())
+            self.assertEqual(record["state"], "success")
+            self.assertEqual(len(record["results"]), 8)
+
     def test_explicit_missing_cli_does_not_fall_back(self):
         with patch.dict(os.environ, {"ARDUINO_CLI": "/missing/protogen/arduino-cli"}):
             with self.assertRaises(RuntimeError):
@@ -56,7 +109,7 @@ class FeatureChecks(unittest.TestCase):
         source = root / "firmware/PROT_OS7_MAX7219"
         source.mkdir(parents=True)
         (source / "PROT_OS7_MAX7219.ino").write_text(
-            "\n".join("// #define " + name for name in features.FEATURES))
+            "\n".join("// #define " + name for name in features.ALL_FEATURES))
         (root / "scripts").mkdir()
         for name in ("check-features.py", "build_support.py", "build.py"):
             shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
@@ -121,6 +174,66 @@ class FeatureChecks(unittest.TestCase):
             report = json.loads((root / "build/current-build.json").read_text())
             self.assertEqual(report["state"], "failed")
             self.assertEqual((output / "original.hex").read_text(), "old firmware")
+
+    def test_published_manifest_includes_selected_extensions(self):
+        def compile_fixture(run, cli, sketch, enabled):
+            output = run.path / "artifacts-0"
+            output.mkdir()
+            (output / "fixture.hex").write_text("synthetic build output")
+            run.record["results"].append({"features": list(enabled), "exit_code": 0, "warnings": 0})
+            return output
+
+        for enabled in (("WirelessPaw",), ("VisorConnector",), ("WirelessPaw", "VisorConnector")):
+            with self.subTest(enabled=enabled), tempfile.TemporaryDirectory(prefix="protogen-manifest-") as tmp:
+                root = Path(tmp)
+                self.make_project(root)
+                source = root / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
+                source.write_text(features.configure_features(source.read_text(), enabled, features.ALL_FEATURES))
+                spec = importlib.util.spec_from_file_location("build_fixture", root / "scripts/build.py")
+                build = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(build)
+                with patch.object(build, "find_cli", return_value="synthetic-cli"), \
+                        patch.object(build, "check_toolchain", return_value={}), \
+                        patch.object(build.BuildRun, "compile", compile_fixture), patch("builtins.print"):
+                    self.assertEqual(build.main(), 0)
+                published = json.loads((root / "build/teensy40/manifest.json").read_text())
+                self.assertEqual(published["state"], "success")
+                self.assertEqual(published["results"][0]["features"], list(enabled))
+                self.assertEqual(published, json.loads((root / "build/latest-successful-build.json").read_text()))
+                self.assertIn("fixture.hex", published["artifacts"])
+
+    def test_connector_only_build_requires_selected_pinned_adc(self):
+        with tempfile.TemporaryDirectory(prefix="protogen-connector-adc-") as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            source = root / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
+            source.write_text(features.configure_features(source.read_text(), ("VisorConnector",), features.ALL_FEATURES))
+            enabled = features.enabled_features(source.read_text())
+            run = features.BuildRun(root, "build")
+            sketch = run.snapshot()
+            locked = json.loads((root / "toolchain.lock.json").read_text())
+            run.record["toolchain"] = {"libraries": {}, "bundled_libraries": locked["bundled_libraries"]}
+            library = root / "ADC"
+            library.mkdir()
+            output = root / "output"
+            objects = output / "objects"
+            objects.mkdir(parents=True)
+            (objects / "compile_commands.json").write_text(json.dumps([{"arguments": ["c++", "-Werror"]}]))
+            with patch("subprocess.run", return_value=subprocess.CompletedProcess(
+                    [], 0, "build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160\n", "")), patch("builtins.print"):
+                for selected, version in (([], None), ([str(library)], "0.0.0"),
+                                          ([str(library)], locked["bundled_libraries"]["ADC"])):
+                    with self.subTest(selected=selected, version=version):
+                        (objects / "libraries.cache").write_text(json.dumps(selected))
+                        if version:
+                            (library / "library.properties").write_text("name=ADC\nversion=" + version + "\n")
+                        run.compile("synthetic-cli", sketch, enabled, output)
+                        result = run.record["results"][-1]
+                        if version == locked["bundled_libraries"]["ADC"]:
+                            self.assertNotIn("dependency_error", result)
+                            self.assertEqual(result["selected_libraries"]["ADC"]["version"], version)
+                        else:
+                            self.assertIn("ADC", result["dependency_error"])
 
     def test_edit_during_run_invalidates_success(self):
         with tempfile.TemporaryDirectory(prefix="protogen-source-change-") as tmp:

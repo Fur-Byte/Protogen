@@ -3,7 +3,6 @@
 import importlib.util
 import os
 from pathlib import Path
-import re
 import shutil
 import sys
 import tempfile
@@ -19,8 +18,7 @@ def main():
         feature_checks = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(feature_checks)
         source = (sketch / "PROT_OS7_MAX7219.ino").read_text()
-        feature_checks.configure_features(source, ()) # Validate every feature declaration.
-        enabled = re.findall(r"^\s*#define (VisorSensor|BoopSensor|Microphone)\b", source, re.MULTILINE)
+        enabled = feature_checks.enabled_features(source)
         cli = find_cli()
         run.record["toolchain"] = check_toolchain(root, cli)
         output = run.compile(cli, sketch, enabled)

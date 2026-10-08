@@ -208,6 +208,14 @@ source; set `ARDUINO_FFT_SRC` if it is outside
 executable path or command, and `CXX` overrides the host compiler. Source feature
 flags are set in temporary copies for test coverage.
 
+The selected-feature build validates all five feature declarations and records
+the UART and dock extensions in its manifest. Connector-only builds verify the
+pinned ADC dependency. Host regressions cover 20/24-byte helmet status delivery,
+retry cooldowns across long uptimes and clock wrap, and qualification checks
+under Python optimization. The qualification checker tests use synthetic buffers
+to verify execution and failure handling; backend cryptographic qualification
+still requires the separate ML-KEM worker tooling.
+
 SPI now defaults to **4 MHz**. Audio uses hardware-triggered ADC sampling with
 buffering and diagnostics; real interrupt latency and electrical behavior still
 need helmet validation. Test the new transitions, every expression, microphone

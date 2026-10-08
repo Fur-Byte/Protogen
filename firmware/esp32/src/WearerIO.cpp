@@ -1,4 +1,5 @@
 #include "WearerIO.h"
+#include "RetryDelay.h"
 #include "SensorMath.h"
 #include <stdio.h>
 #include <string.h>
@@ -177,21 +178,22 @@ void task(void*) {
   nvs_handle_t energyStorage=0;nvs_open("energy",NVS_READWRITE,&energyStorage);
   uint32_t checkpoint=0;if(energyStorage && nvs_get_u32(energyStorage,"used_mwh",&checkpoint)==ESP_OK)s.usedMWh=checkpoint;
   // A reset leaves an unmeasured gap. Never present the old checkpoint as known SOC.
-  uint32_t shtAt=0,energyAt=0,saveAt=0,screenAt=0,busRetryAt=0;
+  uint32_t shtAt=0,energyAt=0,saveAt=0,screenAt=0;
+  HelmetLink::RetryDelay<5000> busRetry;
   bool shtPending=false,counterReady=false;uint64_t lastCounter=0;
   while(true) {
     const uint32_t now=nowMs();
-    if(static_cast<int32_t>(now-busRetryAt)>=0) {
+    if(busRetry.ready(now)) {
       if(sht && settings.features&Device::Environment) {
         if(!shtPending && now-shtAt>=1000) {
           const uint8_t command=0xfd;shtAt=now;
           shtPending=i2c_master_transmit(sht,&command,1,10)==ESP_OK;
-          if(!shtPending){s.environmentValid=false;s.faults|=1;busRetryAt=now+5000;}
+          if(!shtPending){s.environmentValid=false;s.faults|=1;busRetry.start(now);}
         } else if(shtPending && now-shtAt>=10) {
           uint8_t b[6];shtPending=false;
           s.environmentValid=i2c_master_receive(sht,b,6,10)==ESP_OK && SensorMath::sht40(b,s.temperature,s.humidity);
           if(s.environmentValid)s.faults&=static_cast<uint16_t>(~1u);
-          else {s.faults|=1;busRetryAt=now+5000;}
+          else {s.faults|=1;busRetry.start(now);}
         }
       }
       if(ina && (settings.features&Device::EnergyMonitor) && now-energyAt>=1000) {
@@ -209,7 +211,7 @@ void task(void*) {
           }
           lastCounter=count;counterReady=true;
           if(counterGood)s.faults&=static_cast<uint16_t>(~2u);else s.faults|=2;
-        } else {s.faults|=2;s.estimateQualified=false;counterReady=false;inaConfigured=false;busRetryAt=now+5000;}
+        } else {s.faults|=2;s.estimateQualified=false;counterReady=false;inaConfigured=false;busRetry.start(now);}
       }
     }
     if(now-shtAt>5000){s.environmentValid=false;if(settings.features&Device::Environment)s.faults|=1;}
