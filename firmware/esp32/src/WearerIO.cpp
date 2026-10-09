@@ -61,6 +61,7 @@ uint8_t frame[1024]{}, sentFrame[1024]{};
 uint8_t validPages=0;
 bool screenSleeping=false;
 bool screenStateKnown=true;
+bool screenConfigured=false, screenBusReady=false;
 unsigned screenOffset=0;
 bool addDevice(uint8_t address,i2c_master_dev_handle_t &device) {
   i2c_device_config_t d{};d.dev_addr_length=I2C_ADDR_BIT_LEN_7;d.device_address=address;d.scl_speed_hz=100000;
@@ -134,18 +135,24 @@ bool transfer(bool data,const uint8_t *b,size_t n) {
   return spi_device_polling_transmit(oled,&t)==ESP_OK;
 }
 bool initScreen() {
+  screenConfigured=false;screenStateKnown=false;validPages=0;
   gpio_set_direction(static_cast<gpio_num_t>(Device::ScreenDc),GPIO_MODE_OUTPUT);
   gpio_set_direction(static_cast<gpio_num_t>(Device::ScreenReset),GPIO_MODE_OUTPUT);
   gpio_set_level(static_cast<gpio_num_t>(Device::ScreenReset),0);vTaskDelay(pdMS_TO_TICKS(10));
   gpio_set_level(static_cast<gpio_num_t>(Device::ScreenReset),1);vTaskDelay(pdMS_TO_TICKS(10));
   spi_bus_config_t b{};b.mosi_io_num=Device::ScreenMosi;b.miso_io_num=-1;b.sclk_io_num=Device::ScreenSck;
   b.quadwp_io_num=b.quadhd_io_num=-1;b.max_transfer_sz=1024;
-  if(spi_bus_initialize(SPI2_HOST,&b,SPI_DMA_CH_AUTO)!=ESP_OK)return false;
+  if(!screenBusReady) {
+    if(spi_bus_initialize(SPI2_HOST,&b,SPI_DMA_CH_AUTO)!=ESP_OK)return false;
+    screenBusReady=true;
+  }
   spi_device_interface_config_t d{};d.clock_speed_hz=1000000;d.mode=0;d.spics_io_num=Device::ScreenCs;d.queue_size=1;
-  if(spi_bus_add_device(SPI2_HOST,&d,&oled)!=ESP_OK)return false;
+  if(!oled && spi_bus_add_device(SPI2_HOST,&d,&oled)!=ESP_OK)return false;
   const uint8_t init[]={0xae,0xd5,0x80,0xa8,0x3f,0xd3,0x00,0x40,0x8d,0x14,0x20,0x00,
     0xa1,0xc8,0xda,0x12,0x81,0x20,0xd9,0xf1,0xdb,0x40,0xa4,0xa6,0xaf};
-  return transfer(false,init,sizeof(init));
+  screenConfigured=transfer(false,init,sizeof(init));
+  if(screenConfigured){screenSleeping=false;screenStateKnown=true;}
+  return screenConfigured;
 }
 const char *warningFor(const Status &s) {
   const char *warning="STATUS OK";
@@ -213,8 +220,9 @@ void task(void*) {
   worker.store(xTaskGetCurrentTaskHandle());
   Status s;
 #ifdef HELMET_RECEIVER
+  HelmetLink::RetryDelay<5000> screenRetry;
   if((settings.features&(Device::Environment|Device::EnergyMonitor)) && !initBus())s.faults|=1;
-  if((settings.features&Device::Screen) && !initScreen())s.faults|=4;
+  if((settings.features&Device::Screen) && !initScreen()){s.faults|=4;screenRetry.start(nowMs());}
   if((settings.features&Device::BatteryCaseTemperature) && !initAdc())s.faults|=8;
   nvs_handle_t energyStorage=0;nvs_open("energy",NVS_READWRITE,&energyStorage);
   uint32_t checkpoint=0;if(energyStorage && nvs_get_u32(energyStorage,"used_mwh",&checkpoint)==ESP_OK)s.usedMWh=checkpoint;
@@ -235,6 +243,9 @@ void task(void*) {
     const uint64_t workStarted=esp_timer_get_time();
     const uint32_t now=nowMs();
     Efficiency::increment(s.metrics.executions);
+    if((settings.features&Device::Screen) && !screenConfigured && screenRetry.ready(now)) {
+      if(!initScreen()){s.faults|=4;screenRetry.start(nowMs());}
+    }
     if(busRetry.ready(now)) {
       if(sht && settings.features&Device::Environment) {
         if(!shtPending && now-shtAt>=1000) {
@@ -295,13 +306,15 @@ void task(void*) {
     const bool urgent=warningFor(s)!=previousWarning || s.faults!=previousFaults || radio!=previousRadio || stale!=previousStale ||
         memcmp(face.payload+4,previousFace.payload+4,2) || memcmp(face.payload+10,previousFace.payload+10,2) ||
         (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=now/60000);
-    if(oled && (now-screenAt>=screenInterval || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
+    if(oled && screenConfigured && (now-screenAt>=screenInterval || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
       screenAt=now;
+      const uint16_t displayedFaults=s.faults;
+      const char *displayedWarning=warningFor(s);
       if(!showScreen(s,now)) {
-        s.faults|=4;validPages=0;screenStateKnown=false;
+        s.faults|=4;validPages=0;screenStateKnown=false;screenConfigured=false;screenRetry.start(nowMs());
       } else s.faults&=static_cast<uint16_t>(~4u);
-      previousFace=face;previousRadio=radio;previousStale=stale;previousFaults=s.faults;
-      previousScreenGeneration=now/60000;previousWarning=warningFor(s);
+      previousFace=face;previousRadio=radio;previousStale=stale;previousFaults=displayedFaults;
+      previousScreenGeneration=now/60000;previousWarning=displayedWarning;
     }
     const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
     s.metrics.workUs+=work;if(work>s.metrics.maxWorkUs)s.metrics.maxWorkUs=work;
@@ -309,9 +322,13 @@ void task(void*) {
     if(PROTOGEN_WEARER_DEADLINES) {
       const uint32_t end=nowMs();uint32_t wait=1000;
       if(settings.features&Device::BatteryCaseTemperature)Efficiency::sooner(wait,Efficiency::remaining(end,caseAt,caseInterval));
-      if(oled) {
+      if((settings.features&Device::Screen) && !screenConfigured) {
+        Efficiency::sooner(wait,screenRetry.remaining(end));
+      } else if(oled) {
         Efficiency::sooner(wait,Efficiency::remaining(end,screenAt,screenInterval));
         if(!stale)Efficiency::sooner(wait,Efficiency::remaining(end,observedFaceAt,2000));
+        if((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) &&
+            (s.faults!=previousFaults || warningFor(s)!=previousWarning))Efficiency::sooner(wait,0);
       }
       if(!busRetry.ready(end))Efficiency::sooner(wait,busRetry.remaining(end));
       else {

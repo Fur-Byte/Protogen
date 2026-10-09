@@ -62,5 +62,34 @@ int main() {
     }
   };
   try {task(nullptr);} catch(const FakeWearer::Stop&) {}
+  // Initialization may fail after the SPI handle exists. A subsequent frame
+  // transfer must not clear the fault until reset/configuration succeeds.
+  settings.features=Device::Screen;
+  FakeWearer::us=0;FakeWearer::waits=0;FakeWearer::stopAfter=12;
+  FakeWearer::transfers=0;FakeWearer::failTransfer=0;
+  FakeWearer::commands.clear();
+  const unsigned beforeRecovery=FakeWearer::dataTransfers;
+  bool initializationFault=false, restored=false, jumped=false;
+  FakeWearer::beforeWait=[&](){
+    if(!FakeWearer::transfers)return;
+    if(snapshot().faults&4) {
+      initializationFault=true;
+      assert(!screenConfigured);
+      assert(FakeWearer::dataTransfers==beforeRecovery);
+      FakeWearer::failTransfer=-1;
+      if(!jumped){FakeWearer::us+=6000000;jumped=true;}
+    } else if(initializationFault)restored=true;
+  };
+  try {task(nullptr);} catch(const FakeWearer::Stop&) {}
+  assert(initializationFault && restored && screenConfigured);
+  assert(!(snapshot().faults&4));
+  assert(FakeWearer::dataTransfers>beforeRecovery);
+  if(PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) {
+    uint8_t displayed[sizeof(frame)];memcpy(displayed,frame,sizeof(frame));
+    Status expected=snapshot();assert(showScreen(expected,nowMs()));
+    // The old "CHECK SENSORS" pixels must clear on the urgent pass, without
+    // waiting the normal one-second interval after a successful recovery.
+    assert(!memcmp(displayed,frame,sizeof(frame)));
+  }
   std::cout<<"PASS: actual wearer deadlines, sensor warnings, changed pages, failed transfers, OLED sleep/wake/link restoration and unknown SOC\n";
 }

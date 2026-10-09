@@ -43,6 +43,15 @@ to be serviced. The wearer task keeps its 5 s I2C backoff and 10 ms SHT conversi
 deadline; environment/INA reads stay at 1 Hz. A stale/missing link restores the
 OLED warning display even if the last face status said asleep.
 
+OLED initialization and transfer failures latch the screen fault and invalidate
+controller/page state. Full reset/configuration retries after five seconds and
+reuses the existing SPI bus/device handles. A successful ordinary frame send
+cannot hide a failed initialization. Recovery includes the existing 20 ms GPIO
+reset sequence; healthy screen timing remains unchanged. Urgent candidates track
+the warning actually displayed and clear recovered warning pixels on the next
+urgent pass. Screen byte/page counters count attempted image transfers; controller
+commands and reset delays require the whole-system meter and task diagnostics.
+
 `PERF` on Teensy reports render attempts, compositions/skips, changed logical
 frames, wakes, render time, and attempted/verified configuration writes. Existing
 `STATUS` supplies audio frames, dropped samples and actual ADC timer frequency.
