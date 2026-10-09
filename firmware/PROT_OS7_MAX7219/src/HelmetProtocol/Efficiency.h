@@ -1,4 +1,6 @@
 #pragma once
+#ifndef PROTOGEN_HELMET_PROTOCOL_EFFICIENCY_H
+#define PROTOGEN_HELMET_PROTOCOL_EFFICIENCY_H
 #include <stdint.h>
 
 // Independent bench switches. Production retains its timing until physical
@@ -62,3 +64,4 @@ struct Checkpoint {
   }
 };
 }
+#endif // PROTOGEN_HELMET_PROTOCOL_EFFICIENCY_H

@@ -11,7 +11,7 @@
     "boop_release": 550,
     "blink_interval_ms": 3500,
     "blink_jitter_ms": 1500,
-    "transition_ms": 75,
+    "transition_ms": 160,
     "attack_ms": 20,
     "release_ms": 120,
     "natural_blinks": 1,

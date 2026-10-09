@@ -9,7 +9,7 @@ This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB ind
 | Change | Result / reason |
 | --- | --- |
 | Animation state separated from rendering | Eyes and mouth compose into one logical frame. Speech owns the mouth, blinking owns the eye mask, and boop takes priority over both. Inputs, USB, and audio run independently of the display's 16 ms frame interval. |
-| Expression transitions | A configurable close/swap/open transition hides the expression change. The default is 75 ms (reconciling the 100 ms latency requirement with button release debounce); 0 disables it. Rapid selections, sleep, and visor changes reset animations cleanly. |
+| Expression transitions | A configurable close/swap/open transition hides the expression change. The default is 160 ms (configurable 0–1000 ms; 0 disables it). Navigation activates on button release (25 ms debounce on helmet, 30 ms on wireless paw). Saved EEPROM settings override compiled defaults upon reboot. Rapid selections, sleep, and visor changes reset animations cleanly. |
 | Six selectable expressions | Happy, surprised, angry, and vwv keep their exact resting artwork. Sleepy and wink derive eye masks from the happy artwork. The button cycles all six. |
 | Hardware-random blink timing | Fresh Teensy TRNG data chooses each sequence. Ordinary pauses cluster around 4 seconds within a 2–6-second range; quick closing, slower reopening, and occasional double blinks produce about 15 blinks/minute with the defaults. |
 | Optional idle glances | Small horizontal eye movements add character. Off by default so the original resting face remains exact. The Expressive profile enables them. |

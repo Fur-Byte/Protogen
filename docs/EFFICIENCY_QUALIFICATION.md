@@ -8,7 +8,7 @@ optimization must pass independently before a combined candidate is qualified.
 
 All eight bench switches in `src/HelmetProtocol/Efficiency.h` default to zero.
 Production retains 600 MHz, 16 ms frame eligibility, the 4 kHz audio timer,
-existing FFT/attack/release/hold timing, random blink behavior, 75 ms default
+existing FFT/attack/release/hold timing, random blink behavior, 160 ms default
 transitions, button release navigation, radio/security constants, continuous
 receiver availability and existing saved settings. Instrumentation and explicit
 new commands are additive; nothing is uploaded by these scripts.
@@ -139,12 +139,12 @@ eye-closing transition is not proof of the requested visible expression. Capture
 at least 1,000 actions per condition (`online` and `idle_wake`) per trial. Retain
 bounce, hold time, debounce, radio retries, display scan latency and wake latency.
 
-Navigation currently acts on **release** and the default transition lasts 75 ms (satisfying the 100 ms target with 25 ms debounce).
-Long press-to-expression latency and transition delay must remain in the physical
-result. Do not reinterpret a transition frame as the target expression, subtract
-hold/debounce time, or change timing to make a result pass. A result above 100 ms
-is a failed target, requiring an explicit user-approved behavior/timing decision.
-Report physical action-edge latency alongside full press latency for diagnosis.
+Navigation controls activate on **button release** (25 ms debounce on helmet pin 2; 30 ms debounce on the wireless paw) to differentiate short taps from a long hold-to-sleep (1200 ms). Because of this release trigger and animation structure, latency must be analyzed and reported across three distinct intervals:
+1. **Full physical press-to-expression latency:** Measured from initial physical contact depression to final visible expression; inherently includes the user's hold duration prior to release.
+2. **Action-edge to first-visible-reaction latency:** Measured from physical contact release break to the first visual frame (eyelids starting to close on the old face). Includes release debounce (25 ms helmet / 30 ms paw), RF and UART bridge transit (for paw remote), loop dispatch, frame quantization (up to 16 ms), and SPI transfer.
+3. **Action-edge to complete-expression latency:** Measured from physical contact release break to the fully settled target expression artwork. Includes release debounce, RF/UART latency, the full transition animation (default 160 ms; configurable 0–1000 ms), and MAX7219 scanout.
+
+Long press-to-expression latency and transition delay must remain in the physical result. Do not reinterpret a transition frame as the target expression, subtract hold/debounce time, or change timing to make a result pass. A result above 100 ms is a failed target, requiring an explicit user-approved behavior/timing decision. Do not claim the 100 ms target is achieved without physical measurements on a calibrated instrument timebase (photodiode or high-speed video). The default 160 ms transition alone exceeds 100 ms complete-expression latency, and shorter transition candidates exclude RF, UART, render loop quantization, and display scanout latency. Furthermore, saved EEPROM settings persist across power cycles and override `Settings.h` defaults on boot; changing compiled firmware defaults does not alter saved helmet configurations without explicit `DEFAULTS` and `SAVE` commands. Report physical action-edge latency alongside full press latency for diagnosis.
 
 Each trial has `energy.csv` with monotonically increasing cumulative readings:
 
