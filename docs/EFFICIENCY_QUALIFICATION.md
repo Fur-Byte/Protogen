@@ -8,7 +8,7 @@ optimization must pass independently before a combined candidate is qualified.
 
 All eight bench switches in `src/HelmetProtocol/Efficiency.h` default to zero.
 Production retains 600 MHz, 16 ms frame eligibility, the 4 kHz audio timer,
-existing FFT/attack/release/hold timing, random blink behavior, 160 ms default
+existing FFT/attack/release/hold timing, random blink behavior, 75 ms default
 transitions, button release navigation, radio/security constants, continuous
 receiver availability and existing saved settings. Instrumentation and explicit
 new commands are additive; nothing is uploaded by these scripts.
@@ -139,7 +139,7 @@ eye-closing transition is not proof of the requested visible expression. Capture
 at least 1,000 actions per condition (`online` and `idle_wake`) per trial. Retain
 bounce, hold time, debounce, radio retries, display scan latency and wake latency.
 
-Navigation currently acts on **release** and the default transition lasts 160 ms.
+Navigation currently acts on **release** and the default transition lasts 75 ms (satisfying the 100 ms target with 25 ms debounce).
 Long press-to-expression latency and transition delay must remain in the physical
 result. Do not reinterpret a transition frame as the target expression, subtract
 hold/debounce time, or change timing to make a result pass. A result above 100 ms
