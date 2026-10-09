@@ -2,6 +2,7 @@
 #include "WirelessCrypto.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
+#include "Efficiency.h"
 #if defined(CONFIG_PROTOGEN_PRODUCTION)
 #include "esp_flash_encrypt.h"
 #include "esp_secure_boot.h"
@@ -15,6 +16,8 @@
 #endif
 #endif
 namespace SecureStorage {
+namespace { Metrics counters; }
+Metrics metrics(){return counters;}
 bool begin(nvs_handle_t &handle) {
 #if defined(CONFIG_PROTOGEN_PRODUCTION)
   if (!esp_flash_encryption_enabled() || !esp_secure_boot_enabled())
@@ -50,10 +53,21 @@ bool save(nvs_handle_t handle, const Device::Config &config) {
   Device::encode(config, blob);
   Device::Config checked;
   const bool valid = Device::decode(blob, sizeof(blob), checked);
+  Efficiency::increment(counters.attempts);
   const bool okay =
       valid && nvs_set_blob(handle, "config", blob, sizeof(blob)) == ESP_OK &&
       nvs_commit(handle) == ESP_OK;
+  bool verified=false;
+  if(okay) {
+    Efficiency::increment(counters.commits);
+    uint8_t readback[Device::ConfigBytes]{};size_t size=sizeof(readback);
+    verified=nvs_get_blob(handle,"config",readback,&size)==ESP_OK && size==sizeof(blob) &&
+        memcmp(readback,blob,sizeof(blob))==0;
+    Wireless::Crypto::wipe(readback,sizeof(readback));
+  }
+  Efficiency::increment(verified?counters.verified:counters.failures);
   Wireless::Crypto::wipe(blob, sizeof(blob));
-  return okay;
+  Wireless::Crypto::wipe(checked.psk,sizeof(checked.psk));
+  return verified;
 }
 } // namespace SecureStorage

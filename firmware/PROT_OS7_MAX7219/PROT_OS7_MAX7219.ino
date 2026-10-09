@@ -13,6 +13,8 @@
 #include "Configuration.h"
 #include "ConfigStore.h"
 #include "FaceRenderer.h"
+#include "VisualCache.h"
+#include "src/HelmetProtocol/Efficiency.h"
 #include "BlinkTiming.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
@@ -72,6 +74,18 @@ uint32_t blinkRandomWords[2] = {};
 int boopReading = 1023;
 Face::Frame displayedFrame;
 bool frameValid = false;
+Face::VisualCache visualCache;
+struct RenderMetrics {
+  uint32_t attempts = 0, compositions = 0, skipped = 0, changed = 0, wakes = 0;
+  uint32_t maxUs = 0;
+  uint64_t totalUs = 0;
+} renderMetrics;
+bool brightnessBoostActive = false;
+uint32_t brightnessBoostAt = 0, brightnessBoostMs = 0;
+void cancelBrightnessBoost() {
+  if (brightnessBoostActive) matrix.setIntensity(static_cast<uint8_t>(config.brightness));
+  brightnessBoostActive = false;
+}
 
 #ifdef Microphone
 constexpr uint16_t samples = 64, audioBufferSize = 512;
@@ -124,6 +138,7 @@ void setup() {
 
 void loop() {
   const uint32_t now = millis();
+  if (brightnessBoostActive && now - brightnessBoostAt >= brightnessBoostMs) cancelBrightnessBoost();
   serviceBlinkRandomness();
   serviceSerial(now);
   servicePawLink(now);
@@ -142,7 +157,7 @@ void loop() {
     return;
   }
   const bool waking = displayBlanked;
-  if (waking) { resetAnimations(now); rising = true; frameValid = false; }
+  if (waking) { resetAnimations(now); rising = true; frameValid = false; Efficiency::increment(renderMetrics.wakes); }
   updateBoop(now, waking);
   if (boopState && boopArmed && !boopActive) {
     boopActive = true; boopTime = now; previousMillis = now;
@@ -167,6 +182,7 @@ void loop() {
 }
 
 void renderFace(uint32_t now) {
+  Efficiency::increment(renderMetrics.attempts);
   Face::Pose pose;
   pose.expression = state; pose.boop = boopActive;
   pose.speaking = speakingActive; pose.glitch = counter; pose.closure = Step;
@@ -192,14 +208,25 @@ void renderFace(uint32_t now) {
     const uint32_t phase = (now - blinkTime) % 6000;
     pose.eyeOffset = phase >= 2200 && phase < 2500 ? 1 : phase >= 4400 && phase < 4700 ? -1 : 0;
   }
+  if (PROTOGEN_CACHE_FACE && frameValid && visualCache.unchanged(pose)) {
+    Efficiency::increment(renderMetrics.skipped); return;
+  }
+  const uint32_t started = micros();
+  Efficiency::increment(renderMetrics.compositions);
   Face::Frame composed;
   Face::compose(composed, pose);
+  if (!frameValid || memcmp(composed.bytes, displayedFrame.bytes, sizeof(composed.bytes)))
+    Efficiency::increment(renderMetrics.changed);
   for (int y = 0; y < Face::Height; ++y)
     for (int x = 0; x < Face::Width; ++x) {
       const bool value = Face::pixel(composed, x, y);
       if (!frameValid || value != Face::pixel(displayedFrame, x, y)) matrix.drawPixel(x, y, value);
     }
   displayedFrame = composed; frameValid = true; matrix.write();
+  if (PROTOGEN_CACHE_FACE) visualCache.remember(pose);
+  const uint32_t elapsed = micros() - started;
+  renderMetrics.totalUs += elapsed;
+  if (elapsed > renderMetrics.maxUs) renderMetrics.maxUs = elapsed;
 }
 
 void selectExpression(uint8_t expression, uint32_t now) {

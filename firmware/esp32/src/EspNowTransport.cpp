@@ -129,6 +129,7 @@ bool EspNowTransport::send(const Frame &f, const Mac *peer) {
     destination = target;
   }
   transmitting.store(true);
+  ++txAttempts;
   if (esp_now_send(target.bytes, f.bytes, PacketBytes) != ESP_OK) {
     transmitting.store(false);
     ++drops;
@@ -149,7 +150,9 @@ void EspNowTransport::received(const uint8_t *source, const uint8_t *dest,
   memcpy(item.source.bytes, source, 6);
   item.broadcast = memcmp(dest, Broadcast.bytes, 6) == 0;
   memcpy(item.frame.bytes, b, PacketBytes);
+  ++rxPackets;
   if (xQueueSend(queue, &item, 0) != pdTRUE)
     ++drops;
+  notify();
 }
 } // namespace Wireless

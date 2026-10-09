@@ -19,7 +19,8 @@ shutil.copytree(root / 'firmware/PROT_OS7_MAX7219', sketch)
 main = sketch / 'PROT_OS7_MAX7219.ino'
 main.write_text(configure(main.read_text(), (), feature_checks['ALL_FEATURES']))
 PY
-FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize=address,undefined
+SANITIZERS="${PROTOGEN_HOST_SANITIZERS:-address,undefined}"
+FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="$SANITIZERS"
   -fno-sanitize-recover=all -DARDUINO=10819 -DARDUINO_TEENSY40
   -I"$ROOT/scripts/tests/stubs" -I"$TEST_TEMP/PROT_OS7_MAX7219" -I"$FFT_SRC")
 FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
@@ -65,7 +66,7 @@ FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
 # fixture material only. The actual sketch and command gate execute under ASan.
 UART_SOURCE="$ROOT/firmware/PROT_OS7_MAX7219/src/UartCrypto"
 for unit in md sha256 platform_util; do
-  "${CXX:-clang++}" -x c -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+  "${CXX:-clang++}" -x c -g -Wall -Wextra -Werror -fsanitize="$SANITIZERS" \
     -DPROTOGEN_UART_AUTH=1 -I"$TEST_TEMP/PROT_OS7_MAX7219" \
     -I"$ROOT/scripts/tests/uart-fixture" -c "$UART_SOURCE/$unit.c" -o "$TEST_TEMP/uart-$unit.o"
 done

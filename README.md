@@ -21,6 +21,12 @@ tool. It adds optional authenticated paw control, protected dock support,
 nonblocking IR acquisition, held/timed original boop controls, microphone fault isolation,
 and separate ESP32 status firmware. See [the complete upgrade summary](docs/UPGRADE.md) for what changed and why.
 
+The [efficiency implementation and qualification procedure](docs/EFFICIENCY_QUALIFICATION.md)
+adds diagnostics and independent bench candidates. Production timing, clocks,
+radio availability and security parameters retain their defaults; physical energy
+savings and physical idle-wake latency are unmeasured. See
+[release packaging and USB recovery](docs/RELEASE_RECOVERY.md) for maintenance tools.
+
 The original four resting faces are pixel-identical to the ZIP archive, including
 the rotated physical module data. See [the archive comparison](docs/ARCHIVE_FACE_COMPARISON.md).
 Ordinary blink pauses now vary between 2 and 6 seconds, centered near 4 seconds;

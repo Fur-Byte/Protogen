@@ -21,7 +21,8 @@ int main() {
     for(size_t cut=0;cut<n;++cut)assert(!unpack(decoded,cut,q));
   }
   Decoder d;Packet q;
-  for(unsigned i=0;i<5000;++i)d.feed(1,0,q);assert(!d.feed(0,0,q) && d.errors);
+  for(unsigned i=0;i<5000;++i)d.feed(1,0,q);
+  assert(!d.feed(0,0,q) && d.errors);
   const uint8_t bad[]={2,0};assert(cobsDecode(bad,2,reinterpret_cast<uint8_t*>(&q),sizeof(q))==0);
   Gate g;g.epoch=99;g.issue(1,100);
   Packet hello;hello.kind=Hello;hello.length=4;hello.epoch=99;hello.ticket=1;put32(hello.payload,12);

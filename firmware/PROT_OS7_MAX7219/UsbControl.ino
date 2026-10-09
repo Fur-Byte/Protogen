@@ -72,6 +72,7 @@ void replyFrame() {
   memcpy(usbReply + used, "\"}\n", 4);
 }
 void applyConfig(const RuntimeConfig &value, uint32_t now) {
+  cancelBrightnessBoost();
   const bool changed = !sameConfig(config, value);
   if (!changed) return;
   if (config.brightness != value.brightness) matrix.setIntensity(static_cast<uint8_t>(value.brightness));
@@ -97,6 +98,18 @@ void handleUsbCommand(char *line, uint32_t now) {
   char *save = nullptr;
   const char *command = strtok_r(line, " \t", &save);
   if (!command) { replyError("empty_command"); return; }
+  if (strcmp(command, "BOOST") == 0) {
+    unsigned long intensity, duration;
+    const char *level = strtok_r(nullptr, " \t", &save);
+    const char *length = strtok_r(nullptr, " \t", &save);
+    if (!parseNumber(level, intensity) || !parseNumber(length, duration) ||
+        strtok_r(nullptr, " \t", &save) || intensity > 15 || !duration || duration > 30000) {
+      replyError("invalid_argument"); return;
+    }
+    brightnessBoostAt = now; brightnessBoostMs = duration; brightnessBoostActive = true;
+    matrix.setIntensity(static_cast<uint8_t>(intensity));
+    strcpy(usbReply, "{\"ok\":true,\"temporary\":true}\n"); return;
+  }
   if (strcmp(command, "SET") == 0) {
     RuntimeConfig candidate = config;
     size_t fields = 0;
@@ -140,6 +153,19 @@ void handleUsbCommand(char *line, uint32_t now) {
   if (argument) { replyError("unexpected_argument"); return; }
   if (strcmp(command, "GET") == 0) replyConfig();
   else if (strcmp(command, "STATUS") == 0) replyStatus();
+  else if (strcmp(command, "PERF") == 0) {
+    snprintf(usbReply, sizeof(usbReply),
+      "{\"ok\":true,\"efficiency_flags\":%u,\"render_attempts\":%lu,\"compositions\":%lu,"
+      "\"cache_skips\":%lu,\"changed_frames\":%lu,\"display_wakes\":%lu,"
+      "\"render_total_us\":%llu,\"render_max_us\":%lu,\"config_write_attempts\":%lu,"
+      "\"config_verified_writes\":%lu,\"config_write_failures\":%lu}\n",
+      Efficiency::Flags, static_cast<unsigned long>(renderMetrics.attempts),
+      static_cast<unsigned long>(renderMetrics.compositions), static_cast<unsigned long>(renderMetrics.skipped),
+      static_cast<unsigned long>(renderMetrics.changed), static_cast<unsigned long>(renderMetrics.wakes),
+      static_cast<unsigned long long>(renderMetrics.totalUs), static_cast<unsigned long>(renderMetrics.maxUs),
+      static_cast<unsigned long>(ConfigStore::writeAttempts), static_cast<unsigned long>(ConfigStore::verifiedWrites),
+      static_cast<unsigned long>(ConfigStore::writeFailures));
+  }
   else if (strcmp(command, "FRAME") == 0) replyFrame();
   else if (strcmp(command, "SAVE") == 0) {
     pauseMicrophone(); // Flash programming can mask interrupts; restart cleanly afterward.

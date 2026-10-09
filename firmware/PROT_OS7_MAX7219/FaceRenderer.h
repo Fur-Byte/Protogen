@@ -66,7 +66,7 @@ inline void compose(Frame &frame, const Pose &pose) {
     bitmap(frame, MouthLeft, 32, pose.boop ? mawL : left);
     bitmap(frame, MouthRight, 32, pose.boop ? maw : right);
   }
-  const uint8_t expression = pose.boop ? ExpressionVwv : pose.expression;
+  const uint8_t expression = pose.boop ? static_cast<uint8_t>(ExpressionVwv) : pose.expression;
   const uint8_t *left = EyeL, *right = Eye;
   if (expression == ExpressionSurprised) { left = SpookedL; right = Spooked; }
   if (expression == ExpressionAngry) { left = AngryL; right = Angry; }

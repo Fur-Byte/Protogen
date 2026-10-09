@@ -358,7 +358,7 @@ int main() {
     const auto readsBeforeSchedule = Entropy.reads;
     scheduleBlink(); serviceBlinkRandomness();
     assert(!blinkRandomPending && Entropy.reads == readsBeforeSchedule + 2);
-    assert(nextBlinkInterval >= config.blinkInterval - config.blinkJitter);
+    assert(nextBlinkInterval >= static_cast<uint32_t>(config.blinkInterval - config.blinkJitter));
     assert(nextBlinkInterval <= config.blinkInterval + config.blinkJitter);
     if (!i) firstDelay = nextBlinkInterval;
     varied |= nextBlinkInterval != firstDelay;

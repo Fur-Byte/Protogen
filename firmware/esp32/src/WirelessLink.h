@@ -90,6 +90,26 @@ public:
     return out;
   }
   unsigned queued() const { return count + (txPending ? 1 : 0); }
+  // Bench scheduler only: security constants and tick semantics are unchanged.
+  // Complex handshake/pairing/rekey paths retain the original service bound.
+  uint32_t serviceIn(uint32_t now) const {
+    if (!started || phase == State::Unpaired) return 20;
+    if (!online() || queued() || radio.busy() || session.needsRekey()) return 5;
+    uint32_t wait = 20; // Console has no input notification; bounded fallback.
+    const auto deadline = [&](uint32_t at) {
+      const uint32_t left = due(now, at) ? 0 : at - now;
+      if (left < wait) wait = left;
+    };
+    deadline(lastAuthenticated + DisconnectMs);
+    if (role == Paw) {
+      deadline(renewAt + ActiveMs);
+      if (!due(now, activeUntil)) deadline(nextPoll);
+      deadline(nextKeepalive);
+      if (!due(now, renewAt)) deadline(renewAt);
+      else if (!due(now, activeUntil)) deadline(activeUntil);
+    }
+    return wait;
+  }
   bool invariant() const {
     return count <= TxSlots &&
            (!(phase == State::Online || phase == State::Rekeying) ||

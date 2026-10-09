@@ -89,7 +89,7 @@ int main() {
   checkLayout(1, 32, false);
   checkLayout(255, 1, false);
   checkLayout(1, 255, false);
-  for (const auto shape : {std::pair<int,int>{0,0}, {0,1}, {1,0}, {16,16}, {255,255}}) {
+  for (const auto &shape : {std::pair<int,int>{0,0}, {0,1}, {1,0}, {16,16}, {255,255}}) {
     SPI = FakeSPI();
     Max72xxPanel invalid(8, shape.first, shape.second);
     assert(!invalid.begin());

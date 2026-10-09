@@ -1,0 +1,40 @@
+name: Firmware regression and builds
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host prerequisites
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build python3-venv
+      - name: Pinned toolchains
+        run: python3 scripts/install-toolchains.py
+      - name: Regressions, optimized Python, features and both wireless roles
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          scripts/test-firmware.sh
+          scripts/test-efficiency.sh
+          python3 -O scripts/tests/test-tools.py
+          python3 -O scripts/tests/test-helmet-tool.py
+          python3 -O scripts/tests/test-pair-paw.py
+          python3 -O scripts/tests/test-efficiency.py
+          python3 scripts/check-features.py
+          python3 scripts/check-extensions.py
+          python3 scripts/build.py
+          python3 scripts/build-esp32.py
+          python3 scripts/build-efficiency.py main_events
+          CMAKE=cmake scripts/test-wireless.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-evidence
+          path: |
+            build/*json
+            build/*log
+            build/runs/**/manifest.json
+            build/runs/**/compile.log
+            build/runs/**/esp32.log
+            build/toolchains/lock.json
+            build/toolchains/python-dependencies.txt
+            build/toolchains/idf-python-dependencies.txt

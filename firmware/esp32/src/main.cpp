@@ -4,6 +4,7 @@
 #include "PairingIndicator.h"
 #include "SecureStorage.h"
 #include "WearerIO.h"
+#include "Efficiency.h"
 #include "WirelessLink.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
@@ -30,6 +31,22 @@ Wireless::Link wirelessLink(transport, Device::Role,
                              storePair});
 Wireless::Indicator indicator;
 bool radioStarted = false, connected = false;
+TaskHandle_t mainTask = nullptr;
+uint32_t mainExecutions = 0, mainMaxUs = 0;
+uint64_t mainWorkUs = 0;
+void buttonEdge(void *) {
+  BaseType_t wake = pdFALSE;
+  vTaskNotifyGiveFromISR(mainTask, &wake);
+  if (wake) portYIELD_FROM_ISR();
+}
+#ifdef HELMET_RECEIVER
+QueueHandle_t uartEvents = nullptr;
+void uartEventTask(void *) {
+  uart_event_t event;
+  while (true) if (xQueueReceive(uartEvents, &event, portMAX_DELAY) == pdTRUE)
+    xTaskNotifyGive(mainTask);
+}
+#endif
 Wireless::HelmetStatus helmetStatus;
 #ifdef HELMET_RECEIVER
 uint32_t helloAt = 0, uartHeartbeatAt = 0, statusSentAt = 0;
@@ -432,6 +449,44 @@ void consoleCommand(char *line) {
   const char *cmd = strtok_r(line, " \t", &save);
   if (!cmd)
     return;
+  if (!strcmp(cmd, "PERF") && !strtok_r(nullptr, " \t", &save)) {
+    const auto s = WearerIO::snapshot();
+    const auto &m = s.metrics;
+    const auto writes = SecureStorage::metrics();
+    printf("{\"ok\":true,\"efficiency_flags\":%u,\"reset_reason\":%u,"
+           "\"heap_free\":%lu,\"heap_minimum\":%lu,\"main_executions\":%lu,"
+           "\"main_work_us\":%llu,\"main_max_us\":%lu,\"radio_tx_attempts\":%lu,"
+           "\"radio_tx_completions\":%lu,\"radio_rx_packets\":%lu,\"radio_drops\":%lu,"
+           "\"wearer_executions\":%lu,\"wearer_work_us\":%llu,\"wearer_max_us\":%lu,"
+           "\"case_reads\":%lu,\"environment_reads\":%lu,\"energy_reads\":%lu,"
+           "\"oled_pages\":%lu,\"oled_bytes\":%lu,\"checkpoint_attempts\":%lu,"
+           "\"checkpoint_commits\":%lu,\"checkpoint_failures\":%lu,"
+           "\"measured_mwh\":%.6f,\"measured_intervals\":%lu,\"energy_valid\":%s,"
+           "\"used_mwh\":%.3f,\"soc_qualified\":%s,\"case_max_c\":%.2f,"
+           "\"environment_valid\":%s,\"case_valid\":%s,\"temperature_c\":%.2f,"
+           "\"humidity_percent\":%.2f,\"case_c\":%.2f,\"volts\":%.3f,\"amps\":%.4f,"
+           "\"config_write_attempts\":%lu,\"config_commits\":%lu,\"config_verified\":%lu,\"config_write_failures\":%lu}\n",
+           Efficiency::Flags, unsigned(esp_reset_reason()),
+           static_cast<unsigned long>(esp_get_free_heap_size()),
+           static_cast<unsigned long>(esp_get_minimum_free_heap_size()),
+           static_cast<unsigned long>(mainExecutions), static_cast<unsigned long long>(mainWorkUs),
+           static_cast<unsigned long>(mainMaxUs), static_cast<unsigned long>(transport.sends()),
+           static_cast<unsigned long>(transport.completions()), static_cast<unsigned long>(transport.receives()),
+           static_cast<unsigned long>(transport.dropped()), static_cast<unsigned long>(m.executions),
+           static_cast<unsigned long long>(m.workUs), static_cast<unsigned long>(m.maxWorkUs),
+           static_cast<unsigned long>(m.caseReads), static_cast<unsigned long>(m.environmentReads),
+           static_cast<unsigned long>(m.energyReads), static_cast<unsigned long>(m.oledPages),
+           static_cast<unsigned long>(m.oledBytes), static_cast<unsigned long>(m.commitAttempts),
+           static_cast<unsigned long>(m.commits), static_cast<unsigned long>(m.commitFailures),
+           s.measuredMWh, static_cast<unsigned long>(s.measuredIntervals), s.energyValid?"true":"false",
+           s.usedMWh,s.estimateQualified?"true":"false",static_cast<double>(s.maximumCaseTemperature),
+           s.environmentValid?"true":"false",s.caseValid?"true":"false",
+           static_cast<double>(s.temperature),static_cast<double>(s.humidity),
+           static_cast<double>(s.caseTemperature),static_cast<double>(s.volts),static_cast<double>(s.amps),
+           static_cast<unsigned long>(writes.attempts),static_cast<unsigned long>(writes.commits),
+           static_cast<unsigned long>(writes.verified),static_cast<unsigned long>(writes.failures));
+    return;
+  }
   if (!strcmp(cmd, "SECURITY")) {
     const char *sub = strtok_r(nullptr, " \t", &save);
     if (sub && !strcmp(sub, "STATUS") && !strtok_r(nullptr, " \t", &save)) {
@@ -566,6 +621,7 @@ void serviceConsole(uint32_t now) {
 }
 } // namespace
 extern "C" void app_main() {
+  mainTask = xTaskGetCurrentTaskHandle();
   // Do not erase NVS on an error: that would silently lose the existing pair.
   if (!SecureStorage::begin(storage)) {
     puts("Storage unavailable; wireless disabled.");
@@ -588,9 +644,13 @@ extern "C" void app_main() {
   if (uart_param_config(UART_NUM_1, &uart) != ESP_OK ||
       uart_set_pin(UART_NUM_1, Device::UartTx, Device::UartRx,
                    UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK ||
-      uart_driver_install(UART_NUM_1, 512, 0, 0, nullptr, 0) != ESP_OK) {
+      uart_driver_install(UART_NUM_1, 512, 0, PROTOGEN_MAIN_EVENTS?8:0,
+                          PROTOGEN_MAIN_EVENTS?&uartEvents:nullptr, 0) != ESP_OK) {
     puts("UART unavailable; wireless disabled.");
     return;
+  }
+  if (PROTOGEN_MAIN_EVENTS && xTaskCreate(uartEventTask,"uart_events",2048,nullptr,1,nullptr)!=pdPASS) {
+    puts("UART event task unavailable; wireless disabled.");return;
   }
 #else
   for (const auto &b : buttons) {
@@ -598,6 +658,21 @@ extern "C" void app_main() {
     gpio_set_pull_mode(static_cast<gpio_num_t>(b.pin), GPIO_PULLUP_ONLY);
   }
 #endif
+  if (PROTOGEN_MAIN_EVENTS) {
+    if (gpio_install_isr_service(0)!=ESP_OK) { puts("GPIO events unavailable; wireless disabled.");return; }
+#ifdef HELMET_RECEIVER
+    const int eventPins[]={Device::UnlockPin};
+#else
+    const int eventPins[]={Device::NextButton,Device::PreviousButton,Device::BoopButton};
+#endif
+    for(const int pin:eventPins) {
+      if(gpio_set_intr_type(static_cast<gpio_num_t>(pin),GPIO_INTR_ANYEDGE)!=ESP_OK ||
+          gpio_isr_handler_add(static_cast<gpio_num_t>(pin),buttonEdge,nullptr)!=ESP_OK) {
+        puts("GPIO event handler unavailable; wireless disabled.");return;
+      }
+    }
+    transport.notifyTask(mainTask);
+  }
   gpio_set_direction(static_cast<gpio_num_t>(Device::PairingLed),
                      GPIO_MODE_OUTPUT);
   gpio_set_level(static_cast<gpio_num_t>(Device::PairingLed), 0);
@@ -608,6 +683,8 @@ extern "C" void app_main() {
          Device::Role, config.paired ? "true" : "false",
          radioStarted ? "true" : "false");
   while (true) {
+    const uint64_t workStarted=esp_timer_get_time();
+    Efficiency::increment(mainExecutions);
     const uint32_t now = nowMs();
 #ifdef HELMET_RECEIVER
     serviceUart(now);
@@ -636,6 +713,40 @@ extern "C" void app_main() {
     gpio_set_level(
         static_cast<gpio_num_t>(Device::PairingLed),
         indicator.level(now, wirelessLink.pairingActive(), hasCode, code));
-    vTaskDelay(pdMS_TO_TICKS(5));
+    const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
+    mainWorkUs+=work;if(work>mainMaxUs)mainMaxUs=work;
+    if(PROTOGEN_MAIN_EVENTS) {
+      const uint32_t end=nowMs();uint32_t wait=wirelessLink.serviceIn(end);
+      if(transport.pending())Efficiency::sooner(wait,5);
+      // Physical unlock, pairing LEDs and multi-button holds retain 5 ms service.
+      if(unlocked || unlockHeld || wirelessLink.pairingActive())Efficiency::sooner(wait,5);
+#ifdef HELMET_RECEIVER
+      if(uartCount)Efficiency::sooner(wait,5);
+      size_t uartBuffered=0;
+      if(uart_get_buffered_data_len(UART_NUM_1,&uartBuffered)==ESP_OK && uartBuffered)Efficiency::sooner(wait,5);
+      if(connected) {
+        Efficiency::sooner(wait,Efficiency::remaining(end,uartHeartbeatAt,Wireless::UartHeartbeatMs));
+        if(helmetStatus.available && HelmetLink::u32(helmetStatus.packet.payload)!=helmetStatus.bridge)
+          Efficiency::sooner(wait,Efficiency::remaining(end,helloAt,Wireless::ActivePollMs));
+      }
+#else
+      for(const auto &button:buttons) {
+        if(button.raw!=button.down)Efficiency::sooner(wait,Efficiency::remaining(end,button.changed,Wireless::DebounceMs));
+        if(button.down)Efficiency::sooner(wait,5);
+      }
+      if(commandWaiting) {
+        Efficiency::sooner(wait,Efficiency::remaining(end,commandAt,HelmetLink::FreshMs));
+        Efficiency::sooner(wait,Efficiency::remaining(end,retriedAt,Wireless::CommandRetryMs));
+      }
+      if(actions.pending())Efficiency::sooner(wait,5);
+#endif
+      const TickType_t ticks=pdMS_TO_TICKS(wait);
+      if(ticks)ulTaskNotifyTake(pdTRUE,ticks);
+      else {
+        // A sub-tick deadline must retain the original yielding poll rather
+        // than sleep past it. Pending notifications are still consumed.
+        ulTaskNotifyTake(pdTRUE,0);vTaskDelay(0);
+      }
+    } else vTaskDelay(pdMS_TO_TICKS(5));
   }
 }

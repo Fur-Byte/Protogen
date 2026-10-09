@@ -129,9 +129,9 @@ class BuildRun:
         self.publish()
         return sketch
 
-    def compile(self, cli, sketch, features, output_directory=None, extra_flags=None):
+    def compile(self, cli, sketch, features, output_directory=None, extra_flags=None, fqbn=FQBN):
         output_directory = output_directory or self.path / ("artifacts-" + str(len(self.record["results"])))
-        command = [cli, "compile", "--fqbn", FQBN, "--warnings", "all", "--clean",
+        command = [cli, "compile", "--fqbn", fqbn, "--warnings", "all", "--clean",
                    "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
         extra_flags=extra_flags or "-Werror"
         if "PROTOGEN_UART_AUTH" in features:
@@ -142,7 +142,7 @@ class BuildRun:
             # Preserve the installed board's definitions rather than replacing
             # its MCU/Teensyduino flags with our security build options.
             properties = subprocess.run(
-                [cli, "compile", "--fqbn", FQBN, "--show-properties=expanded", str(sketch)],
+                [cli, "compile", "--fqbn", fqbn, "--show-properties=expanded", str(sketch)],
                 capture_output=True, text=True, check=True)
             definitions = next((line.partition("=")[2] for line in properties.stdout.splitlines()
                                 if line.startswith("build.flags.defs=")), None)
@@ -151,7 +151,7 @@ class BuildRun:
             command[2:2]=["--build-property", "build.flags.defs="+definitions+" "+extra_flags]
         run = subprocess.run(command, capture_output=True, text=True)
         output = run.stdout + run.stderr
-        result = {"features": list(features), "exit_code": run.returncode,
+        result = {"features": list(features), "fqbn": fqbn, "exit_code": run.returncode,
                   "warnings": len(re.findall(r"\bwarning:", output)), "command": command,
                   "configured_source_sha256": hashlib.sha256((sketch / "PROT_OS7_MAX7219.ino").read_bytes()).hexdigest(),
                   "memory": memory_metrics(output)}

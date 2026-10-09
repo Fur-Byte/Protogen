@@ -5,6 +5,7 @@
 // Two alternating records with an explicit byte layout (no struct padding).
 // Write the commit marker last, so an interrupted save retains the previous slot.
 namespace ConfigStore {
+inline uint32_t writeAttempts = 0, verifiedWrites = 0, writeFailures = 0;
 constexpr int SlotBytes = 64, HeaderBytes = 12;
 constexpr int PayloadBytes = configFieldCount * 2;
 constexpr int CrcOffset = HeaderBytes + PayloadBytes, MarkerOffset = CrcOffset + 4;
@@ -74,9 +75,13 @@ inline bool saveStoredConfig(const RuntimeConfig &value) {
     writeNumber(record.bytes + HeaderBytes + i * 2, value.*(configFields[i].member), 2);
   writeNumber(record.bytes + CrcOffset, crc(record.bytes, CrcOffset), 4);
   const int slot = active == 0 ? 1 : 0, base = slot * SlotBytes;
+  if (writeAttempts != UINT32_MAX) ++writeAttempts;
   EEPROM.update(base + MarkerOffset, 0);
   for (int i = 0; i < MarkerOffset; ++i) EEPROM.update(base + i, record.bytes[i]);
   EEPROM.update(base + MarkerOffset, 0xa5);
   const auto result = readSlot(slot);
-  return result.valid && result.sequence == sequence && sameConfig(result.config, value);
+  const bool okay = result.valid && result.sequence == sequence && sameConfig(result.config, value);
+  uint32_t &count = okay ? verifiedWrites : writeFailures;
+  if (count != UINT32_MAX) ++count;
+  return okay;
 }

@@ -1,6 +1,7 @@
 #include "WearerIO.h"
 #include "RetryDelay.h"
 #include "SensorMath.h"
+#include "Efficiency.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -25,6 +26,8 @@ bool pawConnected=false;
 uint32_t faceAt=0;
 portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
 std::atomic<bool> fullRequested{false};
+std::atomic<TaskHandle_t> worker{nullptr};
+void notifyWorker(){const auto t=worker.load();if(t)xTaskNotifyGive(t);}
 uint32_t nowMs(){return static_cast<uint32_t>(esp_timer_get_time()/1000);}
 adc_oneshot_unit_handle_t adc=nullptr;
 adc_cali_handle_t calibration=nullptr;
@@ -54,7 +57,10 @@ i2c_master_bus_handle_t bus=nullptr;
 i2c_master_dev_handle_t sht=nullptr,ina=nullptr;
 spi_device_handle_t oled=nullptr;
 bool inaConfigured=false;
-uint8_t frame[1024]{};
+uint8_t frame[1024]{}, sentFrame[1024]{};
+uint8_t validPages=0;
+bool screenSleeping=false;
+unsigned screenOffset=0;
 bool addDevice(uint8_t address,i2c_master_dev_handle_t &device) {
   i2c_device_config_t d{};d.dev_addr_length=I2C_ADDR_BIT_LEN_7;d.device_address=address;d.scl_speed_hz=100000;
   return i2c_master_bus_add_device(bus,&d,&device)==ESP_OK;
@@ -110,7 +116,7 @@ void text(unsigned row,const char *s) {
   if(row>=8)return;
   for(unsigned col=0;*s && col<21;++s,++col) {
     const unsigned char c=static_cast<unsigned char>(toupper(static_cast<unsigned char>(*s)));
-    uint8_t *p=frame+row*128+col*6;
+    uint8_t *p=frame+row*128+col*6+screenOffset;
     if(c>='A' && c<='Z')memcpy(p,Alphabet[c-'A'],5);
     else if(c>='0' && c<='9')memcpy(p,Digits[c-'0'],5);
     else if(c=='%'){p[0]=0x63;p[1]=0x13;p[2]=0x08;p[3]=0x64;p[4]=0x63;}
@@ -140,9 +146,21 @@ bool initScreen() {
     0xa1,0xc8,0xda,0x12,0x81,0x20,0xd9,0xf1,0xdb,0x40,0xa4,0xa6,0xaf};
   return transfer(false,init,sizeof(init));
 }
-bool showScreen(const Status &s,uint32_t now) {
+const char *warningFor(const Status &s) {
+  const char *warning="STATUS OK";
+  if(s.environmentValid && s.temperature>=35)warning="HELMET WARM";
+  if(s.remainingPercent>=0 && s.remainingPercent<=20)warning="BATTERY LOW";
+  if(s.remainingPercent>=0 && s.remainingPercent<=10)warning="BATTERY VERY LOW";
+  if(s.environmentValid && s.temperature>=40)warning="HELMET HOT";
+  if(s.caseValid && s.caseTemperature>=45)warning="BATTERY CASE WARM";
+  if(s.caseValid && s.caseTemperature>=50)warning="BATTERY CASE HOT";
+  if(s.faults && !strcmp(warning,"STATUS OK"))warning="CHECK SENSORS";
+  return warning;
+}
+bool showScreen(Status &s,uint32_t now) {
   HelmetLink::Packet face;bool radio;uint32_t at;
   portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;portEXIT_CRITICAL(&mux);
+  screenOffset=PROTOGEN_OLED_PROTECTION?(now/60000)%2:0;
   char line[32];memset(frame,0,sizeof(frame));
   if(s.remainingPercent>=0)snprintf(line,sizeof(line),"BAT ~%d%% %.1fV",s.remainingPercent,s.volts);
   else snprintf(line,sizeof(line),"BAT ?  %.1fV",s.volts);
@@ -156,20 +174,41 @@ bool showScreen(const Status &s,uint32_t now) {
   text(4,radio && now-at<2000?"PAW CONNECTED":"PAW OFFLINE");
   snprintf(line,sizeof(line),"MIC %s FAULT %u",face.payload[5]&HelmetLink::MicEnabled?"ON":"OFF",HelmetLink::u16(face.payload+10));text(5,line);
   if(s.caseValid)snprintf(line,sizeof(line),"BAT CASE %.1fC",s.caseTemperature);else snprintf(line,sizeof(line),"STATUS FAULT %u",s.faults);text(6,line);
-  const char *warning="STATUS OK";
-  if(s.environmentValid && s.temperature>=35)warning="HELMET WARM";
-  if(s.remainingPercent>=0 && s.remainingPercent<=20)warning="BATTERY LOW";
-  if(s.remainingPercent>=0 && s.remainingPercent<=10)warning="BATTERY VERY LOW";
-  if(s.environmentValid && s.temperature>=40)warning="HELMET HOT";
-  if(s.caseValid && s.caseTemperature>=45)warning="BATTERY CASE WARM";
-  if(s.caseValid && s.caseTemperature>=50)warning="BATTERY CASE HOT";
-  if(s.faults && !strcmp(warning,"STATUS OK"))warning="CHECK SENSORS";
+  const char *warning=warningFor(s);
   text(7,warning);
-  const uint8_t address[]={0x21,0,127,0x22,0,7};
-  return transfer(false,address,sizeof(address)) && transfer(true,frame,sizeof(frame));
+  if(PROTOGEN_OLED_PROTECTION) {
+    const bool sleep=now-at<2000 && (face.payload[5]&HelmetLink::Sleeping) &&
+        !strcmp(warning,"STATUS OK") && !HelmetLink::u16(face.payload+10);
+    if(sleep!=screenSleeping) {
+      const uint8_t command=sleep?0xae:0xaf;
+      if(!transfer(false,&command,1))return false;
+      screenSleeping=sleep;
+    }
+    if(sleep)return true;
+    const unsigned offset=(now/60000)%2;
+    const uint8_t commands[]={0x81,0x10,0xd3,static_cast<uint8_t>(offset)};
+    if(!transfer(false,commands,sizeof(commands)))return false;
+  }
+  if(!PROTOGEN_OLED_PAGES) {
+    const uint8_t address[]={0x21,0,127,0x22,0,7};
+    s.metrics.oledBytes+=1024;s.metrics.oledPages+=8;
+    return transfer(false,address,sizeof(address)) && transfer(true,frame,sizeof(frame));
+  }
+  for(unsigned page=0;page<8;++page) {
+    const unsigned offset=page*128;
+    if((validPages&(1u<<page)) && !memcmp(frame+offset,sentFrame+offset,128))continue;
+    const uint8_t address[]={0x21,0,127,0x22,static_cast<uint8_t>(page),static_cast<uint8_t>(page)};
+    s.metrics.oledBytes+=128;Efficiency::increment(s.metrics.oledPages);
+    if(!transfer(false,address,sizeof(address)) || !transfer(true,frame+offset,128)) {
+      validPages=0;return false; // Retry all pages after any interrupted transfer.
+    }
+    memcpy(sentFrame+offset,frame+offset,128);validPages|=1u<<page;
+  }
+  return true;
 }
 #endif
 void task(void*) {
+  worker.store(xTaskGetCurrentTaskHandle());
   Status s;
 #ifdef HELMET_RECEIVER
   if((settings.features&(Device::Environment|Device::EnergyMonitor)) && !initBus())s.faults|=1;
@@ -178,11 +217,22 @@ void task(void*) {
   nvs_handle_t energyStorage=0;nvs_open("energy",NVS_READWRITE,&energyStorage);
   uint32_t checkpoint=0;if(energyStorage && nvs_get_u32(energyStorage,"used_mwh",&checkpoint)==ESP_OK)s.usedMWh=checkpoint;
   // A reset leaves an unmeasured gap. Never present the old checkpoint as known SOC.
-  uint32_t shtAt=0,energyAt=0,saveAt=0,screenAt=0;
+  uint32_t shtAt=0,energyAt=0,screenAt=0,caseAt=0;
+  Efficiency::Checkpoint saving;
+  saving.known=energyStorage && nvs_get_u32(energyStorage,"used_mwh",&saving.value)==ESP_OK;
+  constexpr uint32_t caseInterval=PROTOGEN_CASE_2HZ?500:20;
+  constexpr uint32_t screenInterval=PROTOGEN_OLED_1HZ?1000:200;
+  constexpr uint32_t saveInterval=PROTOGEN_CHECKPOINT_5MIN?300000:60000;
+  HelmetLink::Packet previousFace{};bool previousRadio=false,previousStale=true;
+  const char *previousWarning=nullptr;
+  uint16_t previousFaults=0xffff;uint32_t previousScreenGeneration=UINT32_MAX;
+  uint32_t observedFaceAt=0;
   HelmetLink::RetryDelay<5000> busRetry;
   bool shtPending=false,counterReady=false;uint64_t lastCounter=0;
   while(true) {
+    const uint64_t workStarted=esp_timer_get_time();
     const uint32_t now=nowMs();
+    Efficiency::increment(s.metrics.executions);
     if(busRetry.ready(now)) {
       if(sht && settings.features&Device::Environment) {
         if(!shtPending && now-shtAt>=1000) {
@@ -190,7 +240,7 @@ void task(void*) {
           shtPending=i2c_master_transmit(sht,&command,1,10)==ESP_OK;
           if(!shtPending){s.environmentValid=false;s.faults|=1;busRetry.start(now);}
         } else if(shtPending && now-shtAt>=10) {
-          uint8_t b[6];shtPending=false;
+          uint8_t b[6];shtPending=false;Efficiency::increment(s.metrics.environmentReads);
           s.environmentValid=i2c_master_receive(sht,b,6,10)==ESP_OK && SensorMath::sht40(b,s.temperature,s.humidity);
           if(s.environmentValid)s.faults&=static_cast<uint16_t>(~1u);
           else {s.faults|=1;busRetry.start(now);}
@@ -199,15 +249,20 @@ void task(void*) {
       if(ina && (settings.features&Device::EnergyMonitor) && now-energyAt>=1000) {
         const uint32_t elapsed=now-energyAt;energyAt=now;
         if(!inaConfigured)inaConfigured=configureIna();
+        Efficiency::increment(s.metrics.energyReads);
         uint64_t count=0;s.energyValid=inaConfigured && energy(s.volts,s.amps,count);
         if(s.energyValid) {
           bool counterGood=true;
-          if(fullRequested.exchange(false)){s.usedMWh=0;s.estimateQualified=settings.usableEnergyMWh>0;counterReady=false;}
+          const bool full=fullRequested.exchange(false);
+          if(full){s.usedMWh=0;s.estimateQualified=settings.usableEnergyMWh>0;}
           if(counterReady) {
             const uint64_t delta=(count-lastCounter)&0xffffffffffULL;
             const double joules=delta*SensorMath::EnergyJoulesLsb;
-            if(joules<=50.0*elapsed/1000.0+2.0)s.usedMWh+=joules/3.6;
-            else {s.estimateQualified=false;counterGood=false;}
+            if(joules<=50.0*elapsed/1000.0+2.0){
+              if(!full)s.usedMWh+=joules/3.6;
+              s.measuredMWh+=joules/3.6;Efficiency::increment(s.measuredIntervals);
+            }
+            else if(!full){s.estimateQualified=false;counterGood=false;}
           }
           lastCounter=count;counterReady=true;
           if(counterGood)s.faults&=static_cast<uint16_t>(~2u);else s.faults|=2;
@@ -217,21 +272,56 @@ void task(void*) {
     if(now-shtAt>5000){s.environmentValid=false;if(settings.features&Device::Environment)s.faults|=1;}
     if((settings.features&Device::EnergyMonitor) && now-energyAt>2000){s.energyValid=false;s.estimateQualified=false;s.faults|=2;}
     s.remainingPercent=s.energyValid && s.estimateQualified?SensorMath::percent(s.usedMWh,settings.usableEnergyMWh):-1;
-    if(settings.features&Device::BatteryCaseTemperature) {
+    if((settings.features&Device::BatteryCaseTemperature) &&
+        ((!PROTOGEN_CASE_2HZ && !PROTOGEN_WEARER_DEADLINES) || now-caseAt>=caseInterval)) {
+      caseAt=now;Efficiency::increment(s.metrics.caseReads);
       int mv;s.caseValid=readMv(mv) && SensorMath::ntc(mv,s.caseTemperature);
-      if(s.caseValid)s.faults&=static_cast<uint16_t>(~8u);else s.faults|=8;
+      if(s.caseValid){s.faults&=static_cast<uint16_t>(~8u);if(s.caseTemperature>s.maximumCaseTemperature)s.maximumCaseTemperature=s.caseTemperature;}else s.faults|=8;
     }
-    if(energyStorage && now-saveAt>=60000 && s.energyValid) {
-      saveAt=now;nvs_set_u32(energyStorage,"used_mwh",static_cast<uint32_t>(s.usedMWh));nvs_commit(energyStorage);
+    const uint32_t used=static_cast<uint32_t>(s.usedMWh);
+    if(energyStorage && (PROTOGEN_CHECKPOINT_5MIN?saving.due(now,used,s.energyValid,saveInterval):
+        (s.energyValid && now-saving.at>=saveInterval))) {
+      Efficiency::increment(s.metrics.commitAttempts);
+      const bool okay=nvs_set_u32(energyStorage,"used_mwh",used)==ESP_OK && nvs_commit(energyStorage)==ESP_OK;
+      saving.attempted(now,used,okay);
+      Efficiency::increment(okay?s.metrics.commits:s.metrics.commitFailures);
     }
-    if(oled && now-screenAt>=200) {screenAt=now;if(!showScreen(s,now))s.faults|=4;}
+    HelmetLink::Packet face;bool radio;uint32_t at;
+    portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;portEXIT_CRITICAL(&mux);
+    observedFaceAt=at;
+    const bool stale=now-at>=2000;
+    const bool urgent=warningFor(s)!=previousWarning || s.faults!=previousFaults || radio!=previousRadio || stale!=previousStale ||
+        memcmp(face.payload+4,previousFace.payload+4,2) || memcmp(face.payload+10,previousFace.payload+10,2) ||
+        (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=now/60000);
+    if(oled && (now-screenAt>=screenInterval || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
+      screenAt=now;
+      if(!showScreen(s,now))s.faults|=4;else s.faults&=static_cast<uint16_t>(~4u);
+      previousFace=face;previousRadio=radio;previousStale=stale;previousFaults=s.faults;
+      previousScreenGeneration=now/60000;previousWarning=warningFor(s);
+    }
+    const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
+    s.metrics.workUs+=work;if(work>s.metrics.maxWorkUs)s.metrics.maxWorkUs=work;
     portENTER_CRITICAL(&mux);published=s;portEXIT_CRITICAL(&mux);
-    vTaskDelay(pdMS_TO_TICKS(20));
+    if(PROTOGEN_WEARER_DEADLINES) {
+      const uint32_t end=nowMs();uint32_t wait=1000;
+      if(settings.features&Device::BatteryCaseTemperature)Efficiency::sooner(wait,Efficiency::remaining(end,caseAt,caseInterval));
+      if(oled) {
+        Efficiency::sooner(wait,Efficiency::remaining(end,screenAt,screenInterval));
+        if(!stale)Efficiency::sooner(wait,Efficiency::remaining(end,observedFaceAt,2000));
+      }
+      if(!busRetry.ready(end))Efficiency::sooner(wait,busRetry.remaining(end));
+      else {
+        if(sht)Efficiency::sooner(wait,Efficiency::remaining(end,shtAt,shtPending?10:1000));
+        if(ina)Efficiency::sooner(wait,Efficiency::remaining(end,energyAt,1000));
+      }
+      ulTaskNotifyTake(pdTRUE,pdMS_TO_TICKS(wait)>0?pdMS_TO_TICKS(wait):1);
+    } else vTaskDelay(pdMS_TO_TICKS(20));
   }
 #else
   if((settings.features&Device::EnergyMonitor) && !initAdc())s.faults|=2;
   while(true) {
-    if(settings.features&Device::EnergyMonitor){int mv;if(readMv(mv) && mv>=1400 && mv<=2200){s.pawBatteryVolts=mv/500.0f;s.faults&=static_cast<uint16_t>(~2u);}else{s.pawBatteryVolts=0;s.faults|=2;}}
+    Efficiency::increment(s.metrics.executions);
+    if(settings.features&Device::EnergyMonitor){Efficiency::increment(s.metrics.energyReads);int mv;if(readMv(mv) && mv>=1400 && mv<=2200){s.pawBatteryVolts=mv/500.0f;s.faults&=static_cast<uint16_t>(~2u);}else{s.pawBatteryVolts=0;s.faults|=2;}}
     portENTER_CRITICAL(&mux);published=s;portEXIT_CRITICAL(&mux);vTaskDelay(pdMS_TO_TICKS(1000));
   }
 #endif
@@ -243,11 +333,16 @@ void start(const Device::Config &config) {
 }
 Status snapshot(){portENTER_CRITICAL(&mux);const Status s=published;portEXIT_CRITICAL(&mux);return s;}
 void face(const HelmetLink::Packet &s,bool connected) {
-  portENTER_CRITICAL(&mux);faceStatus=s;pawConnected=connected;faceAt=nowMs();portEXIT_CRITICAL(&mux);
+  portENTER_CRITICAL(&mux);
+  const bool changed=pawConnected!=connected || faceStatus.epoch!=s.epoch || nowMs()-faceAt>=2000 ||
+      memcmp(faceStatus.payload+4,s.payload+4,2) ||
+      memcmp(faceStatus.payload+10,s.payload+10,2);
+  faceStatus=s;pawConnected=connected;faceAt=nowMs();portEXIT_CRITICAL(&mux);
+  if(changed && (PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION || PROTOGEN_WEARER_DEADLINES))notifyWorker();
 }
 bool markFull(){
 #ifdef HELMET_RECEIVER
-  if((settings.features&Device::EnergyMonitor) && settings.usableEnergyMWh && snapshot().energyValid){fullRequested.store(true);return true;}
+  if((settings.features&Device::EnergyMonitor) && settings.usableEnergyMWh && snapshot().energyValid){fullRequested.store(true);if(PROTOGEN_WEARER_DEADLINES)notifyWorker();return true;}
 #endif
   return false;
 }

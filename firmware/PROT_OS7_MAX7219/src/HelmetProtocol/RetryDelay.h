@@ -15,5 +15,9 @@ public:
       pending = false;
     return !pending;
   }
+  uint32_t remaining(uint32_t now) const {
+    const uint32_t elapsed = now - started;
+    return pending && elapsed < DelayMs ? DelayMs - elapsed : 0;
+  }
 };
 } // namespace HelmetLink

@@ -72,7 +72,7 @@ def current_frames():
     with tempfile.TemporaryDirectory(prefix="protogen-archive-faces-") as tmp:
         executable = Path(tmp) / "faces"
         subprocess.run([os.environ.get("CXX", "clang++"), "-std=c++17", "-Wall", "-Wextra", "-Werror",
-                        "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
+                        "-fsanitize=" + os.environ.get("PROTOGEN_HOST_SANITIZERS", "address,undefined"), "-fno-sanitize-recover=all",
                         "-DARDUINO=10819", "-DARDUINO_TEENSY40",
                         "-I" + str(ROOT / "scripts/tests/stubs"),
                         "-I" + str(ROOT / "firmware/PROT_OS7_MAX7219"),

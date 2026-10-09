@@ -40,7 +40,7 @@ void updateVisorConnector(uint32_t now) {
   if(stage==1) {
     digitalWrite(BufferEnable,HIGH);
     displayReady=matrix.begin(Settings::SpiFrequencyHz,true);
-    matrix.setIntensity(static_cast<uint8_t>(config.brightness));
+    cancelBrightnessBoost();matrix.setIntensity(static_cast<uint8_t>(config.brightness));
     if(!displayReady){disable(now,true);return;}
     sensorFaults&=static_cast<uint16_t>(~1u);
     connectorReady=true;displayBlanked=true;frameValid=false;rising=true;stage=2;
