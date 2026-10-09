@@ -17,6 +17,16 @@ build states/source identities and artifact hashes, and leaves existing bundles
 untouched. Keep a separate copy of the verified previous bundle off the helmet.
 Bench images and unqualified S31 images are not production releases.
 
+Matching source hashes alone do not establish UART compatibility. The packager
+also checks authenticated UART modes when Teensy's `WirelessPaw` is enabled and
+records selected features and bridge availability in `release.json`. A default
+Teensy image has optional wireless control disabled; bundling radio images does
+not enable it. Authenticated images still require the correctly provisioned
+per-helmet key and a hardware handshake check. No key is exported by this tool.
+Previous recovery ZIPs must contain the Teensy HEX, both radio roles' firmware,
+bootloaders and partition tables, toolchain pins, and matching successful build
+evidence. A checksum-valid but incomplete archive is rejected.
+
 The bundle contains Teensy HEX, matching helmet/paw firmware/bootloader/partition
 images, build manifests, dependency provenance/licenses/bundled sources, toolchain
 pins, wiring references, and these instructions. Installer download caches retain

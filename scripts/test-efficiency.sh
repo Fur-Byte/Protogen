@@ -18,6 +18,8 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="${PROTOGEN_HOST_SANITIZER
   -DARDUINO=10819 -DARDUINO_TEENSY40 -DPROTOGEN_CACHE_FACE=1
   -I"$ROOT/scripts/tests/stubs" -I"$EFF_TEMP/PROT_OS7_MAX7219" -I"$FFT_SRC"
   -I"$EFF_TEMP/PROT_OS7_MAX7219/src/HelmetProtocol")
+source "$ROOT/scripts/host-fft.sh"
+compile_host_fft "$FFT_SRC" "${EFF_TEMP}/arduinoFFT.o"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/efficiency.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" -o "$EFF_TEMP/cache"
 "$EFF_TEMP/cache"
@@ -25,10 +27,30 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="${PROTOGEN_HOST_SANITIZER
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/firmware.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
-  "$FFT_SRC/arduinoFFT.cpp" -o "$EFF_TEMP/full"
+  "${EFF_TEMP}/arduinoFFT.o" -o "$EFF_TEMP/full"
 "$EFF_TEMP/full"
+"${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw -DVisorConnector \
+  "$ROOT/scripts/tests/extensions.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$EFF_TEMP/arduinoFFT.o" -o "$EFF_TEMP/extensions"
+"$EFF_TEMP/extensions"
 "${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER \
   -I"$ROOT/scripts/tests/storage-stubs" -I"$ROOT/firmware/esp32/src" \
   "$ROOT/scripts/tests/nvs-verification.cpp" "$ROOT/firmware/esp32/src/SecureStorage.cpp" -o "$EFF_TEMP/nvs"
 "$EFF_TEMP/nvs"
+# Run the actual ESP worker code with each candidate isolated, then the OLED
+# recovery/deadline combination. Fake peripherals model errors, not qualification.
+for candidate in BASELINE CASE_2HZ OLED_1HZ OLED_PAGES CHECKPOINT_5MIN WEARER_DEADLINES MAIN_EVENTS OLED_PROTECTION COMBINED; do
+  WORKER_FLAGS=()
+  if [[ "$candidate" == COMBINED ]]; then
+    WORKER_FLAGS=(-DPROTOGEN_WEARER_DEADLINES=1 -DPROTOGEN_OLED_PAGES=1 -DPROTOGEN_OLED_PROTECTION=1)
+  elif [[ "$candidate" != BASELINE ]]; then
+    WORKER_FLAGS=("-DPROTOGEN_${candidate}=1")
+  fi
+  "${CXX:-clang++}" "${FLAGS[@]}" ${WORKER_FLAGS[@]+"${WORKER_FLAGS[@]}"} -DHELMET_RECEIVER \
+    -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
+    "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer"
+  "$EFF_TEMP/wearer"
+done
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-efficiency.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-host-build.py"

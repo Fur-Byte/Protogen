@@ -27,6 +27,14 @@ This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB ind
 | Reproducible builds and evidence | Dependencies are pinned in toolchain.lock.json. Each build records a source fingerprint, selected library versions, commands, results, and memory metrics. Failed preflight checks replace current success evidence with a failure report. Prior HEX files retain their own manifests. |
 | Recoverable history | Git's initial commit preserves the pre-upgrade project. A second independent baseline copy is in build/upgrade-baseline. Original historical audit evidence remains available. |
 
+The responsiveness goal applies to p99 **triggering physical action edge to first
+emitted-light reaction**, below 100 ms in qualified online and idle-wake conditions.
+Initial press to completed expression and action edge to completed expression are
+separate diagnostic intervals, with no universal 100 ms limit. The original 160 ms
+default transition remains unchanged, and an early closing frame is not the
+completed target. EEPROM settings override compiled defaults. Physical latency
+qualification remains pending; see [EFFICIENCY_QUALIFICATION.md](EFFICIENCY_QUALIFICATION.md).
+
 ## Use the preview and configuration tool
 
 Run from the project root:

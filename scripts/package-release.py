@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
 import zipfile
 from build_support import source_identity
@@ -14,16 +15,44 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def compatibility(teensy, esp):
+    results = teensy.get('results', [])
+    if len(results) != 1 or results[0].get('exit_code') != 0:
+        raise ValueError('Release requires one identified successful Teensy image')
+    selected = results[0]
+    flags = ' '.join(selected.get('command', []))
+    auth = bool(re.search(r'-DPROTOGEN_UART_AUTH(?:=1)?(?:\s|$)', flags))
+    features = selected.get('features', [])
+    if 'WirelessPaw' in features and auth != esp.get('uart_auth', False):
+        raise ValueError('Teensy/ESP authenticated UART modes differ; recovery images cannot communicate')
+    return {'teensy_features': features, 'wireless_bridge_enabled': 'WirelessPaw' in features,
+            'teensy_uart_auth': auth, 'esp_uart_auth': esp.get('uart_auth', False),
+            'physical_qualification': 'pending'}
+
+
 def previous_release(path):
     with zipfile.ZipFile(path) as archive:
         manifest = json.loads(archive.read('release.json'))
         files = manifest['sha256']
+        required = {f'{role}/{name}' for role in ('helmet', 'paw')
+                    for name in ('firmware.bin', 'bootloader.bin', 'partitions.bin')}
+        required.update(('evidence/teensy-build.json', 'evidence/esp32-build.json', 'toolchain.lock.json'))
+        if manifest.get('schema') != 1 or not required <= set(files) or not any(
+                name.startswith('teensy/') and name.endswith('.hex') for name in files):
+            raise ValueError('Previous release must contain complete helmet/paw recovery images and evidence')
         if not files or len(archive.namelist()) != len(set(archive.namelist())) or set(archive.namelist()) != set(files) | {'release.json'}:
             raise ValueError('Previous release contains missing or unrecorded files')
         for name, expected in files.items():
             p = PurePosixPath(name)
             if p.is_absolute() or '..' in p.parts or digest(archive.read(name)) != expected:
                 raise ValueError('Previous release failed checksum verification')
+        teensy = json.loads(archive.read('evidence/teensy-build.json'))
+        esp = json.loads(archive.read('evidence/esp32-build.json'))
+        if any(record.get('state') != 'success' or
+               record.get('source', {}).get('sha256') != manifest.get('source_sha256')
+               for record in (teensy, esp)):
+            raise ValueError('Previous release build evidence does not match its source')
+        compatibility(teensy, esp)
         return digest(path.read_bytes())
 
 
@@ -35,6 +64,7 @@ def package(output, previous=None, initial=False, config_path=None):
     esp = json.loads((ROOT / 'build/esp32-build.json').read_text())
     if any(record.get('state') != 'success' or record.get('source') != source for record in (teensy, esp)):
         raise ValueError('Rebuild both roles and Teensy from the current matching source')
+    compatible = compatibility(teensy, esp)
     content = {}
     for name, expected in teensy['artifacts'].items():
         if Path(name).name != name:
@@ -78,6 +108,7 @@ def package(output, previous=None, initial=False, config_path=None):
     content['evidence/teensy-build.json'] = json.dumps(teensy, indent=2).encode()
     content['evidence/esp32-build.json'] = json.dumps(esp, indent=2).encode()
     manifest = {'schema': 1, 'source_sha256': source['sha256'], 'status': 'development; physical qualification pending',
+                'compatibility': compatible,
                 'previous_release_sha256': previous_hash, 'configuration_backup_included': bool(config_path),
                 'sha256': {name: digest(raw) for name, raw in content.items()}}
     output.parent.mkdir(parents=True, exist_ok=True)

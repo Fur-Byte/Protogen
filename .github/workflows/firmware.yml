@@ -19,12 +19,26 @@ jobs:
           python3 -O scripts/tests/test-helmet-tool.py
           python3 -O scripts/tests/test-pair-paw.py
           python3 -O scripts/tests/test-efficiency.py
+          python3 -O scripts/tests/test-host-build.py
+          CMAKE=cmake CC=clang CXX=clang++ scripts/test-wireless.sh
+          CMAKE=cmake CC=clang CXX=clang++ scripts/test-v4.sh
+          CMAKE=cmake CC=clang CXX=clang++ scripts/test-dtls.sh
+          python3 scripts/tests/v4/make_vectors.py --check
           python3 scripts/check-features.py
           python3 scripts/check-extensions.py
+          python3 scripts/check-uart-auth.py
           python3 scripts/build.py
           python3 scripts/build-esp32.py
-          python3 scripts/build-efficiency.py main_events
-          CMAKE=cmake scripts/test-wireless.sh
+          for candidate in cache_face case_2hz oled_1hz oled_pages checkpoint_5min wearer_deadlines main_events oled_protection; do
+            python3 scripts/build-efficiency.py "$candidate"
+          done
+          # Auth uses temporary fixture keys; restore the unauthenticated default
+          # export afterwards. No device provisioning or uploads occur.
+          key_dir="$(mktemp -d)"
+          trap 'rm -rf "$key_dir"' EXIT
+          python3 scripts/provision-uart-auth.py --output "$key_dir/private"
+          PROTOGEN_UART_KEY_DIR="$key_dir/private" python3 scripts/build-esp32.py
+          python3 scripts/build-esp32.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

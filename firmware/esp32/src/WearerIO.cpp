@@ -60,6 +60,7 @@ bool inaConfigured=false;
 uint8_t frame[1024]{}, sentFrame[1024]{};
 uint8_t validPages=0;
 bool screenSleeping=false;
+bool screenStateKnown=true;
 unsigned screenOffset=0;
 bool addDevice(uint8_t address,i2c_master_dev_handle_t &device) {
   i2c_device_config_t d{};d.dev_addr_length=I2C_ADDR_BIT_LEN_7;d.device_address=address;d.scl_speed_hz=100000;
@@ -179,10 +180,11 @@ bool showScreen(Status &s,uint32_t now) {
   if(PROTOGEN_OLED_PROTECTION) {
     const bool sleep=now-at<2000 && (face.payload[5]&HelmetLink::Sleeping) &&
         !strcmp(warning,"STATUS OK") && !HelmetLink::u16(face.payload+10);
-    if(sleep!=screenSleeping) {
+    if(!screenStateKnown || sleep!=screenSleeping) {
       const uint8_t command=sleep?0xae:0xaf;
       if(!transfer(false,&command,1))return false;
-      screenSleeping=sleep;
+      screenSleeping=sleep;screenStateKnown=true;
+      if(!sleep)validPages=0; // Wake always restores the complete panel image.
     }
     if(sleep)return true;
     const unsigned offset=(now/60000)%2;
@@ -295,7 +297,9 @@ void task(void*) {
         (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=now/60000);
     if(oled && (now-screenAt>=screenInterval || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
       screenAt=now;
-      if(!showScreen(s,now))s.faults|=4;else s.faults&=static_cast<uint16_t>(~4u);
+      if(!showScreen(s,now)) {
+        s.faults|=4;validPages=0;screenStateKnown=false;
+      } else s.faults&=static_cast<uint16_t>(~4u);
       previousFace=face;previousRadio=radio;previousStale=stale;previousFaults=s.faults;
       previousScreenGeneration=now/60000;previousWarning=warningFor(s);
     }
@@ -314,7 +318,9 @@ void task(void*) {
         if(sht)Efficiency::sooner(wait,Efficiency::remaining(end,shtAt,shtPending?10:1000));
         if(ina)Efficiency::sooner(wait,Efficiency::remaining(end,energyAt,1000));
       }
-      ulTaskNotifyTake(pdTRUE,pdMS_TO_TICKS(wait)>0?pdMS_TO_TICKS(wait):1);
+      const TickType_t ticks=pdMS_TO_TICKS(wait);
+      if(ticks)ulTaskNotifyTake(pdTRUE,ticks);
+      else { ulTaskNotifyTake(pdTRUE,0);vTaskDelay(0); }
     } else vTaskDelay(pdMS_TO_TICKS(20));
   }
 #else

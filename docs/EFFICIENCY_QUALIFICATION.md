@@ -1,7 +1,7 @@
 # Efficiency implementation and physical qualification
 
 The efficiency plan is approved with whole-system energy as the primary outcome,
-physical button-to-visible-expression latency (including idle wakeup), unchanged
+physical action-edge-to-first-visible-reaction latency (including idle wakeup), unchanged
 animations/audio, unchanged security, and preserved radio reliability. Each
 optimization must pass independently before a combined candidate is qualified.
 **Physical energy savings and latency are unmeasured. No candidate is qualified.**
@@ -82,11 +82,19 @@ CMAKE=cmake scripts/test-wireless.sh
 The installer follows `toolchain.lock.json`, verifies the CLI against official
 release checksums, uses isolated build directories, retains downloads/dependency
 sources and records Python package versions. It installs development C3 targets;
-it never changes SDK pins or selects S31. CI runs both sanitizers, normal and
+it never changes SDK pins or selects S31. CI requires ASan and UBSan on its x86 hosted runner, normal and
 optimized Python, sensor/extension builds, production builds and both radio roles.
-On this ARM host GCC AddressSanitizer cannot reserve its shadow address region,
+On this ARM host GCC and Clang AddressSanitizer cannot reserve its shadow address region,
 including outside the sandbox; local runs can explicitly select
 `CXX=g++ PROTOGEN_HOST_SANITIZERS=undefined`. Such runs are **UBSan only**.
+
+Host firmware, efficiency and preview builds compile pinned arduinoFFT 2.0.4 as
+a separate object. Only Clang's `absolute-value` warning is exempted from
+`-Werror` on that dependency object; all other warnings and first-party errors
+remain enforced. The warning remains visible in regression logs, the dependency
+is unchanged, and sanitizers still instrument it. Firmware uses its existing FFT
+window and sampling path. The host CMake protocol suites also instrument their
+crypto dependencies; sanitizer selection is recorded explicitly for local runs.
 
 Build matched all-feature bench images without replacing production exports:
 
@@ -132,19 +140,39 @@ renewal overhead within the energy workload. Benchmark the optimizations alone;
 then repeat the complete qualification on the selected combination. Record meter
 uncertainty and require reproducible energy reduction beyond that uncertainty.
 
-Capture button GPIO/contact edges and the target expression's emitted light on a
-common instrument timebase, using a photodiode with appropriate expression
-discrimination or calibrated high-speed video. A UART ACK, SPI LOAD edge or first
-eye-closing transition is not proof of the requested visible expression. Capture
-at least 1,000 actions per condition (`online` and `idle_wake`) per trial. Retain
-bounce, hold time, debounce, radio retries, display scan latency and wake latency.
+Capture button GPIO/contact edges and the LED panels' emitted light on a common
+instrument timebase, using a photodiode with expression discrimination or
+calibrated high-speed video. Retain the raw recordings and instrument settings.
+A UART acknowledgment, SPI transfer or internal render timestamp is not an
+optical measurement. An early transition frame shows a reaction; it does not
+prove that the complete target expression is visible.
 
-Navigation controls activate on **button release** (25 ms debounce on helmet pin 2; 30 ms debounce on the wireless paw) to differentiate short taps from a long hold-to-sleep (1200 ms). Because of this release trigger and animation structure, latency must be analyzed and reported across three distinct intervals:
-1. **Full physical press-to-expression latency:** Measured from initial physical contact depression to final visible expression; inherently includes the user's hold duration prior to release.
-2. **Action-edge to first-visible-reaction latency:** Measured from physical contact release break to the first visual frame (eyelids starting to close on the old face). Includes release debounce (25 ms helmet / 30 ms paw), RF and UART bridge transit (for paw remote), loop dispatch, frame quantization (up to 16 ms), and SPI transfer.
-3. **Action-edge to complete-expression latency:** Measured from physical contact release break to the fully settled target expression artwork. Includes release debounce, RF/UART latency, the full transition animation (default 160 ms; configurable 0–1000 ms), and MAX7219 scanout.
+Navigation activates on **physical button release**, after 25 ms stable debounce
+on the Teensy helmet button or **30 ms** on the wireless paw. Paw boop activates
+on press. Keep the original **160 ms default transition**, frame eligibility and
+microphone timing. Report three separate intervals, all ending at physical LED
+output and including communication, rendering and panel scanout:
 
-Long press-to-expression latency and transition delay must remain in the physical result. Do not reinterpret a transition frame as the target expression, subtract hold/debounce time, or change timing to make a result pass. A result above 100 ms is a failed target, requiring an explicit user-approved behavior/timing decision. Do not claim the 100 ms target is achieved without physical measurements on a calibrated instrument timebase (photodiode or high-speed video). The default 160 ms transition alone exceeds 100 ms complete-expression latency, and shorter transition candidates exclude RF, UART, render loop quantization, and display scanout latency. Furthermore, saved EEPROM settings persist across power cycles and override `Settings.h` defaults on boot; changing compiled firmware defaults does not alter saved helmet configurations without explicit `DEFAULTS` and `SAVE` commands. Report physical action-edge latency alongside full press latency for diagnosis.
+| Metric | Start / end | Acceptance |
+| --- | --- | --- |
+| A: `press_to_complete` | Initial physical press to complete target expression; includes hold, release, debounce and the full animation | Diagnostic p50/p95/p99/maximum; no universal 100 ms limit |
+| B: `action_to_first_reaction` | Triggering physical edge to first measurable LED reaction; release for navigation, press for boop | **Primary p99 < 100 ms** in both qualified `online` and `idle_wake` conditions |
+| C: `action_to_complete` | Triggering physical edge to complete target expression, including the full animation | Diagnostic p50/p95/p99/maximum; no universal 100 ms limit |
+
+A 90 ms first reaction followed by a 230 ms complete expression meets metric B's
+recorded target. A 110 ms first reaction fails it. A long user hold remains in A
+and does not inflate release-triggered B or C. Never subtract debounce, radio
+retries, wake or display latency. For a hold-triggered wake, retain its initiating
+physical press and the hold delay; an internal hold-threshold timestamp is not a
+physical edge. Record the exact gesture and qualified operating range rather
+than changing behavior to obtain a passing result.
+
+The **100 ms first-reaction goal has not been physically verified**. Saved EEPROM
+settings override compiled defaults on boot. Inspect and retain actual `GET`
+settings with every capture; recompiling does not change saved timing. `DEFAULTS`
+and `SAVE` are explicit user actions, never performed by the analyzer.
+Capture at least 1,000 attempts in **each** condition per trial. A missed or
+uncaptured reaction or completed expression is a failure and remains in counts.
 
 Each trial has `energy.csv` with monotonically increasing cumulative readings:
 
@@ -155,12 +183,27 @@ time_s,helmet_j,paw_j
 and `latency.csv` (times in microseconds on the same instrument clock):
 
 ```csv
-condition,press_us,action_edge_us,visible_expression_us
+condition,action,trigger_edge,press_us,action_edge_us,first_reaction_us,complete_expression_us
 ```
 
-Use an empty visible field for a missed response; never remove failed trials.
-`action_edge_us` is press for a press-triggered action, release for navigation.
-`run.json` contains `measurement: "physical"`, `optimization` (baseline or a
+Use an empty optical field for a missed or uncaptured endpoint; never remove
+failed attempts. Both optical columns must exist even when their values are
+empty. Physical press and action-edge columns always require values.
+`action` is `navigation`, `boop` or `wake`; `trigger_edge` is `press` or `release`.
+Navigation requires release, boop requires press, and wake requires `idle_wake`.
+Idle-wake navigation/boop remain classified by their action. Press-triggered
+`action_edge_us` must equal `press_us`; release must be strictly later. Every
+present optical timestamp must follow the action edge, and completion must not
+precede first reaction. Timestamps use finite, nonnegative decimal microseconds
+within a 64-bit instrument clock; do not unwrap rollover by silently reordering
+records. Convert a wrapped instrument clock explicitly before analysis.
+
+**Schema 2 rejects the old `visible_expression_us` format.** Old completed-target
+captures cannot supply first-reaction evidence. Recapture or independently
+annotate the retained physical recording; never rename the old completion column
+as first reaction. Exact CSV headers reject missing, extra or duplicate fields.
+`run.json` contains `latency_schema: 2`, `capture_method: "photodiode"` or
+`"high_speed_video"`, `measurement: "physical"`, `optimization` (baseline or a
 table name), integer `flags`, `teensy_mhz`, unique matched `trial`, relative
 `energy_csv`/`latency_csv` paths, and matching `source_sha256`, `workload_sha256`,
 `settings_sha256`, `security_sha256`, `rig_id`, `calibration_id`, `operating_range`
@@ -180,14 +223,22 @@ python3 scripts/analyze-efficiency.py \
 ```
 
 The analyzer checks independent switches, matching metadata/durations, cumulative
-energy validity, sample counts, missed responses, both physical p99 targets and
+energy validity, sample counts, both kinds of missed endpoints, metric B in both
+conditions, and
 explicit validation checks. Its report hashes the raw CSVs and reports system
-joules/watts and measured reductions. It cannot authenticate the instrument,
+joules/watts and measured reductions. Percentiles use nearest rank
+(`ceil(p * n)` in sorted completed observations); missed endpoints separately
+force failure, so omitting them cannot produce qualification. Metrics A and C
+remain diagnostic even when they exceed 100 ms. Declared synthetic/simulated
+records and nonoptical methods are rejected. Unit fixtures only test analysis;
+they are never hardware evidence. The report always sets `hardware_qualified`
+to false pending independent raw-capture/provenance review. It cannot authenticate the instrument,
 prove metadata/check assertions or estimate uncertainty from three trials;
 review the raw evidence before activation. Missing data is not a measurement.
 
-Accept only unchanged artwork/animation/microphone timing; p99 physical latency
-under 100 ms in both conditions; no overruns, memory growth, watchdog resets,
+Accept only unchanged artwork/animation/microphone timing; metric B p99 physical
+first reaction under 100 ms in both qualified conditions; separately reported A
+and C; no overruns, memory growth, watchdog resets,
 missed command deadlines or reduced radio reliability/security; successful
 rollover, reconnection, sleep/wake, packet loss and interrupted-storage tests;
 and reproducible whole-system energy reduction. Record sustained-test duration,
@@ -226,9 +277,9 @@ idle-wake latency under the full workload before any deployment. Espressif's
 [power-management documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s31/api-reference/system/power_management.html)
 describes the APIs; it does not establish this hardware's energy or reliability.
 
-## Recorded local software verification — 2026-10-09
+## Historical efficiency implementation verification — commit 7f284577
 
-The final runtime/tooling source identity is
+The original implementation runtime/tooling source identity was
 `1bf6033ab0cc902b9f4d90bf4f9a7c316978d472eb903b291f8e4d24deae975e`.
 Matching successful manifests cover the default Teensy image, both legacy C3
 roles, all eight sensor feature builds, and the independent `main_events`

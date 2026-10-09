@@ -39,11 +39,20 @@ class PreviewTransport:
             self.temporary.cleanup()
             raise RuntimeError("Set ARDUINO_FFT_SRC to the installed arduinoFFT src directory for desktop preview.")
         executable = temporary / "preview"
-        run = subprocess.run([os.environ.get("CXX", "clang++"), "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror",
-                              "-DARDUINO=10819", "-DARDUINO_TEENSY40", "-I" + str(ROOT / "scripts/tests/stubs"),
-                              "-I" + str(sketch), "-I" + str(fft), str(ROOT / "scripts/preview.cpp"),
-                              str(sketch / "src/Max72xxPanel/Max72xxPanel.cpp"), str(fft / "arduinoFFT.cpp"),
-                              "-o", str(executable)], capture_output=True, text=True)
+        compiler = os.environ.get("CXX", "clang++")
+        flags = ["-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror",
+                 "-DARDUINO=10819", "-DARDUINO_TEENSY40",
+                 "-I" + str(ROOT / "scripts/tests/stubs"), "-I" + str(sketch), "-I" + str(fft)]
+        dependency_flags = (["-Wno-error=absolute-value"] if "clang" in
+                            subprocess.check_output([compiler, "--version"], text=True).lower() else [])
+        fft_object = temporary / "arduinoFFT.o"
+        run = subprocess.run([compiler, *flags, *dependency_flags, "-c",
+                              str(fft / "arduinoFFT.cpp"), "-o", str(fft_object)],
+                             capture_output=True, text=True)
+        if run.returncode == 0:
+            run = subprocess.run([compiler, *flags, str(ROOT / "scripts/preview.cpp"),
+                                  str(sketch / "src/Max72xxPanel/Max72xxPanel.cpp"),
+                                  str(fft_object), "-o", str(executable)], capture_output=True, text=True)
         if run.returncode:
             self.temporary.cleanup()
             raise RuntimeError("Preview compile failed:\n" + run.stderr)

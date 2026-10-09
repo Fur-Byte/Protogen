@@ -24,10 +24,12 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="$SANITIZERS"
   -fno-sanitize-recover=all -DARDUINO=10819 -DARDUINO_TEENSY40
   -I"$ROOT/scripts/tests/stubs" -I"$TEST_TEMP/PROT_OS7_MAX7219" -I"$FFT_SRC")
 FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
+source "$ROOT/scripts/host-fft.sh"
+compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/firmware.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
-  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-firmware"
+  "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-firmware"
 "$TEST_TEMP/test-firmware"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/matrix.cpp" -o "$TEST_TEMP/test-matrix"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/blink-timing.cpp" -o "$TEST_TEMP/test-blink-timing"
@@ -35,12 +37,12 @@ FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
 "${CXX:-clang++}" "${FLAGS[@]}" \
   "$ROOT/scripts/tests/configuration.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
-  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-configuration"
+  "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-configuration"
 "$TEST_TEMP/test-configuration"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/configuration.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
-  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-configuration-sensors"
+  "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-matrix"
 "${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER \
@@ -60,7 +62,7 @@ FLAGS+=(-I"$ROOT/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw -DVisorConnector \
   "$ROOT/scripts/tests/extensions.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
-  "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/test-extensions"
+  "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-extensions"
 "$TEST_TEMP/test-extensions"
 # Optional authenticated UART uses the production Mbed TLS subset, with PUBLIC
 # fixture material only. The actual sketch and command gate execute under ASan.
@@ -85,7 +87,7 @@ for mask in {0..7}; do
   "${CXX:-clang++}" "${FLAGS[@]}" ${FEATURES[@]+"${FEATURES[@]}"} \
     "$ROOT/scripts/tests/feature-smoke.cpp" \
     "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
-    "$FFT_SRC/arduinoFFT.cpp" -o "$TEST_TEMP/features-$mask"
+    "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/features-$mask"
   printf 'Sensor mask %s: ' "$mask"
   "$TEST_TEMP/features-$mask"
 done
