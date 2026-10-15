@@ -128,6 +128,15 @@ and `WirelessPaw` enabled. Missing key headers cause compilation failure, not a
 default key. `scripts/check-uart-auth.py` exercises three real Teensy variants
 using a temporary randomly generated key, then removes that private source.
 
+The repository firmware build helpers and PlatformIO hook validate key headers
+before compiling. Use the generator's literal declaration with exactly 32
+explicit bytes; decimal and hexadecimal byte literals and comments are accepted.
+Incomplete initializers, extra preprocessing/code, public test keys, obvious
+repeated/sparse/sequential keys and ambiguous key include paths are rejected.
+These safeguards catch provisioning mistakes; they cannot establish randomness
+or uniqueness. Continue generating a separate key for each helmet. Host tests
+may still use the public fixture because they do not provision device firmware.
+
 The compiled images necessarily contain their provisioned UART secret. Treat
 these artifacts as secret-bearing, keep them outside public release downloads,
 and include them only in an approved encrypted/signed provisioning workflow.

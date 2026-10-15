@@ -6,8 +6,10 @@ import os
 from pathlib import Path
 import re
 import shutil
+import shlex
 import subprocess
 import uuid
+from uart_key import compiler_options, validate_uart_key_flags
 
 FQBN = "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std"
 
@@ -134,9 +136,7 @@ class BuildRun:
         command = [cli, "compile", "--fqbn", fqbn, "--warnings", "all", "--clean",
                    "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
         extra_flags=extra_flags or "-Werror"
-        if "PROTOGEN_UART_AUTH" in features:
-            # Upstream Mbed TLS public headers use canonical mbedtls/... paths.
-            extra_flags += " -I" + str(sketch) + " -I" + str(sketch / "src/UartCrypto")
+        auth_enabled = "PROTOGEN_UART_AUTH" in features
         if extra_flags:
             # Teensy's recipes consume build.flags.defs, not build.extra_flags.
             # Preserve the installed board's definitions rather than replacing
@@ -148,6 +148,11 @@ class BuildRun:
                                 if line.startswith("build.flags.defs=")), None)
             if not definitions:
                 raise RuntimeError("Teensy board compiler definitions are missing")
+            auth_enabled = auth_enabled or "PROTOGEN_UART_AUTH" in compiler_options(definitions + " " + extra_flags)[0]
+            if auth_enabled:
+                validate_uart_key_flags(definitions + " " + extra_flags, [sketch, sketch / "src"])
+                # Upstream Mbed TLS public headers use canonical mbedtls/... paths.
+                extra_flags += " -I" + shlex.quote(str(sketch)) + " -I" + shlex.quote(str(sketch / "src/UartCrypto"))
             command[2:2]=["--build-property", "build.flags.defs="+definitions+" "+extra_flags]
         run = subprocess.run(command, capture_output=True, text=True)
         output = run.stdout + run.stderr
@@ -158,9 +163,18 @@ class BuildRun:
         if run.returncode == 0:
             database = output_directory / "objects" / "compile_commands.json"
             units = json.loads(database.read_text()) if database.is_file() else []
-            required = ["-Werror"] + (["-DPROTOGEN_UART_AUTH=1"] if "PROTOGEN_UART_AUTH" in features else [])
+            required = ["-Werror"] + (["-DPROTOGEN_UART_AUTH=1"] if auth_enabled else [])
             if not units or any(not all(flag in unit.get("arguments", []) for flag in required) for unit in units):
                 result["dependency_error"] = "Required security flags absent from actual compiler commands"
+            elif auth_enabled:
+                try:
+                    for unit in units:
+                        arguments = unit.get("arguments", [])
+                        if "PROTOGEN_UART_AUTH" not in compiler_options(arguments)[0]:
+                            raise RuntimeError("Required security flags absent from actual compiler commands")
+                        validate_uart_key_flags(arguments, [sketch, sketch / "src"])
+                except RuntimeError as error:
+                    result["dependency_error"] = str(error)
         # libraries.cache records the paths actually selected by Arduino CLI.
         if run.returncode == 0:
             cache = output_directory / "objects" / "libraries.cache"

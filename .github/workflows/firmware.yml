@@ -16,6 +16,7 @@ jobs:
           scripts/test-firmware.sh
           scripts/test-efficiency.sh
           python3 -O scripts/tests/test-tools.py
+          python3 -O scripts/tests/test-security-builds.py
           python3 -O scripts/tests/test-helmet-tool.py
           python3 -O scripts/tests/test-pair-paw.py
           python3 -O scripts/tests/test-efficiency.py

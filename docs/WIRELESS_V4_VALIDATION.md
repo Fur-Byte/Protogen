@@ -6,6 +6,14 @@ Assessment date: 2026-10-06. Unchanged production baseline:
 Full changed/created file manifest and source hashes are in
 [wireless-v4-core.json](validation/wireless-v4-core.json).
 
+That baseline describes the historical assessment above. Current
+`scripts/check-v4.py` permits subsequent production maintenance: it checks v4
+production exclusion and both platform activation guards, fingerprints current
+production firmware and the toolchain lock before validation, and rejects changes
+to those inputs during the run. Fresh reports record that source fingerprint
+and `production_unchanged_during_validation`; they do not claim the current
+firmware still matches the historical commit.
+
 ## Software result
 
 The real `Core`, traffic codec, transcript/KDF, storage codec, worker and pinned

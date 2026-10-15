@@ -10,6 +10,7 @@ import re
 import configparser
 import struct
 from build_support import source_identity,write_json
+from uart_key import validate_uart_key_directory
 
 def main():
     root=Path(__file__).resolve().parents[1];build=root/"build";build.mkdir(exist_ok=True)
@@ -20,17 +21,16 @@ def main():
             "source":source_identity(root),"platform":locked["platform"],"esp_idf":locked["esp_idf"],"mbedtls":locked["mbedtls"]}
     target=build/"esp32-build.json";write_json(target,record)
     try:
+        uart_include=os.environ.get("PROTOGEN_UART_KEY_DIR")
+        if uart_include:
+            directory=validate_uart_key_directory(uart_include)
+            env["PROTOGEN_UART_KEY_DIR"]=str(directory)
+            record["uart_auth"]=True
+        else:record["uart_auth"]=False
         version=subprocess.run([pio,"--version"],env=env,capture_output=True,text=True,check=True).stdout.strip()
         if not version.endswith(" "+locked["platformio"]):raise RuntimeError("PlatformIO version differs from toolchain.lock.json")
         ini=configparser.ConfigParser(interpolation=None);ini.read(root/"firmware/esp32/platformio.ini")
         if ini["env"]["platform"]!=locked["platform"]:raise RuntimeError("ESP32 platform differs from the lock")
-        uart_include=os.environ.get("PROTOGEN_UART_KEY_DIR")
-        if uart_include:
-            directory=Path(uart_include).resolve()
-            if not (directory/"ProtogenUartKey.h").is_file():raise RuntimeError("Missing per-helmet UART key header")
-            env["PROTOGEN_UART_KEY_DIR"]=str(directory)
-            record["uart_auth"]=True
-        else:record["uart_auth"]=False
         run=subprocess.run([pio,"run","--project-dir",str(root/"firmware/esp32"),"-e","helmet","-e","paw"],
             env=env,capture_output=True,text=True)
         output=run.stdout+run.stderr;(build/"esp32-build.log").write_text(output)

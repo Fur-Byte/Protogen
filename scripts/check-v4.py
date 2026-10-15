@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
+from build_support import source_identity
 
 ROOT=Path(__file__).resolve().parents[1]
 V4=ROOT/"firmware/esp32/protocol_v4"
@@ -23,9 +24,36 @@ def run(args, name):
     if result.returncode:raise RuntimeError(name+" failed; inspect build/v4-validation/"+name+".log")
     return result.stdout
 
+def production_identity():
+    """Fingerprint active firmware, excluding the isolated experimental core."""
+    identity=source_identity(ROOT)
+    files={p:h for p,h in identity["files"].items()
+           if (p.startswith("firmware/") and not p.startswith("firmware/esp32/protocol_v4/"))
+           or p=="toolchain.lock.json"}
+    return {"sha256":hashlib.sha256(json.dumps(files,sort_keys=True,separators=(",",":")).encode()).hexdigest(),
+            "files":files}
+
+def check_production_isolation():
+    # Keep platform exclusion checks independent of any historical whole-tree diff.
+    source=ROOT/"firmware/esp32/src/CMakeLists.txt"
+    if "protocol_v4" in source.read_text():raise RuntimeError("v4 referenced by production component")
+    for macro,header,reason in [("ESP_PLATFORM","Interfaces.hpp","EXPERIMENTAL_V4_PLATFORM_ACTIVATION_BLOCKED"),
+                               ("PROTOGEN_V4_ACTIVATE_S31","S31Adapter.hpp","NOT_IMPLEMENTED_UNTIL_SUPPORTED_S31_SDK")]:
+        probe=B/(macro+".cpp");probe.write_text('#include "'+str(V4/header)+'"\n')
+        denied=subprocess.run(["c++","-std=c++17","-D"+macro,"-fsyntax-only",
+          "-I"+str(ROOT/"firmware/PROT_OS7_MAX7219/src/HelmetProtocol"),str(probe)],capture_output=True,text=True)
+        if denied.returncode==0 or reason not in denied.stderr:raise RuntimeError("Activation guard failed: "+macro)
+    return sha(source)
+
+def require_production_unchanged(before):
+    if production_identity()!=before:
+        raise RuntimeError("Production firmware changed during v4 validation")
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument("--skip-host",action="store_true");args=parser.parse_args()
     B.mkdir(parents=True,exist_ok=True)
+    production_before=production_identity()
+    production_component=check_production_isolation()
     manifest=json.loads((V4/"vendor/mlkem-native/PROVENANCE.json").read_text())
     for p,h in manifest["source_sha256"].items():
         if sha(V4/"vendor/mlkem-native"/p)!=h:raise RuntimeError("Vendor hash mismatch: "+p)
@@ -67,25 +95,14 @@ def main():
         log=(B/("analyze-"+p.stem+".log")).read_text()
         if log.strip():raise RuntimeError("Analyzer diagnostics: "+p.name)
         analyses.append(p.name)
-    # Active production target explicitly enumerates v3 source; no v4 component.
-    source=ROOT/"firmware/esp32/src/CMakeLists.txt"
-    if "protocol_v4" in source.read_text():raise RuntimeError("v4 referenced by production component")
-    for macro,header,reason in [("ESP_PLATFORM","Interfaces.hpp","EXPERIMENTAL_V4_PLATFORM_ACTIVATION_BLOCKED"),
-                               ("PROTOGEN_V4_ACTIVATE_S31","S31Adapter.hpp","NOT_IMPLEMENTED_UNTIL_SUPPORTED_S31_SDK")]:
-        probe=B/(macro+".cpp");probe.write_text('#include "'+str(V4/header)+'"\n')
-        denied=subprocess.run(["c++","-std=c++17","-D"+macro,"-fsyntax-only",
-          "-I"+str(ROOT/"firmware/PROT_OS7_MAX7219/src/HelmetProtocol"),str(probe)],capture_output=True,text=True)
-        if denied.returncode==0 or reason not in denied.stderr:raise RuntimeError("Activation guard failed: "+macro)
-    baseline="8e6c0301b1bdbb231c3fb11083d976818fd3ecf0"
-    unchanged=run(["git","diff",baseline,"--","firmware/esp32",":!firmware/esp32/protocol_v4",":!firmware/esp32/README.md",
-                   "firmware/PROT_OS7_MAX7219","toolchain.lock.json"],"production-isolation")
-    if unchanged.strip():raise RuntimeError("Production firmware differs from v3 baseline")
-    report={"scope":"hardware-independent experimental v4; production v3 not selected or edited",
+    require_production_unchanged(production_before)
+    report={"scope":"hardware-independent experimental v4; v4 not selected by production, production unchanged during validation",
             "backend":{k:manifest[k] for k in ["upstream","version","commit","license_choice","backend"]},
             "vendor_files_verified":len(manifest["source_sha256"]),"authoritative_vectors":counts,
             "functional_result":functional_result.strip(),"sanitizers":"ASan + UBSan, implementation and core",
             "static_analyzer":analyses,"host_result":host_result,
-            "production_component_sha256":sha(source),"production_unchanged_baseline":baseline,
+            "production_component_sha256":production_component,"production_source":production_before,
+            "production_unchanged_during_validation":True,
             "activation_negative_compile_tests":2,"hardware_measurements":"NOT PERFORMED"}
     (B/"report.json").write_text(json.dumps(report,indent=2)+"\n")
     print("v4 backend: 145 authoritative cases, upstream functional, hashes/license, independent project vectors, and static analysis passed")

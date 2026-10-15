@@ -111,7 +111,7 @@ class FeatureChecks(unittest.TestCase):
         (source / "PROT_OS7_MAX7219.ino").write_text(
             "\n".join("// #define " + name for name in features.ALL_FEATURES))
         (root / "scripts").mkdir()
-        for name in ("check-features.py", "build_support.py", "build.py"):
+        for name in ("check-features.py", "build_support.py", "build.py", "uart_key.py"):
             shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
         shutil.copy2(ROOT / "toolchain.lock.json", root / "toolchain.lock.json")
 
@@ -285,10 +285,13 @@ class FeatureChecks(unittest.TestCase):
             (output / "objects").mkdir(parents=True)
             (output / "objects/compile_commands.json").write_text(json.dumps([
                 {"arguments": ["c++", "-Werror"]}]))
+            private = root / "private"
+            subprocess.run([os.sys.executable, str(ROOT / "scripts/provision-uart-auth.py"),
+                            "--output", str(private)], check=True, capture_output=True)
             with patch("subprocess.run", return_value=subprocess.CompletedProcess(
                     [], 0, "build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160\n", "")):
                 run.compile("fake-cli", sketch, ("PROTOGEN_UART_AUTH",), output,
-                            extra_flags="-DPROTOGEN_UART_AUTH=1 -Werror")
+                            extra_flags="-DPROTOGEN_UART_AUTH=1 -I" + str(private) + " -Werror")
             self.assertIn("security flags", run.record["results"][-1]["dependency_error"])
             self.assertFalse(run.finish())
 
