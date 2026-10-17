@@ -20,6 +20,7 @@ jobs:
           scripts/test-firmware.sh
           scripts/test-efficiency.sh
           python3 scripts/tests/test-host-support.py
+          python3 scripts/tests/test-runner-portability.py
           python3 scripts/tests/test-board-targets.py
           python3 -O scripts/tests/test-tools.py
           python3 -O scripts/tests/test-security-builds.py

@@ -51,7 +51,7 @@ PY2
     printf 'FAIL: invalid brightness ceiling %s compiled\n' "$invalid" >&2
     exit 1
   fi
-  if ! rg -q 'MaxBrightness must be 0..15' "$CONFIG_TEMP/invalid.log"; then
+  if ! grep -F -q 'MaxBrightness must be 0..15' "$CONFIG_TEMP/invalid.log"; then
     cat "$CONFIG_TEMP/invalid.log" >&2
     exit 1
   fi
