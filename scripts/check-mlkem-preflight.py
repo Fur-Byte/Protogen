@@ -16,6 +16,7 @@ import subprocess
 import tarfile
 import time
 import urllib.request
+from host_support import non_pie_flags
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -172,7 +173,7 @@ def main():
     # shadow-memory placement conflicts in constrained host environments.
     common = [os.environ.get("CC", "cc"), "-O2", "-std=c99", "-Wall",
               "-Wextra", "-Werror", "-fsanitize=address,undefined",
-              "-fno-sanitize-recover=all", "-fno-pie", "-no-pie",
+              "-fno-sanitize-recover=all", *non_pie_flags(),
               "-DMLK_CONFIG_PARAMETER_SET=1024", "-Imlkem",
               "mlkem/mlkem_native.c", "test/notrandombytes/notrandombytes.c"]
     acvp = BUILD / "acvp-1024-sanitized"

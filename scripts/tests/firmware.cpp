@@ -158,7 +158,9 @@ int main() {
   boopInput = (Settings::BoopThreshold + Settings::BoopReleaseThreshold) / 2;
   runMs(Settings::BoopPollMs * 2 + 2); assert(boopActive);
   stableVisor(HIGH); stableVisor(LOW);
-  assert(SPI.display == boop && SPI.wakeFrames.back() == boop);
+  // A hidden interval expires acquisition: never restore a held reaction using
+  // its old value; require a fresh released reading before another trigger.
+  assert(!boopActive && !boopArmed && SPI.display == angry && SPI.wakeFrames.back() == angry);
   boopInput = Settings::BoopReleaseThreshold; runMs(20);
   assert(!boopActive && boopArmed);
   boopInput = (Settings::BoopThreshold + Settings::BoopReleaseThreshold) / 2;

@@ -95,7 +95,7 @@ void receive(const HelmetLink::Packet &p, uint32_t now) {
       case HelmetLink::MicControl:
 #ifdef Microphone
         microphoneEnabled=p.payload[5]!=0;
-        if(!microphoneEnabled)pauseMicrophone();else sensorFaults&=static_cast<uint16_t>(~4u);
+        if(!microphoneEnabled)pauseMicrophone();
         break;
 #else
         result=HelmetLink::Unavailable;break;
@@ -160,5 +160,13 @@ void servicePawLink(uint32_t now) {
   }
 #else
   (void)now;
+#endif
+}
+
+bool pawHasPendingWork() {
+#ifdef WirelessPaw
+  return Serial1.available() || PawLink::txSent < PawLink::txLength;
+#else
+  return false;
 #endif
 }

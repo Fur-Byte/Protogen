@@ -5,15 +5,28 @@ size_t usbLineLength = 0, usbReplyLength = 0, usbReplySent = 0;
 bool usbOverflow = false;
 uint32_t usbLineStarted = 0;
 
+#include "UsbReply.h"
+// Always replace partial JSON with a complete, fixed error in the shared buffer.
+void replyTooLarge() { strcpy(usbReply, "{\"ok\":false,\"error\":\"response_too_large\"}\n"); }
 void replyError(const char *message) {
-  snprintf(usbReply, sizeof(usbReply), "{\"ok\":false,\"error\":\"%s\"}\n", message);
+  BoundedReply out(usbReply, sizeof(usbReply));
+  out.append("{\"ok\":false,\"error\":");
+  out.jsonString(message); out.append("}\n");
+  if (!out.okay()) replyTooLarge();
+}
+bool writeConfigReply(char *buffer, size_t capacity, const ConfigField *fields, size_t count) {
+  BoundedReply out(buffer, capacity);
+  out.append("{\"ok\":true,\"schema\":%u,\"config\":{", configSchemaVersion);
+  for (size_t i = 0; i < count && out.okay(); ++i) {
+    out.append("%s", i ? "," : ""); out.jsonString(fields[i].name);
+    out.append(":%u", config.*(fields[i].member));
+  }
+  out.append("},\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u}}\n",
+             config.brightness, matrix.getIntensity(), Settings::MaxBrightness);
+  return out.okay();
 }
 void replyConfig() {
-  size_t used = snprintf(usbReply, sizeof(usbReply), "{\"ok\":true,\"schema\":%u,\"config\":{", configSchemaVersion);
-  for (size_t i = 0; i < configFieldCount; ++i)
-    used += snprintf(usbReply + used, sizeof(usbReply) - used, "%s\"%s\":%u",
-                     i ? "," : "", configFields[i].name, config.*(configFields[i].member));
-  snprintf(usbReply + used, sizeof(usbReply) - used, "}}\n");
+  if (!writeConfigReply(usbReply, sizeof(usbReply), configFields, configFieldCount)) replyTooLarge();
 }
 void replyStatus() {
   unsigned features = 0;
@@ -41,14 +54,16 @@ void replyStatus() {
 #ifdef VisorConnector
   features |= 16;
 #endif
-  snprintf(usbReply, sizeof(usbReply),
+  BoundedReply out(usbReply, sizeof(usbReply));
+  out.append(
     "{\"ok\":true,\"firmware\":\"8.2\",\"schema\":%u,\"features\":%u,\"expression\":%u,"
     "\"sleeping\":%s,\"visible\":%s,\"display_ready\":%s,\"boop\":%s,\"boop_reading\":%d,"
     "\"speaking\":%s,\"envelope\":%u,\"noise_floor\":%u,\"audio_gate\":%u,\"calibrating\":%s,"
     "\"audio_drops\":%lu,\"audio_frames\":%lu,\"sample_rate_hz\":%lu,\"spi_hz\":%lu,"
     "\"blink_random_ready\":%s,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu,"
     "\"paw_connected\":%s,\"paw_rejected\":%lu,\"microphone_enabled\":%s,"
-    "\"sensor_faults\":%u,\"connector_ready\":%s,\"boop_mode\":%u}\n",
+    "\"sensor_faults\":%u,\"connector_ready\":%s,\"boop_mode\":%u,"
+    "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u}}\n",
     configSchemaVersion, features, state, sleeping ? "true" : "false",
     visorVisible ? "true" : "false", displayReady ? "true" : "false",
     boopActive ? "true" : "false", boopReading, speakingActive ? "true" : "false",
@@ -58,24 +73,26 @@ void replyStatus() {
     blinkRandomPending ? "false" : "true", static_cast<unsigned long>(nextBlinkInterval),
     static_cast<unsigned long>(blinkTiming.duration()),pawIsOnline(millis())?"true":"false",
     static_cast<unsigned long>(pawRejectedPackets()),microphoneEnabled?"true":"false",
-    sensorFaults,connectorReady?"true":"false",config.boopMode);
+    sensorFaults,connectorReady?"true":"false",config.boopMode,
+    config.brightness,matrix.getIntensity(),Settings::MaxBrightness);
+  if (!out.okay()) replyTooLarge();
 }
 void replyFrame() {
   const bool hidden = sleeping || !visorVisible || !displayReady || !connectorReady;
-  size_t used = snprintf(usbReply, sizeof(usbReply), "{\"ok\":true,\"width\":112,\"height\":8,\"hidden\":%s,\"frame\":\"",
-                         hidden ? "true" : "false");
-  const char digits[] = "0123456789abcdef";
+  BoundedReply out(usbReply, sizeof(usbReply));
+  out.append("{\"ok\":true,\"width\":%u,\"height\":%u,\"hidden\":%s,\"frame\":\"",
+             static_cast<unsigned>(Face::Width), static_cast<unsigned>(Face::Height), hidden ? "true" : "false");
   for (const uint8_t byte : displayedFrame.bytes) {
-    const uint8_t value = hidden ? 0 : byte;
-    usbReply[used++] = digits[value >> 4]; usbReply[used++] = digits[value & 15];
+    if (!out.append("%02x", hidden ? 0 : byte)) break;
   }
-  memcpy(usbReply + used, "\"}\n", 4);
+  out.append("\"}\n");
+  if (!out.okay()) replyTooLarge();
 }
 void applyConfig(const RuntimeConfig &value, uint32_t now) {
   cancelBrightnessBoost();
   const bool changed = !sameConfig(config, value);
   if (!changed) return;
-  if (config.brightness != value.brightness) matrix.setIntensity(static_cast<uint8_t>(value.brightness));
+  if (config.brightness != value.brightness) matrix.setIntensity(Settings::effectiveBrightness(value.brightness));
   config = value;
   resetAnimations(now); rising = true;
 #ifdef Microphone
@@ -107,13 +124,17 @@ void handleUsbCommand(char *line, uint32_t now) {
       replyError("invalid_argument"); return;
     }
     brightnessBoostAt = now; brightnessBoostMs = duration; brightnessBoostActive = true;
-    matrix.setIntensity(static_cast<uint8_t>(intensity));
-    strcpy(usbReply, "{\"ok\":true,\"temporary\":true}\n"); return;
+    matrix.setIntensity(Settings::effectiveBrightness(intensity));
+    BoundedReply out(usbReply, sizeof(usbReply));
+    out.append("{\"ok\":true,\"temporary\":true,\"brightness\":{\"configured\":%u,\"requested\":%lu,\"effective\":%u,\"maximum\":%u}}\n",
+               config.brightness, intensity, matrix.getIntensity(), Settings::MaxBrightness);
+    if (!out.okay()) replyTooLarge();
+    return;
   }
   if (strcmp(command, "SET") == 0) {
     RuntimeConfig candidate = config;
     size_t fields = 0;
-    uint32_t seen = 0;
+    ConfigFieldSeen<configFieldCount> seen;
     for (char *token = strtok_r(nullptr, " \t", &save); token; token = strtok_r(nullptr, " \t", &save)) {
       char *equals = strchr(token, '=');
       unsigned long number;
@@ -123,8 +144,7 @@ void handleUsbCommand(char *line, uint32_t now) {
         replyError("invalid_setting"); return;
       }
       for (size_t i = 0; i < configFieldCount; ++i) if (strcmp(token, configFields[i].name) == 0) {
-        if (seen & (1UL << i)) { replyError("duplicate_setting"); return; }
-        seen |= 1UL << i;
+        if (!seen.mark(i)) { replyError("duplicate_setting"); return; }
       }
       ++fields;
     }
@@ -143,7 +163,7 @@ void handleUsbCommand(char *line, uint32_t now) {
     else {
 #ifdef Microphone
       microphoneEnabled=number!=0;
-      if(!microphoneEnabled)pauseMicrophone();else sensorFaults&=static_cast<uint16_t>(~4u);
+      if(!microphoneEnabled)pauseMicrophone();
 #else
       replyError("microphone_unavailable_or_paused");return;
 #endif
@@ -151,20 +171,38 @@ void handleUsbCommand(char *line, uint32_t now) {
     strcpy(usbReply, "{\"ok\":true}\n"); return;
   }
   if (argument) { replyError("unexpected_argument"); return; }
-  if (strcmp(command, "GET") == 0) replyConfig();
+  if (strcmp(command, "SENSORS") == 0) {
+    BoundedReply out(usbReply, sizeof(usbReply));
+    out.append("{\"ok\":true,\"faults\":%u,"
+      "\"adc\":{\"state\":%u,\"reason\":%u,\"failures\":%lu,\"retries\":%lu,\"recoveries\":%lu},"
+      "\"microphone\":{\"state\":%u,\"reason\":%u,\"failures\":%lu,\"retries\":%lu,\"recoveries\":%lu}}\n",
+      sensorFaults,sensorRecoveryState(),sensorLastFailure(),
+      static_cast<unsigned long>(sensorFailureCount()),static_cast<unsigned long>(sensorRetryCount()),
+      static_cast<unsigned long>(sensorRecoveryCount()),microphoneRecoveryState(),microphoneLastFailure(),
+      static_cast<unsigned long>(microphoneFailureCount()),static_cast<unsigned long>(microphoneRetryCount()),
+      static_cast<unsigned long>(microphoneRecoveryCount()));
+    if (!out.okay()) replyTooLarge();
+  }
+  else if (strcmp(command, "GET") == 0) replyConfig();
   else if (strcmp(command, "STATUS") == 0) replyStatus();
   else if (strcmp(command, "PERF") == 0) {
-    snprintf(usbReply, sizeof(usbReply),
+    BoundedReply out(usbReply, sizeof(usbReply));
+    out.append(
       "{\"ok\":true,\"efficiency_flags\":%u,\"render_attempts\":%lu,\"compositions\":%lu,"
       "\"cache_skips\":%lu,\"changed_frames\":%lu,\"display_wakes\":%lu,"
       "\"render_total_us\":%llu,\"render_max_us\":%lu,\"config_write_attempts\":%lu,"
-      "\"config_verified_writes\":%lu,\"config_write_failures\":%lu}\n",
+      "\"config_verified_writes\":%lu,\"config_write_failures\":%lu,\"idle_waits\":%lu,\"idle_total_us\":%llu,"
+      "\"idle_max_us\":%lu}\n",
       Efficiency::Flags, static_cast<unsigned long>(renderMetrics.attempts),
       static_cast<unsigned long>(renderMetrics.compositions), static_cast<unsigned long>(renderMetrics.skipped),
       static_cast<unsigned long>(renderMetrics.changed), static_cast<unsigned long>(renderMetrics.wakes),
       static_cast<unsigned long long>(renderMetrics.totalUs), static_cast<unsigned long>(renderMetrics.maxUs),
       static_cast<unsigned long>(ConfigStore::writeAttempts), static_cast<unsigned long>(ConfigStore::verifiedWrites),
-      static_cast<unsigned long>(ConfigStore::writeFailures));
+      static_cast<unsigned long>(ConfigStore::writeFailures),
+      static_cast<unsigned long>(controllerIdle.waits),
+      static_cast<unsigned long long>(controllerIdle.totalWaitUs),
+      static_cast<unsigned long>(controllerIdle.maxWaitUs));
+    if (!out.okay()) replyTooLarge();
   }
   else if (strcmp(command, "FRAME") == 0) replyFrame();
   else if (strcmp(command, "SAVE") == 0) {
@@ -212,4 +250,8 @@ void serviceSerial(uint32_t now) {
     if (c == '\0' || usbLineLength + 1 >= sizeof(usbLine)) usbOverflow = true;
     if (!usbOverflow) usbLine[usbLineLength++] = c;
   }
+}
+
+bool usbHasPendingWork() {
+  return Serial && (Serial.available() || usbReplySent < usbReplyLength);
 }

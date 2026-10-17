@@ -44,18 +44,32 @@ inline bool unpack(const uint8_t *in, size_t n, Packet &p) {
   p.epoch=u32(in+8); p.ticket=u32(in+12); memcpy(p.payload,in+16,p.length); return true;
 }
 inline size_t cobsEncode(const uint8_t *in,size_t n,uint8_t *out,size_t capacity) {
-  if (capacity < n+2) return 0;
+  // The minimum includes the initial code and delimiter. Additional code
+  // bytes are checked when reserved; avoid overflowing n + overhead.
+  if (!out || (!in && n) || capacity < 2 || n > capacity - 2) return 0;
   size_t codeAt=0, used=1; uint8_t code=1;
   for(size_t i=0;i<n;++i) {
-    if(in[i]==0) { out[codeAt]=code; codeAt=used++; code=1; }
-    else { out[used++]=in[i]; if(++code==0xff) {out[codeAt]=code;codeAt=used++;code=1;} }
+    if(in[i]==0) {
+      out[codeAt]=code;
+      if(used>=capacity)return 0;
+      codeAt=used++; code=1;
+    } else {
+      if(used>=capacity)return 0;
+      out[used++]=in[i];
+      if(++code==0xff) {
+        out[codeAt]=code;
+        if(used>=capacity)return 0;
+        codeAt=used++;code=1;
+      }
+    }
   }
-  out[codeAt]=code; out[used++]=0; return used;
+  out[codeAt]=code; if(used>=capacity)return 0; out[used++]=0; return used;
 }
 inline size_t cobsDecode(const uint8_t *in,size_t n,uint8_t *out,size_t capacity) {
+  if ((!in && n) || !out) return 0;
   size_t used=0, i=0;
   while(i<n) {
-    const uint8_t code=in[i++]; if(!code || i+code-1>n || used+code-1>capacity) return 0;
+    const uint8_t code=in[i++]; if(!code || size_t(code-1)>n-i || size_t(code-1)>capacity-used) return 0;
     for(unsigned j=1;j<code;++j) { if(!in[i]) return 0; out[used++]=in[i++]; }
     if(code!=0xff && i<n) {if(used==capacity)return 0;out[used++]=0;}
   }

@@ -1,10 +1,14 @@
 name: Firmware regression and builds
 on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Host prerequisites
         run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build python3-venv
       - name: Pinned toolchains
@@ -15,6 +19,8 @@ jobs:
           source build/toolchains/environment.sh
           scripts/test-firmware.sh
           scripts/test-efficiency.sh
+          python3 scripts/tests/test-host-support.py
+          python3 scripts/tests/test-board-targets.py
           python3 -O scripts/tests/test-tools.py
           python3 -O scripts/tests/test-security-builds.py
           python3 -O scripts/tests/test-helmet-tool.py
@@ -40,7 +46,7 @@ jobs:
           python3 scripts/provision-uart-auth.py --output "$key_dir/private"
           PROTOGEN_UART_KEY_DIR="$key_dir/private" python3 scripts/build-esp32.py
           python3 scripts/build-esp32.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: build-evidence

@@ -153,9 +153,9 @@ bool Handshake::receive(const Frame &f, const Mac &source, uint32_t now) {
   const uint8_t type = f.bytes[2];
   if (role == Helmet && type == SessionHello) {
     if (phase != Phase::Rendezvous) {
-      // Identical authenticated retransmissions only trigger cached response.
+      // Identical authenticated retransmissions retain the cached response.
+      // Do not let captured broadcasts bypass the bounded retry cadence.
       if (same(source, peer) && Crypto::equal(&f, &hello, sizeof(f))) {
-        nextSend = now;
         return true;
       }
       return false;
@@ -201,7 +201,6 @@ bool Handshake::receive(const Frame &f, const Mac &source, uint32_t now) {
   if (role == Paw && type == SessionResponse) {
     if (phase != Phase::Rendezvous) {
       if (same(source, peer) && Crypto::equal(&f, &response, sizeof(f))) {
-        nextSend = now;
         return true;
       }
       return false;

@@ -54,6 +54,11 @@ compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
 "${CXX:-clang++}" "${FLAGS[@]}" \
   "$ROOT/scripts/tests/retry-delay.cpp" -o "$TEST_TEMP/test-retry-delay"
 "$TEST_TEMP/test-retry-delay"
+"${CXX:-clang++}" "${FLAGS[@]}" -DWirelessPaw \
+  "$ROOT/scripts/tests/controller-idle.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  -o "$TEST_TEMP/test-controller-idle"
+"$TEST_TEMP/test-controller-idle"
 "${CXX:-clang++}" "${FLAGS[@]}" -DVisorConnector \
   "$ROOT/scripts/tests/connector-timing.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
@@ -64,6 +69,22 @@ compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
   "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-extensions"
 "$TEST_TEMP/test-extensions"
+# Exercise bounded ADC recovery, stale rail rejection, MISO/pilot restoration,
+# real buffer-gated initialization and microphone recovery with modeled timing.
+"${CXX:-clang++}" "${FLAGS[@]}" -DBoopSensor -DVisorConnector \
+  "$ROOT/scripts/tests/sensor-recovery.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  -o "$TEST_TEMP/test-sensor-recovery"
+for scenario in initialization initdetach pilot timeout invalid start stale stalecompletion boopstale cycle bounded permanent wrap; do
+  "$TEST_TEMP/test-sensor-recovery" "$scenario"
+done
+"${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor \
+  "$ROOT/scripts/tests/microphone-recovery.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-microphone-recovery"
+for scenario in rail invalid start stall bounded disable permanent wrap isolation; do
+  "$TEST_TEMP/test-microphone-recovery" "$scenario"
+done
 # Optional authenticated UART uses the production Mbed TLS subset, with PUBLIC
 # fixture material only. The actual sketch and command gate execute under ASan.
 UART_SOURCE="$ROOT/firmware/PROT_OS7_MAX7219/src/UartCrypto"
@@ -97,3 +118,6 @@ PYTHONDONTWRITEBYTECODE=1 python3 -O "$ROOT/scripts/tests/test-pq-worker.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-helmet-tool.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-pair-paw.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/compare-archive-faces.py"
+
+# Boundary serialization and compile-time brightness-ceiling regressions.
+bash "$ROOT/scripts/test-configuration-safety.sh"

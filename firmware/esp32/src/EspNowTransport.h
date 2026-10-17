@@ -7,7 +7,8 @@
 namespace Wireless {
 class EspNowTransport final : public Transport {
   QueueHandle_t queue = nullptr;
-  bool initialized = false, started = false, native = false;
+  bool initialized = false, started = false;
+  std::atomic<bool> native{false};
   uint8_t currentChannel = 0;
   std::atomic<bool> transmitting{false};
   std::atomic<uint32_t> drops{0};

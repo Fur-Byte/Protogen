@@ -118,6 +118,7 @@ def main():
         'if(PROTOGEN_PROBE_ROLE STREQUAL "paw")\n'
         '  add_compile_definitions(PAW_CONTROLLER)\n'
         'else()\n  add_compile_definitions(HELMET_RECEIVER)\nendif()\n'
+        'add_compile_definitions(PROTOGEN_S31_PREFLIGHT_ONLY=1)\n'
         'project(protogen_s31_baseline_probe)\n')
     defaults = (ROOT / "firmware/esp32/sdkconfig.defaults").read_text()
     (project / "sdkconfig.defaults").write_text(defaults.replace('"esp32c3"', '"esp32s31"'))

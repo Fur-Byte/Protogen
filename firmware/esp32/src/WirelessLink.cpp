@@ -180,7 +180,9 @@ void Link::tick(uint32_t now) {
     if (connected()) {
       if (!online())
         continue;
-      if (item.broadcast || !same(item.source, peer) ||
+      // Public control packets cannot consume the active record-auth budget.
+      if (item.broadcast || item.frame.bytes[2] != Data ||
+          !same(item.source, peer) ||
           now - lastRxCheck < AuthIntervalMs / 10)
         continue;
       lastRxCheck = now;

@@ -146,9 +146,14 @@ void EspNowTransport::received(const uint8_t *source, const uint8_t *dest,
     ++drops;
     return;
   }
+  const bool broadcast = memcmp(dest, Broadcast.bytes, 6) == 0;
+  if (!admitIngress(b, size_t(n), broadcast, native.load())) {
+    ++drops;
+    return;
+  }
   Received item{};
   memcpy(item.source.bytes, source, 6);
-  item.broadcast = memcmp(dest, Broadcast.bytes, 6) == 0;
+  item.broadcast = broadcast;
   memcpy(item.frame.bytes, b, PacketBytes);
   ++rxPackets;
   if (xQueueSend(queue, &item, 0) != pdTRUE)

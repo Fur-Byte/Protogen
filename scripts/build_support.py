@@ -29,7 +29,7 @@ def source_identity(root):
     files = {}
     for directory in ("firmware", "scripts", "tools", "profiles"):
         for path in sorted((root / directory).rglob("*")):
-            if path.is_file() and "__pycache__" not in path.parts:
+            if path.is_file() and not {"__pycache__", ".pio-mcp-workspace"}.intersection(path.parts):
                 files[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
     lock = root / "toolchain.lock.json"
     if lock.is_file():

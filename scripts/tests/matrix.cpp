@@ -26,8 +26,8 @@ static void checkLayout(byte horizontal, byte vertical, bool exhaustive) {
   panel.fillScreen(0);
   assert(panel.begin());
   assert(SPI.registers[9] == 0 && SPI.registers[11] == 7 && SPI.registers[15] == 0);
-  assert(SPI.registers[10] == 1 && !SPI.shutdown);
-  panel.setIntensity(255); assert(SPI.registers[10] == 15);
+  assert(SPI.registers[10] == Settings::effectiveBrightness(Settings::Brightness) && !SPI.shutdown);
+  panel.setIntensity(255); assert(SPI.registers[10] == Settings::MaxBrightness);
 
   // Reverse the physical tile order to exercise positioning as well as rotations.
   for (int tile = 0; tile < count; ++tile)

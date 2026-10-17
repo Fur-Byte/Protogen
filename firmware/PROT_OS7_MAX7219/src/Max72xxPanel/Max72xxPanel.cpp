@@ -15,6 +15,7 @@
  ******************************************************************/
 
 #include "Max72xxPanel.h"
+#include "../../Settings.h"
 #include <SPI.h>
 
 namespace {
@@ -50,20 +51,28 @@ Max72xxPanel::~Max72xxPanel() {
   free(bitmap);
 }
 
-bool Max72xxPanel::begin(uint32_t spiFrequency, bool stayShutdown) {
+bool Max72xxPanel::begin(uint32_t spiFrequency, bool stayShutdown, bool (*busReady)()) {
   if (!bitmap) {
     return false;
   }
   spiClock = (spiFrequency > 0 && spiFrequency <= 10000000UL) ? spiFrequency : 4000000UL;
   pinMode(SPI_CS, OUTPUT);
   digitalWrite(SPI_CS, HIGH); // Teensy digitalWrite on INPUT only changes its pull resistor.
+  initialized = false;
   SPI.begin();
+#if defined(ARDUINO_TEENSY40)
+  // Teensy SPI.begin() remuxes MISO/pin 12 on every call. MAX7219 is
+  // write-only: return the shared pilot to GPIO before any display traffic.
+  // SPI.setMISO(255) is a sentinel, not a supported input-disable API.
+  pinMode(Settings::DockPilotPin, INPUT_PULLUP);
+#endif
+  if (busReady && !busReady()) return false;
   initialized = true;
   shutdown(true);
   spiTransfer(OP_DISPLAYTEST, 0);
   spiTransfer(OP_SCANLIMIT, 7);
   spiTransfer(OP_DECODEMODE, 0);
-  setIntensity(1);
+  setIntensity(Settings::effectiveBrightness(Settings::Brightness));
   dirtyRows = 0xff;
   write(); // Load the framebuffer before enabling the LEDs.
   if (!stayShutdown) shutdown(false);
@@ -92,7 +101,8 @@ void Max72xxPanel::shutdown(boolean status) {
 }
 
 void Max72xxPanel::setIntensity(byte intensity) {
-  spiTransfer(OP_INTENSITY, intensity > 15 ? 15 : intensity);
+  appliedIntensity = Settings::effectiveBrightness(intensity);
+  spiTransfer(OP_INTENSITY, appliedIntensity);
 }
 
 void Max72xxPanel::fillScreen(uint16_t color) {

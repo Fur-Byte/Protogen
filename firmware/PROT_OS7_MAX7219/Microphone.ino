@@ -1,8 +1,61 @@
+namespace AudioRecovery {
+#ifdef Microphone
+bool failed=false, permanent=false, recovering=false;
+uint8_t lastFailure=0;
+uint32_t faultAt=0, retryDelay=0, failures=0, retries=0, recoveries=0;
+volatile uint16_t healthyRun=0;
+void fail(uint32_t now,uint8_t reason,bool isPermanent=false) {
+  pauseMicrophone();
+  if(sensorAdc){sensorAdc->adc0->stopContinuous();sensorAdc->adc0->resetError();}
+  failed=true;permanent=isPermanent;recovering=true;lastFailure=reason;++failures;
+  sensorFaults|=4;faultAt=now;
+  retryDelay=retryDelay ? (retryDelay < Settings::SensorRetryMaxMs / 2 ?
+    retryDelay * 2 : Settings::SensorRetryMaxMs) : Settings::SensorRetryInitialMs;
+}
+#endif
+}
+uint32_t microphoneFailureCount() {
+#ifdef Microphone
+  return AudioRecovery::failures;
+#else
+  return 0;
+#endif
+}
+uint32_t microphoneRetryCount() {
+#ifdef Microphone
+  return AudioRecovery::retries;
+#else
+  return 0;
+#endif
+}
+uint32_t microphoneRecoveryCount() {
+#ifdef Microphone
+  return AudioRecovery::recoveries;
+#else
+  return 0;
+#endif
+}
+uint8_t microphoneRecoveryState() {
+#ifdef Microphone
+  return AudioRecovery::permanent ? 2 : AudioRecovery::failed ? 1 : AudioRecovery::recovering ? 3 : 0;
+#else
+  return 0;
+#endif
+}
+uint8_t microphoneLastFailure() {
+#ifdef Microphone
+  return AudioRecovery::lastFailure;
+#else
+  return 0;
+#endif
+}
 #ifdef Microphone
 // QuadTimer4 triggers ADC0 at 4 kHz. The completion ISR only queues samples;
 // floating-point DSP, graphics, and USB are always in the main loop.
 void microphoneSampleISR() {
   const int sample = sensorAdc->adc0->readSingle(); // Acknowledge every conversion.
+  if(sample<=2 || sample>=1021)AudioRecovery::healthyRun=0;
+  else if(AudioRecovery::healthyRun<256)++AudioRecovery::healthyRun;
   if(sample<=2 || sample>=1021) {if(audioRailRun<256)++audioRailRun;}
   else audioRailRun=0;
   if (audioPriming) audioPriming = false; // Discard the software setup conversion.
@@ -26,12 +79,15 @@ void updateAudioCoefficients() {
 }
 
 void startMicrophone() {
-  if (!sensorAdc || microphoneSampling) return;
+  if(microphoneSampling)return;
+  if(!sensorAdc){AudioRecovery::fail(millis(),1,true);return;}
+  if(!sensorAdc->adc0->checkPin(micPin)){AudioRecovery::fail(millis(),5,true);return;}
   audioRead = audioWrite = 0; microphoneSampleCount = 0; frameActivity = false;
   audioBiasReady = false; handledAudioDrops = audioDroppedSamples;
-  audioPriming = true; microphoneSampling = true;
+  audioPriming = true; AudioRecovery::healthyRun=0;
   audioRailRun=0;lastAudioWrite=audioWrite;audioProgressAt=millis();
-  sensorAdc->adc0->startSingleRead(micPin);
+  if(!sensorAdc->adc0->startSingleRead(micPin)){AudioRecovery::fail(millis(),4);return;}
+  microphoneSampling=true;
   sensorAdc->adc0->enableInterrupts(microphoneSampleISR, 64);
   sensorAdc->adc0->startTimer(samplingFrequencyHz);
 }
@@ -74,12 +130,26 @@ void processMicrophoneSample(float sample, uint32_t now) {
 
 void microphone() {
 #ifdef Microphone
-  startMicrophone();
   const uint32_t now = millis();
+  if(AudioRecovery::permanent)return;
+  if(AudioRecovery::failed) {
+    if(now-AudioRecovery::faultAt<AudioRecovery::retryDelay)return;
+    AudioRecovery::failed=false;++AudioRecovery::retries;
+  }
+  startMicrophone();
+  if(!microphoneSampling)return;
   if(audioWrite!=lastAudioWrite){lastAudioWrite=audioWrite;audioProgressAt=now;}
   if(audioRailRun>=256 || now-audioProgressAt>=100) {
-    // A stuck/railed microphone only disables speech. Expressions and blink continue.
-    microphoneEnabled=false;sensorFaults|=4;pauseMicrophone();return;
+    // Keep the user's enable preference; a failed microphone provides no speech.
+    AudioRecovery::fail(now,audioRailRun>=256 ? 3 : 2);return;
+  }
+  if(AudioRecovery::recovering) {
+    // Require 64 ms of consecutive off-rail samples before clearing the fault.
+    // Discard all probe samples rather than interpreting them as speech.
+    if(AudioRecovery::healthyRun<256)return;
+    noInterrupts();audioRead=audioWrite;interrupts();
+    AudioRecovery::recovering=false;AudioRecovery::retryDelay=0;++AudioRecovery::recoveries;
+    sensorFaults&=static_cast<uint16_t>(~4u);
   }
   if (audioDroppedSamples != handledAudioDrops) {
     // Queued data straddles a gap: discard it rather than FFT unevenly spaced samples.
@@ -121,9 +191,8 @@ void pauseMicrophone() {
 
 bool calibrateMicrophone() {
 #ifdef Microphone
-  if (sleeping || !visorVisible || !connectorReady || !microphoneEnabled || boopActive || !sensorAdc) return false;
+  if (sleeping || !visorVisible || !connectorReady || !microphoneEnabled || boopActive || !sensorAdc || (sensorFaults&4)) return false;
   pauseMicrophone(); calibratingAudio = true;
-  sensorFaults&=static_cast<uint16_t>(~4u);
   calibrationTotal = 0; calibrationSamples = 0;
   return true;
 #else

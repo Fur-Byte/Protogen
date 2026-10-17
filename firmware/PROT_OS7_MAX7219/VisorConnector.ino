@@ -1,10 +1,16 @@
 #include "src/HelmetProtocol/RetryDelay.h"
 namespace Dock {
 #ifdef VisorConnector
-constexpr int PowerEnable=6, BufferEnable=4, Pilot=12, VoltagePin=15;
+constexpr int PowerEnable=Settings::DockPowerEnablePin, BufferEnable=Settings::DockBufferEnablePin;
+constexpr int Pilot=Settings::DockPilotPin, VoltagePin=Settings::DockVoltagePin;
 uint32_t changedAt=0,lastPoll=0;
 HelmetLink::RetryDelay<500> retry;
 uint8_t stage=0; // 0 off, 1 ramping, 2 ready; hardware also gates both outputs.
+bool enableBuffer() {
+  const int voltage=readDisplayVoltage();
+  if(digitalRead(Pilot)!=LOW || !visorVisible || voltage<595 || voltage>684)return false;
+  digitalWrite(BufferEnable,HIGH);return true;
+}
 void disable(uint32_t now,bool fault) {
   digitalWrite(BufferEnable,LOW);digitalWrite(PowerEnable,LOW);
   connectorReady=false;displayBlanked=true;frameValid=false;
@@ -30,6 +36,7 @@ void updateVisorConnector(uint32_t now) {
   if(digitalRead(Pilot)!=LOW || !visorVisible) {if(stage)disable(now,false);return;}
   if(stage==0) {
     if(!retry.ready(now) || now-changedAt<20)return;
+    invalidateDisplayVoltage();
     digitalWrite(PowerEnable,HIGH);changedAt=now;stage=1;return;
   }
   if(stage==1 && now-changedAt<50)return;
@@ -38,10 +45,17 @@ void updateVisorConnector(uint32_t now) {
   const int voltage=readDisplayVoltage();
   if(voltage<595 || voltage>684) {disable(now,true);return;}
   if(stage==1) {
-    digitalWrite(BufferEnable,HIGH);
-    displayReady=matrix.begin(Settings::SpiFrequencyHz,true);
-    cancelBrightnessBoost();matrix.setIntensity(static_cast<uint8_t>(config.brightness));
+    digitalWrite(BufferEnable,LOW);
+    // The driver restores pilot GPIO first, then qualifies/enables the buffer
+    // before programming the MAX7219s. Keeping it off for all of begin() would
+    // silently discard the displays' initialization registers.
+    displayReady=matrix.begin(Settings::SpiFrequencyHz,true,enableBuffer);
+    cancelBrightnessBoost();matrix.setIntensity(Settings::effectiveBrightness(config.brightness));
     if(!displayReady){disable(now,true);return;}
+    // SPI initialization may take time. Never expose signals until the physical
+    // pilot and a fresh measurement still qualify this powered connection.
+    if(digitalRead(Pilot)!=LOW || !visorVisible || readDisplayVoltage()<595 || readDisplayVoltage()>684) {disable(millis(),true);return;}
+    digitalWrite(BufferEnable,HIGH);
     sensorFaults&=static_cast<uint16_t>(~1u);
     connectorReady=true;displayBlanked=true;frameValid=false;rising=true;stage=2;
   }

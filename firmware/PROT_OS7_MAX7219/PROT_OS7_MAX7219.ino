@@ -16,6 +16,7 @@
 #include "VisualCache.h"
 #include "src/HelmetProtocol/Efficiency.h"
 #include "BlinkTiming.h"
+#include "ControllerIdle.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
@@ -33,7 +34,9 @@ ADC *sensorAdc = nullptr; // Construct during setup(), after Teensy core initial
 #endif
 
 constexpr int pinCS = 8;
-constexpr int numberOfHorizontalDisplays = 14, numberOfVerticalDisplays = 1;
+constexpr int numberOfHorizontalDisplays = Face::Width / 8, numberOfVerticalDisplays = Face::Height / 8;
+static_assert(Face::Width % 8 == 0 && Face::Height % 8 == 0,
+              "Face geometry must cover complete MAX7219 tiles.");
 constexpr int ButtonPin = 2, VisorPin = 3, redPin = 5, greenPin = 9, bluePin = 10;
 #ifdef BoopSensor
 constexpr int irPin = A7;
@@ -80,10 +83,11 @@ struct RenderMetrics {
   uint32_t maxUs = 0;
   uint64_t totalUs = 0;
 } renderMetrics;
+ControllerIdle controllerIdle;
 bool brightnessBoostActive = false;
 uint32_t brightnessBoostAt = 0, brightnessBoostMs = 0;
 void cancelBrightnessBoost() {
-  if (brightnessBoostActive) matrix.setIntensity(static_cast<uint8_t>(config.brightness));
+  if (brightnessBoostActive) matrix.setIntensity(Settings::effectiveBrightness(config.brightness));
   brightnessBoostActive = false;
 }
 
@@ -119,9 +123,9 @@ void setup() {
   state = static_cast<uint8_t>(config.startupExpression);
   displayReady = matrix.begin(Settings::SpiFrequencyHz, true);
   matrix.shutdown(true);
-  matrix.setIntensity(static_cast<uint8_t>(config.brightness));
+  matrix.setIntensity(Settings::effectiveBrightness(config.brightness));
   analogReadResolution(10);
-  for (uint8_t tile = 0; tile < 14; ++tile) matrix.setRotation(tile, 3);
+  for (uint8_t tile = 0; tile < numberOfHorizontalDisplays * numberOfVerticalDisplays; ++tile) matrix.setRotation(tile, 3);
   matrix.fillScreen(LOW);
   pinMode(ButtonPin, INPUT_PULLUP);
 #ifdef VisorSensor
@@ -154,6 +158,13 @@ void loop() {
       matrix.shutdown(true); setColor(0,0,0); resetAnimations(now);
       displayBlanked = true;
     }
+    // Finish queued USB/UART work before waiting. RX/USB interrupts wake the
+    // core; a byte arriving between this check and WFI waits at most one tick.
+    bool pending = usbHasPendingWork();
+#ifdef WirelessPaw
+    pending = pending || pawHasPendingWork();
+#endif
+    if (!pending) controllerIdle.wait();
     return;
   }
   const bool waking = displayBlanked;

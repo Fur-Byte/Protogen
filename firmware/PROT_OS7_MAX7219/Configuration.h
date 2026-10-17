@@ -82,3 +82,20 @@ inline bool sameConfig(const RuntimeConfig &left, const RuntimeConfig &right) {
     if (left.*(field.member) != right.*(field.member)) return false;
   return true;
 }
+
+// One bit per field, with shifts bounded to a byte. Storage grows with the table
+// instead of imposing a 32-field limit; out-of-range indices fail closed.
+template<size_t Count> class ConfigFieldSeen {
+  static_assert(Count > 0, "A field tracker needs at least one configurable field.");
+ public:
+  bool mark(size_t index) {
+    if (index >= Count) return false;
+    const uint8_t bit = static_cast<uint8_t>(1u << (index % 8));
+    uint8_t &entry = bits[index / 8];
+    if (entry & bit) return false;
+    entry |= bit;
+    return true;
+  }
+ private:
+  uint8_t bits[(Count + 7) / 8] = {};
+};

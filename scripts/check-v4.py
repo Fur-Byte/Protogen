@@ -12,6 +12,7 @@ from pathlib import Path
 import shlex
 import subprocess
 from build_support import source_identity
+from host_support import non_pie_flags, analyzer_compilers
 
 ROOT=Path(__file__).resolve().parents[1]
 V4=ROOT/"firmware/esp32/protocol_v4"
@@ -66,7 +67,7 @@ def main():
     for p,h in manifest["source_sha256"].items():
         if sha(upstream/p)!=h:raise RuntimeError("Upstream/vendor mismatch: "+p)
     common=[os.getenv("CC","cc"),"-std=c11","-O2","-Wall","-Wextra","-Werror",
-            "-fsanitize=address,undefined","-fno-sanitize-recover=all","-fno-pie","-no-pie",
+            "-fsanitize=address,undefined","-fno-sanitize-recover=all",*non_pie_flags(),
             '-DMLK_CONFIG_FILE="'+str(V4/"NativeConfig.h")+'"',
             "-I"+str(V4/"vendor/mlkem-native/mlkem"),V4/"vendor/mlkem-native/mlkem/mlkem_native.c",
             upstream/"test/notrandombytes/notrandombytes.c"]
@@ -78,7 +79,7 @@ def main():
     run(["python3",ROOT/"scripts/tests/v4/make_vectors.py","--check"],"independent-vectors")
     host_result=None
     if not args.skip_host:host_result=run(["bash",ROOT/"scripts/test-v4.sh"],"host-sanitized")
-    clang=ROOT.parent/"toolchains/clang/usr/lib/llvm-19/bin/clang"
+    clang,clangxx=analyzer_compilers()
     analyses=[]
     database=json.loads((ROOT/"build/v4-test/compile_commands.json").read_text())
     for entry in database:
@@ -90,7 +91,7 @@ def main():
             if flag=="-o":skip=True;continue
             if flag=="-c" or flag.startswith("-fsanitize=") or flag in ["-fno-sanitize-recover=all","-fstack-usage"]:continue
             filtered.append(flag)
-        compiler=clang if p.suffix==".c" else clang.with_name("clang++")
+        compiler=clang if p.suffix==".c" else clangxx
         result=run([compiler,"--analyze","-Xanalyzer","-analyzer-output=text"]+filtered,"analyze-"+p.stem)
         log=(B/("analyze-"+p.stem+".log")).read_text()
         if log.strip():raise RuntimeError("Analyzer diagnostics: "+p.name)

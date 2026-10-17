@@ -22,7 +22,7 @@ int main() {
   }
   assert(success(request("SET brightness=2 mouth_mode=1 boop_trigger=700 boop_release=750")));
   assert(config.brightness == 2 && config.mouthMode == 1 && config.boopThreshold == 700);
-  assert(SPI.registers[10] == 2);
+  assert(SPI.registers[10] == Settings::effectiveBrightness(2));
   assert(success(request("SAVE")));
   RuntimeConfig stored;
   assert(loadStoredConfig(stored) && sameConfig(config, stored));

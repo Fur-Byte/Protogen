@@ -40,7 +40,7 @@ int main() {
   run(1000);assert(!boopActive);
   config.boopMode=0;boopInput=100;run(20);assert(boopActive);boopInput=1023;run(20);assert(!boopActive);
   microphoneEnabled=true;micInput=1023;run(100);
-  assert(!microphoneEnabled && !speakingActive && (sensorFaults&4));
+  assert(microphoneEnabled && !microphoneSampling && !speakingActive && (sensorFaults&4));
   // A permanently busy ADC1 conversion can't wait inside the face loop.
   sensorAdc->adc1->stuck=true;run(30);assert(sensorFaults&2);
   const uint8_t before=state;buttonInput=LOW;run(35);buttonInput=HIGH;run(35);assert(state==(before+1)%ExpressionCount);

@@ -60,7 +60,7 @@ void updateBoop(uint32_t now, bool forceSample) {
   }
   lastSample = now;
   const int reading = readBoopSensor();
-  if (reading < 0 || reading > 1023) return;
+  if (reading < 0 || reading > 1023) { boopState=false;boopArmed=false;boopReading=-1;return; }
   boopReading = reading;
   if (reading >= config.boopRelease) {
     boopState = false;

@@ -20,6 +20,21 @@ spec.loader.exec_module(features)
 
 
 class FeatureChecks(unittest.TestCase):
+    def test_platformio_mcp_outputs_do_not_change_source_identity(self):
+        from build_support import source_identity
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'firmware/esp32/src/main.cpp'
+            source.parent.mkdir(parents=True)
+            source.write_text('int value = 1;')
+            before = source_identity(root)
+            log = root / 'firmware/esp32/.pio-mcp-workspace/logs/build.log'
+            log.parent.mkdir(parents=True)
+            log.write_text('Generated diagnostic output')
+            self.assertEqual(source_identity(root), before)
+            source.write_text('int value = 2;')
+            self.assertNotEqual(source_identity(root), before)
+
     def test_all_initial_and_requested_combinations(self):
         original = (ROOT / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino").read_text()
         combinations = [tuple(name for name, flag in zip(features.FEATURES, flags) if flag)
