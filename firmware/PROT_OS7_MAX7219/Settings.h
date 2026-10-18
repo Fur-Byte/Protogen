@@ -37,6 +37,9 @@ constexpr uint32_t BlinkIntervalMs = 4000; // Center of ordinary inter-blink pau
 constexpr uint32_t GlitchIntervalMs = 7000;
 constexpr uint32_t GlitchStepMs = 100;
 constexpr uint32_t TransitionMs = 160;
+constexpr uint32_t TransitionFeedbackRampMs = 60; // Prompt closing feedback; long transitions extend the closed hold.
+static_assert(TransitionFeedbackRampMs>0 && TransitionFeedbackRampMs<=60,
+              "TransitionFeedbackRampMs must be 1..60ms for prompt feedback.");
 constexpr uint32_t BlinkJitterMs = 2000;
 constexpr uint32_t AudioAttackMs = 20;
 constexpr uint32_t AudioReleaseMs = 120;

@@ -10,7 +10,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Host prerequisites
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build python3-venv
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build python3-venv nodejs
       - name: Pinned toolchains
         run: python3 scripts/install-toolchains.py
       - name: Regressions, optimized Python, features and both wireless roles
@@ -19,9 +19,12 @@ jobs:
           source build/toolchains/environment.sh
           scripts/test-firmware.sh
           scripts/test-efficiency.sh
+          scripts/test-latency.sh
+          scripts/test-s31-platform.sh
           python3 scripts/tests/test-host-support.py
           python3 scripts/tests/test-runner-portability.py
           python3 scripts/tests/test-board-targets.py
+          python3 scripts/tests/test-scheduler-config.py
           python3 -O scripts/tests/test-tools.py
           python3 -O scripts/tests/test-security-builds.py
           python3 -O scripts/tests/test-helmet-tool.py
@@ -37,6 +40,8 @@ jobs:
           python3 scripts/check-uart-auth.py
           python3 scripts/build.py
           python3 scripts/build-esp32.py
+          python3 scripts/check-mlkem-preflight.py
+          python3 scripts/check-v4.py
           for candidate in cache_face case_2hz oled_1hz oled_pages checkpoint_5min wearer_deadlines main_events oled_protection; do
             python3 scripts/build-efficiency.py "$candidate"
           done

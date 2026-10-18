@@ -301,10 +301,11 @@ def main():
     run(['cc']+host_flags+native_flags+['-pthread',str(T/'guarded_stack.c'),str(SOURCE/'mlkem/mlkem_native.c'),'-o',str(guard)],B/'guarded-stack-build.log')
     report['host_guarded_stack']={}
     for stack in (24576,32768):
-        process=subprocess.run([str(guard),str(stack)],cwd=B,text=True,capture_output=True,timeout=30)
-        report['host_guarded_stack'][str(stack)]={'exit_code':process.returncode,
+        page=os.sysconf("SC_PAGESIZE");allocated=(stack+page-1)//page*page
+        process=subprocess.run([str(guard),str(allocated)],cwd=B,text=True,capture_output=True,timeout=30)
+        report['host_guarded_stack'][str(stack)]={'exit_code':process.returncode,'requested_stack_bytes':stack,'allocated_stack_bytes':allocated,
             'measurements':json.loads(process.stdout) if process.returncode==0 else None,
-            'limitation':'Linux x86-64 pthread startup and written canary extent; not MCU high-water or reserved-frame depth'}
+            'limitation':'POSIX host pthread startup and written canary extent; not MCU high-water or reserved-frame depth'}
         if process.returncode not in (0,-11):raise RuntimeError('Unexpected guarded stack failure')
     clang=os.environ.get('MLKEM_CLANG') or shutil.which('clang')
     if not clang:

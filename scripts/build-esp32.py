@@ -46,7 +46,7 @@ def main():
         record["targets"]={}
         for role in ("helmet","paw"):
             sdk=json.loads((build/"esp32"/role/"config/sdkconfig.json").read_text())
-            required={"ESPTOOLPY_FLASHSIZE":"4MB","PARTITION_TABLE_SINGLE_APP_LARGE":True,
+            required={"FREERTOS_HZ":1000,"ESPTOOLPY_FLASHSIZE":"4MB","PARTITION_TABLE_SINGLE_APP_LARGE":True,
                       "MBEDTLS_PSK_MODES":True,"MBEDTLS_KEY_EXCHANGE_PSK":True,
                       "MBEDTLS_SSL_PROTO_DTLS":True,"MBEDTLS_SSL_PROTO_TLS1_2":True,
                       "MBEDTLS_SSL_COOKIE_C":True,"MBEDTLS_SSL_PROTO_TLS1_3":False,

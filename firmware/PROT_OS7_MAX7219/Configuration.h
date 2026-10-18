@@ -13,6 +13,12 @@ enum Expression : uint8_t {
 // Values are wide until validation, so 256 cannot silently become brightness 0.
 struct RuntimeConfig {
   uint16_t brightness = Settings::Brightness;
+  // Runtime authorization is separate from the user's requested 0..15 value.
+  // It is not a SET field or part of the public configuration schema.
+  uint16_t brightnessApproval = Settings::effectiveBrightness(Settings::Brightness);
+  uint8_t effectiveBrightness() const {
+    return Settings::effectiveBrightness(brightness < brightnessApproval ? brightness : brightnessApproval);
+  }
   uint16_t startupExpression = Settings::StartupExpression;
   uint16_t mouthMode = Settings::MouthMode;
   uint16_t sensitivity = Settings::MicrophoneSensitivity;
@@ -63,7 +69,7 @@ inline bool validConfig(const RuntimeConfig &value) {
     const uint16_t number = value.*(field.member);
     if (number < field.minimum || number > field.maximum) return false;
   }
-  return value.boopThreshold < value.boopRelease && value.blinkJitter < value.blinkInterval;
+  return value.brightnessApproval <= 15 && value.boopThreshold < value.boopRelease && value.blinkJitter < value.blinkInterval;
 }
 
 inline bool setConfigField(RuntimeConfig &value, const char *key, unsigned long number) {
@@ -71,6 +77,10 @@ inline bool setConfigField(RuntimeConfig &value, const char *key, unsigned long 
     if (strcmp(key, field.name) == 0) {
       if (number < field.minimum || number > field.maximum) return false;
       value.*(field.member) = static_cast<uint16_t>(number);
+      // Only an explicit brightness request authorizes the current qualified
+      // compile-time ceiling. Unrelated SET fields retain the saved approval.
+      if (field.member == &RuntimeConfig::brightness)
+        value.brightnessApproval = Settings::effectiveBrightness(number);
       return true;
     }
   }
@@ -78,6 +88,7 @@ inline bool setConfigField(RuntimeConfig &value, const char *key, unsigned long 
 }
 
 inline bool sameConfig(const RuntimeConfig &left, const RuntimeConfig &right) {
+  if (left.brightnessApproval != right.brightnessApproval) return false;
   for (const auto &field : configFields)
     if (left.*(field.member) != right.*(field.member)) return false;
   return true;

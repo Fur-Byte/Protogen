@@ -21,8 +21,8 @@ bool writeConfigReply(char *buffer, size_t capacity, const ConfigField *fields, 
     out.append("%s", i ? "," : ""); out.jsonString(fields[i].name);
     out.append(":%u", config.*(fields[i].member));
   }
-  out.append("},\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u}}\n",
-             config.brightness, matrix.getIntensity(), Settings::MaxBrightness);
+  out.append("},\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",
+             config.brightness, matrix.getIntensity(), Settings::MaxBrightness, config.brightnessApproval);
   return out.okay();
 }
 void replyConfig() {
@@ -63,7 +63,7 @@ void replyStatus() {
     "\"blink_random_ready\":%s,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu,"
     "\"paw_connected\":%s,\"paw_rejected\":%lu,\"microphone_enabled\":%s,"
     "\"sensor_faults\":%u,\"connector_ready\":%s,\"boop_mode\":%u,"
-    "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u}}\n",
+    "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",
     configSchemaVersion, features, state, sleeping ? "true" : "false",
     visorVisible ? "true" : "false", displayReady ? "true" : "false",
     boopActive ? "true" : "false", boopReading, speakingActive ? "true" : "false",
@@ -74,7 +74,7 @@ void replyStatus() {
     static_cast<unsigned long>(blinkTiming.duration()),pawIsOnline(millis())?"true":"false",
     static_cast<unsigned long>(pawRejectedPackets()),microphoneEnabled?"true":"false",
     sensorFaults,connectorReady?"true":"false",config.boopMode,
-    config.brightness,matrix.getIntensity(),Settings::MaxBrightness);
+    config.brightness,matrix.getIntensity(),Settings::MaxBrightness,config.brightnessApproval);
   if (!out.okay()) replyTooLarge();
 }
 void replyFrame() {
@@ -92,7 +92,7 @@ void applyConfig(const RuntimeConfig &value, uint32_t now) {
   cancelBrightnessBoost();
   const bool changed = !sameConfig(config, value);
   if (!changed) return;
-  if (config.brightness != value.brightness) matrix.setIntensity(Settings::effectiveBrightness(value.brightness));
+  if (config.brightness != value.brightness || config.brightnessApproval != value.brightnessApproval) matrix.setIntensity(value.effectiveBrightness());
   config = value;
   resetAnimations(now); rising = true;
 #ifdef Microphone
@@ -126,8 +126,8 @@ void handleUsbCommand(char *line, uint32_t now) {
     brightnessBoostAt = now; brightnessBoostMs = duration; brightnessBoostActive = true;
     matrix.setIntensity(Settings::effectiveBrightness(intensity));
     BoundedReply out(usbReply, sizeof(usbReply));
-    out.append("{\"ok\":true,\"temporary\":true,\"brightness\":{\"configured\":%u,\"requested\":%lu,\"effective\":%u,\"maximum\":%u}}\n",
-               config.brightness, intensity, matrix.getIntensity(), Settings::MaxBrightness);
+    out.append("{\"ok\":true,\"temporary\":true,\"brightness\":{\"configured\":%u,\"requested\":%lu,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",
+               config.brightness, intensity, matrix.getIntensity(), Settings::MaxBrightness, config.brightnessApproval);
     if (!out.okay()) replyTooLarge();
     return;
   }
@@ -171,7 +171,30 @@ void handleUsbCommand(char *line, uint32_t now) {
     strcpy(usbReply, "{\"ok\":true}\n"); return;
   }
   if (argument) { replyError("unexpected_argument"); return; }
-  if (strcmp(command, "SENSORS") == 0) {
+  if (strcmp(command, "LATENCY") == 0) {
+    BoundedReply out(usbReply,sizeof(usbReply));
+    static const char responseFormat[] PROGMEM = "{\"ok\":true,\"segment\":\"validated_uart_to_visible_spi\",\"accepted\":%lu,"
+      "\"completed\":%lu,\"skipped\":%lu,\"superseded\":%lu,\"expired\":%lu,"
+      "\"pending\":%s,\"last_us\":%lu,\"max_us\":%lu}\n";
+    out.append(responseFormat,
+      static_cast<unsigned long>(responseTiming.accepted),static_cast<unsigned long>(responseTiming.completed),
+      static_cast<unsigned long>(responseTiming.skipped),static_cast<unsigned long>(responseTiming.superseded),
+      static_cast<unsigned long>(responseTiming.expired),responseTiming.pending?"true":"false",
+      static_cast<unsigned long>(responseTiming.lastUs),static_cast<unsigned long>(responseTiming.maxUs));
+    if(!out.okay())replyTooLarge();
+  }
+  else if (strcmp(command, "IDLE") == 0) {
+    BoundedReply out(usbReply, sizeof(usbReply));
+    static const char responseFormat[] PROGMEM = "{\"ok\":true,\"attempts\":%lu,\"waits\":%lu,\"declined\":%lu,"
+      "\"last_guard\":%u,\"over_budget_waits\":%lu,\"total_us\":%llu,\"max_us\":%lu}\n";
+    out.append(responseFormat,
+      static_cast<unsigned long>(controllerIdle.attempts),static_cast<unsigned long>(controllerIdle.waits),
+      static_cast<unsigned long>(controllerIdle.declined),static_cast<unsigned>(controllerIdle.lastGuard),
+      static_cast<unsigned long>(controllerIdle.overBudgetWaits),static_cast<unsigned long long>(controllerIdle.totalWaitUs),
+      static_cast<unsigned long>(controllerIdle.maxWaitUs));
+    if (!out.okay()) replyTooLarge();
+  }
+  else if (strcmp(command, "SENSORS") == 0) {
     BoundedReply out(usbReply, sizeof(usbReply));
     out.append("{\"ok\":true,\"faults\":%u,"
       "\"adc\":{\"state\":%u,\"reason\":%u,\"failures\":%lu,\"retries\":%lu,\"recoveries\":%lu},"
@@ -207,7 +230,14 @@ void handleUsbCommand(char *line, uint32_t now) {
   else if (strcmp(command, "FRAME") == 0) replyFrame();
   else if (strcmp(command, "SAVE") == 0) {
     pauseMicrophone(); // Flash programming can mask interrupts; restart cleanly afterward.
-    if (saveStoredConfig(config)) strcpy(usbReply, "{\"ok\":true,\"saved\":true}\n");
+    if (saveStoredConfig(config)) {
+      BoundedReply out(usbReply, sizeof(usbReply));
+      out.append("{\"ok\":true,\"saved\":true,\"record_format\":%u,"
+                 "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",
+                 ConfigStore::RecordVersion,config.brightness,matrix.getIntensity(),
+                 Settings::MaxBrightness,config.effectiveBrightness());
+      if(!out.okay())replyTooLarge();
+    }
     else replyError("save_failed");
   } else if (strcmp(command, "LOAD") == 0) {
     RuntimeConfig saved;
@@ -253,5 +283,6 @@ void serviceSerial(uint32_t now) {
 }
 
 bool usbHasPendingWork() {
-  return Serial && (Serial.available() || usbReplySent < usbReplyLength);
+  return Serial && (usbReplySent < usbReplyLength
+      ? Serial.availableForWrite() > 0 : Serial.available() > 0);
 }

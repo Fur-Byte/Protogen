@@ -26,6 +26,7 @@ bool pawConnected=false;
 uint32_t faceAt=0;
 portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
 std::atomic<bool> fullRequested{false};
+std::atomic<uint32_t> fullFailureGeneration{0};
 std::atomic<TaskHandle_t> worker{nullptr};
 void notifyWorker(){const auto t=worker.load();if(t)xTaskNotifyGive(t);}
 uint32_t nowMs(){return static_cast<uint32_t>(esp_timer_get_time()/1000);}
@@ -57,6 +58,7 @@ i2c_master_bus_handle_t bus=nullptr;
 i2c_master_dev_handle_t sht=nullptr,ina=nullptr;
 spi_device_handle_t oled=nullptr;
 bool inaConfigured=false;
+EnergyFault inaFault=EnergyFault::None;
 uint8_t frame[1024]{}, sentFrame[1024]{};
 uint8_t validPages=0;
 bool screenSleeping=false;
@@ -80,24 +82,36 @@ bool initBus() {
 bool regRead(uint8_t reg,uint8_t *b,size_t n) {return ina && i2c_master_transmit_receive(ina,&reg,1,b,n,10)==ESP_OK;}
 bool regWrite(uint8_t reg,uint16_t v) {const uint8_t b[]={reg,uint8_t(v>>8),uint8_t(v)};return ina && i2c_master_transmit(ina,b,3,10)==ESP_OK;}
 bool configureIna() {
-  uint8_t b[2];
-  if(!regRead(0x3e,b,2) || SensorMath::bigEndian(b,2)!=0x5449 || !regRead(0x3f,b,2) ||
-      (SensorMath::bigEndian(b,2)&0xfff0)!=0x2280)return false;
+  uint8_t b[2];inaFault=EnergyFault::Bus;
+  if(!regRead(0x3e,b,2))return false;
+  if(SensorMath::bigEndian(b,2)!=0x5449){inaFault=EnergyFault::Identity;return false;}
+  if(!regRead(0x3f,b,2))return false;
+  if((SensorMath::bigEndian(b,2)&0xfff0)!=0x2280){inaFault=EnergyFault::Identity;return false;}
   // 15 mOhm fitted shunt, +/-5 A range, ADCRANGE=0. No accumulator reset.
-  return regWrite(0x00,0x0000) && regWrite(0x02,SensorMath::ShuntCalibration) && regWrite(0x01,0xfb68);
+  inaFault=EnergyFault::Configuration;
+  const bool okay=regWrite(0x00,0x0000) && regWrite(0x02,SensorMath::ShuntCalibration) && regWrite(0x01,0xfb68);
+  if(okay)inaFault=EnergyFault::None;
+  return okay;
 }
 bool energy(float &volts,float &amps,uint64_t &counter) {
-  uint8_t b[5];
+  uint8_t b[5];inaFault=EnergyFault::Bus;
   if(!regRead(0x0b,b,2))return false;
   const uint16_t flags=SensorMath::bigEndian(b,2);
-  if(!(flags&1) || (flags&0x0a00))return false; // Trim-memory status, math/energy overflow.
+  if(!(flags&1)){inaFault=EnergyFault::Trim;return false;}
+  if(flags&0x0a00){inaFault=EnergyFault::Overflow;return false;}
+  // CNVRF proves a completed conversion since DIAG_ALRT was last read.
+  // Trim-memory health alone does not make old data fresh.
+  if(!(flags&2)){inaFault=EnergyFault::NotReady;return false;}
   if(!regRead(0x05,b,3))return false;
-  volts=(SensorMath::bigEndian(b,3)>>4)*0.0001953125;
+  const float measuredVolts=(SensorMath::bigEndian(b,3)>>4)*0.0001953125;
   if(!regRead(0x07,b,3))return false;
-  amps=SensorMath::signedCurrent(b)*SensorMath::CurrentLsb;
+  const float measuredAmps=SensorMath::signedCurrent(b)*SensorMath::CurrentLsb;
   if(!regRead(0x09,b,5))return false;
-  counter=SensorMath::bigEndian(b,5);
-  return isfinite(volts) && isfinite(amps) && volts>=9 && volts<=21 && amps>=-0.01 && amps<=4.5;
+  const uint64_t measuredCounter=SensorMath::bigEndian(b,5);
+  if(!isfinite(measuredVolts) || !isfinite(measuredAmps) || measuredVolts<9 || measuredVolts>21 ||
+      measuredAmps< -0.01 || measuredAmps>4.5){inaFault=EnergyFault::Range;return false;}
+  volts=measuredVolts;amps=measuredAmps;counter=measuredCounter;
+  inaFault=EnergyFault::None;return true;
 }
 // Compact original font for the local status panel. Each byte is one 7-pixel column.
 const uint8_t Alphabet[26][5]={
@@ -220,8 +234,13 @@ void task(void*) {
   worker.store(xTaskGetCurrentTaskHandle());
   Status s;
 #ifdef HELMET_RECEIVER
+  s.energyEnabled=(settings.features&Device::EnergyMonitor)!=0;
+  bool energyWasFailed=false;
   HelmetLink::RetryDelay<5000> screenRetry;
-  if((settings.features&(Device::Environment|Device::EnergyMonitor)) && !initBus())s.faults|=1;
+  if((settings.features&(Device::Environment|Device::EnergyMonitor)) && !initBus()){
+    s.faults|=1;
+    if(s.energyEnabled){s.faults|=2;s.energyFault=EnergyFault::Bus;Efficiency::increment(s.energyFailures);energyWasFailed=true;}
+  }
   if((settings.features&Device::Screen) && !initScreen()){s.faults|=4;screenRetry.start(nowMs());}
   if((settings.features&Device::BatteryCaseTemperature) && !initAdc())s.faults|=8;
   nvs_handle_t energyStorage=0;nvs_open("energy",NVS_READWRITE,&energyStorage);
@@ -261,29 +280,51 @@ void task(void*) {
       }
       if(ina && (settings.features&Device::EnergyMonitor) && now-energyAt>=1000) {
         const uint32_t elapsed=now-energyAt;energyAt=now;
-        if(!inaConfigured)inaConfigured=configureIna();
+        const bool configuredNow=!inaConfigured && (inaConfigured=configureIna());
         Efficiency::increment(s.metrics.energyReads);
-        uint64_t count=0;s.energyValid=inaConfigured && energy(s.volts,s.amps,count);
-        if(s.energyValid) {
-          bool counterGood=true;
-          const bool full=fullRequested.exchange(false);
-          if(full){s.usedMWh=0;s.estimateQualified=settings.usableEnergyMWh>0;}
-          if(counterReady) {
-            const uint64_t delta=(count-lastCounter)&0xffffffffffULL;
-            const double joules=delta*SensorMath::EnergyJoulesLsb;
-            if(joules<=50.0*elapsed/1000.0+2.0){
-              if(!full)s.usedMWh+=joules/3.6;
-              s.measuredMWh+=joules/3.6;Efficiency::increment(s.measuredIntervals);
+        // Configuring ADC_CONFIG restarts conversions. Keep the existing 1 Hz
+        // schedule and read on its next visit, rather than accepting old data.
+        if(configuredNow){s.energyValid=false;s.energyFault=EnergyFault::NotReady;}
+        else {
+          float volts=0,amps=0;uint64_t count=0;
+          s.energyValid=inaConfigured && energy(volts,amps,count);
+          if(s.energyValid) {
+            bool counterGood=true;
+            const bool full=fullRequested.exchange(false) &&
+                fullFailureGeneration.load()==s.energyFailures && s.energyFailures!=UINT32_MAX;
+            if(counterReady) {
+              const uint64_t delta=(count-lastCounter)&0xffffffffffULL;
+              const double joules=delta*SensorMath::EnergyJoulesLsb;
+              if(joules<=50.0*elapsed/1000.0+2.0){
+                if(!full)s.usedMWh+=joules/3.6;
+                s.measuredMWh+=joules/3.6;Efficiency::increment(s.measuredIntervals);
+              } else counterGood=false;
             }
-            else if(!full){s.estimateQualified=false;counterGood=false;}
+            lastCounter=count;counterReady=true;
+            if(counterGood) {
+              if(full){s.usedMWh=0;s.estimateQualified=settings.usableEnergyMWh>0;}
+              s.volts=volts;s.amps=amps;s.energyValidAt=now;Efficiency::increment(s.energySamples);
+              if(energyWasFailed)Efficiency::increment(s.energyRecoveries);
+              energyWasFailed=false;s.energyFault=EnergyFault::None;s.faults&=static_cast<uint16_t>(~2u);
+            } else {
+              // FULL cannot turn an implausible accumulator jump into valid SOC.
+              s.energyValid=false;s.estimateQualified=false;fullRequested.store(false);s.energyFault=EnergyFault::Counter;s.faults|=2;
+              Efficiency::increment(s.energyFailures);energyWasFailed=true;
+            }
+          } else {
+            s.energyFault=inaFault;s.faults|=2;s.estimateQualified=false;counterReady=false;fullRequested.store(false);
+            Efficiency::increment(s.energyFailures);energyWasFailed=true;
+            if(inaFault!=EnergyFault::NotReady)inaConfigured=false;
+            busRetry.start(now);
           }
-          lastCounter=count;counterReady=true;
-          if(counterGood)s.faults&=static_cast<uint16_t>(~2u);else s.faults|=2;
-        } else {s.faults|=2;s.estimateQualified=false;counterReady=false;inaConfigured=false;busRetry.start(now);}
+        }
       }
     }
     if(now-shtAt>5000){s.environmentValid=false;if(settings.features&Device::Environment)s.faults|=1;}
-    if((settings.features&Device::EnergyMonitor) && now-energyAt>2000){s.energyValid=false;s.estimateQualified=false;s.faults|=2;}
+    if((settings.features&Device::EnergyMonitor) && now-energyAt>2000){
+      if(s.energyValid){s.energyFault=EnergyFault::Stale;Efficiency::increment(s.energyFailures);energyWasFailed=true;}
+      s.energyValid=false;s.estimateQualified=false;s.faults|=2;fullRequested.store(false);
+    }
     s.remainingPercent=s.energyValid && s.estimateQualified?SensorMath::percent(s.usedMWh,settings.usableEnergyMWh):-1;
     if((settings.features&Device::BatteryCaseTemperature) &&
         ((!PROTOGEN_CASE_2HZ && !PROTOGEN_WEARER_DEADLINES) || now-caseAt>=caseInterval)) {
@@ -365,7 +406,15 @@ void face(const HelmetLink::Packet &s,bool connected) {
 }
 bool markFull(){
 #ifdef HELMET_RECEIVER
-  if((settings.features&Device::EnergyMonitor) && settings.usableEnergyMWh && snapshot().energyValid){fullRequested.store(true);if(PROTOGEN_WEARER_DEADLINES)notifyWorker();return true;}
+  const auto status=snapshot();
+  if((settings.features&Device::EnergyMonitor) && settings.usableEnergyMWh && status.energyValid &&
+      status.energyFailures!=UINT32_MAX){
+    // A request accepted from a just-stale published snapshot cannot survive a
+    // fault that the worker has observed but has not published yet.
+    fullFailureGeneration.store(status.energyFailures);fullRequested.store(true);
+    if(PROTOGEN_WEARER_DEADLINES)notifyWorker();
+    return true;
+  }
 #endif
   return false;
 }

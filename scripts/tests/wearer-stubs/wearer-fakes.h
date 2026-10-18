@@ -9,7 +9,10 @@ using TickType_t=uint32_t;
 using TaskHandle_t=void*;
 using portMUX_TYPE=int;
 constexpr int portMUX_INITIALIZER_UNLOCKED=0, pdTRUE=1, pdPASS=1, ESP_OK=0;
-#define pdMS_TO_TICKS(ms) ((ms)/10)
+#ifndef PROTOGEN_TEST_TICK_HZ
+#define PROTOGEN_TEST_TICK_HZ 1000
+#endif
+#define pdMS_TO_TICKS(ms) ((ms)*PROTOGEN_TEST_TICK_HZ/1000)
 inline void portENTER_CRITICAL(portMUX_TYPE*) {}
 inline void portEXIT_CRITICAL(portMUX_TYPE*) {}
 namespace FakeWearer {
@@ -20,6 +23,8 @@ inline uint32_t stored=0, staged=0;
 inline int mv=1320;
 inline std::vector<TickType_t> notifications;
 inline std::function<void()> beforeWait;
+inline std::function<int(void*,const uint8_t*,size_t,uint8_t*,size_t,int)> i2cRead;
+inline std::function<int(void*,const uint8_t*,size_t,int)> i2cWrite;
 inline int failTransfer=-1;
 inline unsigned transfers=0, dataTransfers=0;
 inline bool dc=false;
@@ -29,7 +34,7 @@ inline void wait(TickType_t ticks) {
   if(beforeWait)beforeWait();
   if(stopAfter && ++waits>=stopAfter)throw Stop{};
   // A yielding poll advances modeled time without sleeping a full tick.
-  us+=ticks?uint64_t(ticks)*10000:1000;
+  us+=ticks?uint64_t(ticks)*1000000/PROTOGEN_TEST_TICK_HZ:1000;
 }
 }
 inline int64_t esp_timer_get_time(){return FakeWearer::us;}
@@ -61,9 +66,9 @@ struct i2c_device_config_t{int dev_addr_length=0,device_address=0,scl_speed_hz=0
 struct i2c_master_bus_config_t{int i2c_port=0,sda_io_num=0,scl_io_num=0,clk_source=0,glitch_ignore_cnt=0;};
 inline int i2c_new_master_bus(const i2c_master_bus_config_t*,void** p){*p=reinterpret_cast<void*>(1);return ESP_OK;}
 inline int i2c_master_bus_add_device(void*,const i2c_device_config_t* c,void** p){*p=reinterpret_cast<void*>(uintptr_t(c->device_address));return ESP_OK;}
-inline int i2c_master_transmit(void*,const uint8_t*,size_t,int){return ESP_OK;}
+inline int i2c_master_transmit(void* d,const uint8_t* b,size_t n,int timeout){return FakeWearer::i2cWrite?FakeWearer::i2cWrite(d,b,n,timeout):ESP_OK;}
 inline int i2c_master_receive(void*,uint8_t*,size_t,int){return -1;}
-inline int i2c_master_transmit_receive(void*,const uint8_t*,size_t,uint8_t*,size_t,int){return -1;}
+inline int i2c_master_transmit_receive(void* d,const uint8_t* tx,size_t tn,uint8_t* rx,size_t rn,int timeout){return FakeWearer::i2cRead?FakeWearer::i2cRead(d,tx,tn,rx,rn,timeout):-1;}
 using spi_device_handle_t=void*;
 constexpr int SPI2_HOST=2,SPI_DMA_CH_AUTO=0;
 struct spi_transaction_t{size_t length=0;const void* tx_buffer=nullptr;};

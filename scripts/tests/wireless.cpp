@@ -100,7 +100,7 @@ struct DeviceTest {
   uint8_t role;
   uint8_t secret[32]{};
   bool stored = false, allowStorage = true;
-  unsigned actions = 0, connections = 0, losses = 0;
+  unsigned actions = 0, connections = 0, losses = 0, statusRequests = 0;
   bool properties = false;
   std::map<uint32_t, Mac> authority;
   std::set<uint32_t> executed;
@@ -128,8 +128,9 @@ struct DeviceTest {
       }
       ++d.actions;
     }
-    if (d.role == Helmet && v.kind == HelmetLink::Status && !v.length)
-      d.link->queue(status());
+    if (d.role == Helmet && v.kind == HelmetLink::Status && !v.length) {
+      ++d.statusRequests;d.link->queue(status());
+    }
   }
   static bool store(void *p, const uint8_t key[32]) {
     auto &d = *static_cast<DeviceTest *>(p);
@@ -713,6 +714,29 @@ void testHelloAdmission() {
   rig.connect();
   std::cout << "PASS: Hello spoof/replay admission, bounded cached responses, online isolation and reconnect\n";
 }
+void testStatusRefreshLatency() {
+  Rig rig;rig.connect();
+  const unsigned initial=rig.h.statusRequests;
+  while(rig.h.statusRequests==initial)rig.step(5);
+  rig.step(10);
+  const unsigned before=rig.h.statusRequests;
+  // A fresh status is required after command ACK; waiting for the next100ms
+  // active poll alone can consume the entire response budget for queued input.
+  for(unsigned i=0;i<10;++i)assert(rig.p.link->refreshStatus(rig.now));
+  assert(!rig.h.link->refreshStatus(rig.now));
+  rig.step(10);
+  assert(rig.h.statusRequests==before+1);
+}
+void testQueuedReceivePacing() {
+  Rig r;r.connect();r.step(20);
+  r.h.radio.incoming.clear();r.p.radio.incoming.clear();
+  const auto before=r.h.actions;
+  assert(r.p.link->queue(command(10001))&&r.p.link->queue(command(10002)));
+  r.p.link->tick(r.now);r.now+=5;r.p.link->tick(r.now);
+  assert(r.h.radio.incoming.size()>=2);
+  r.h.link->tick(r.now);r.now+=5;r.h.link->tick(r.now);
+  assert(r.h.actions==before+2);
+}
 void testRecordBudget() {
   uint8_t ecdh[32]{42}, transcript[32]{43};
   Material m;
@@ -869,9 +893,13 @@ void testIdentityAndActions() {
   assert(!led.level(2500, true, true, 123456));
 }
 } // namespace
-int main() {
+int main(int argc,char **argv) {
   std::cout.setf(std::ios::unitbuf);
   assert(Crypto::init());
+  if(argc==2 && !strcmp(argv[1],"--service-regressions")) {
+    testStatusRefreshLatency();testQueuedReceivePacing();return 0;
+  }
+  assert(argc==1);
   testVectors();
   testPairing();
   testSasMismatchAndReplacement();
@@ -881,6 +909,8 @@ int main() {
   testIdentityAndActions();
   testHandshakeAndForwardSecrecy();
   testHelloAdmission();
+  testStatusRefreshLatency();
+  testQueuedReceivePacing();
   testRecordBudget();
   testStateCorpus();
   std::cout

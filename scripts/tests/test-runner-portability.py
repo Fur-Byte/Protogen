@@ -13,7 +13,7 @@ class PortableRunner(unittest.TestCase):
     def test_configuration_runner_does_not_require_ripgrep(self):
         with tempfile.TemporaryDirectory(prefix='protogen-portable-path-') as tmp:
             commands = Path(tmp)
-            for name in ('bash', 'dirname', 'mktemp', 'rm', 'cat', 'grep', 'python3'):
+            for name in ('bash', 'dirname', 'mktemp', 'rm', 'cat', 'grep', 'python3', 'node'):
                 executable = shutil.which(name)
                 self.assertIsNotNone(executable, name)
                 (commands / name).symlink_to(executable)

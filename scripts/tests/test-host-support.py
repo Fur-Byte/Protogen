@@ -21,6 +21,11 @@ class HostSupport(unittest.TestCase):
                             '-fsanitize=address,undefined', *non_pie_flags(),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
+    def test_qualification_harness_has_a_supported_os_provider(self):
+        subprocess.run([os.getenv('CXX','clang++'),'-std=c++17','-Wall','-Wextra','-Werror',
+                        '-fsyntax-only','-I'+str(Path(__file__).resolve().parents[1]/'tests/pq-worker'),
+                        str(Path(__file__).resolve().parent/'pq-worker/stress.cpp')],check=True)
+
     def test_analyzers_are_installed_executables(self):
         for compiler in analyzer_compilers():
             subprocess.run([compiler, '--version'], check=True, capture_output=True)

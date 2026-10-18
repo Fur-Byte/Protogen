@@ -7,15 +7,19 @@ int main() {
   settings.features=Device::Screen|Device::BatteryCaseTemperature;
   settings.usableEnergyMWh=1000;
   FakeWearer::stopAfter=220;
-  // Offset work completion by 3 ms: a 7 ms remaining deadline must yield,
-  // never be rounded UP to a 10 ms tick. Also exercise temperature warnings.
+  // Offset work completion by3ms to exercise fractional/coarse tick deadlines
+  // and the production1ms tick. Also exercise temperature warnings.
   FakeWearer::beforeWait=[](){FakeWearer::us+=3000;};
   try {task(nullptr);} catch(const FakeWearer::Stop&) {}
   const auto status=snapshot();
   assert(status.caseValid && status.metrics.caseReads>0);
   assert(status.remainingPercent==-1); // Persisted energy never qualifies SOC.
   if(PROTOGEN_WEARER_DEADLINES) {
-    assert(std::find(FakeWearer::notifications.begin(),FakeWearer::notifications.end(),0)!=FakeWearer::notifications.end());
+    if(PROTOGEN_TEST_TICK_HZ==100) {
+      assert(std::find(FakeWearer::notifications.begin(),FakeWearer::notifications.end(),0)!=FakeWearer::notifications.end());
+    } else {
+      assert(std::any_of(FakeWearer::notifications.begin(),FakeWearer::notifications.end(),[](TickType_t t){return t>0&&t%10!=0;}));
+    }
   }
   HelmetLink::Packet p;p.payload[4]=0;
   face(p,true);

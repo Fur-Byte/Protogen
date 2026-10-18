@@ -1,12 +1,11 @@
 #include "arena_config.h"
 #include "mlkem_native.h"
-#include <sys/random.h>
+#include "host_rng.h"
 #include <string.h>
 static struct PqArena arena;
 static size_t fail_at;
 int randombytes(uint8_t *p,size_t n) {
-  while (n) { ssize_t r=getrandom(p,n,0); if (r<=0) return -1; p+=r; n-=(size_t)r; }
-  return 0;
+  return qualification_os_random(p,n);
 }
 static void start(void) { memset(&arena,0,sizeof(arena)); arena.fail_at=fail_at; }
 static int end(int result) {

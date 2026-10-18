@@ -51,6 +51,9 @@ compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
 "${CXX:-clang++}" "${FLAGS[@]}" -I"$ROOT/firmware/esp32/src" \
   "$ROOT/scripts/tests/application-status.cpp" -o "$TEST_TEMP/test-application-status"
 "$TEST_TEMP/test-application-status"
+"${CXX:-clang++}" "${FLAGS[@]}" -I"$ROOT/firmware/esp32/src" \
+  "$ROOT/scripts/tests/command-status.cpp" -o "$TEST_TEMP/test-command-status"
+"$TEST_TEMP/test-command-status"
 "${CXX:-clang++}" "${FLAGS[@]}" \
   "$ROOT/scripts/tests/retry-delay.cpp" -o "$TEST_TEMP/test-retry-delay"
 "$TEST_TEMP/test-retry-delay"

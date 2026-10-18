@@ -1,5 +1,10 @@
 # Configuration, USB serialization, and brightness remediation
 
+> Follow-up: [release brightness qualification](RELEASE_BRIGHTNESS_QUALIFICATION.md)
+> supersedes this initial report’s unchanged-EEPROM-layout statement: explicit
+> storage format 3 now saves a separate brightness approval while retaining USB
+> schema 2 and read-only compatibility for legacy records.
+
 Scope: audit sections 2, 4, 5, and the duplicated display-count loop in section 9.
 Implementation and host verification were performed on 2026-10-16/17.
 

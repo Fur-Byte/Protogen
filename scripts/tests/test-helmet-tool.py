@@ -39,10 +39,10 @@ class PreviewChecks(unittest.TestCase):
     def test_requested_brightness_and_effective_ceiling_are_distinct(self):
         state = self.helmet.action({"action": "set", "config": {"brightness": 15}})
         self.assertEqual(state["config"]["brightness"], 15)
-        self.assertEqual(state["status"]["brightness"], {"configured": 15, "effective": 1, "maximum": 1})
+        self.assertEqual(state["status"]["brightness"], {"configured": 15, "effective": 1, "maximum": 1, "approved": 1})
         reply = self.transport.command("BOOST 0 100")
         self.assertTrue(reply["ok"])
-        self.assertEqual(reply["brightness"], {"configured": 15, "requested": 0, "effective": 0, "maximum": 1})
+        self.assertEqual(reply["brightness"], {"configured": 15, "requested": 0, "effective": 0, "maximum": 1, "approved": 1})
         self.assertEqual(self.helmet.state()["status"]["brightness"]["effective"], 0)
         self.transport.command("tick 110")
         self.assertEqual(self.helmet.state()["status"]["brightness"]["effective"], 1)

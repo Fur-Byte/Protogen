@@ -1,5 +1,10 @@
 # Comprehensive audit remediation — 2026-10-17
 
+> Historical first-pass report for commit3275ff8. The follow-up
+> [release-readiness report](RELEASE_READINESS_2026_10_17.md) supersedes current
+> storage/latency/power/S31/CI status: EEPROM format3 is an explicit migration,
+> and the final hosted check result is tracked on existing PR1.
+
 Branch: `codex/comprehensive-audit-remediation`; baseline `1956268`.
 The source of the requested findings is the supplied Sonnet 5.5 remediation
 brief. The historical audits, S31 preflight and later v4 core were checked

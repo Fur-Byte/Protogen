@@ -50,7 +50,7 @@ void updateVisorConnector(uint32_t now) {
     // before programming the MAX7219s. Keeping it off for all of begin() would
     // silently discard the displays' initialization registers.
     displayReady=matrix.begin(Settings::SpiFrequencyHz,true,enableBuffer);
-    cancelBrightnessBoost();matrix.setIntensity(Settings::effectiveBrightness(config.brightness));
+    cancelBrightnessBoost();matrix.setIntensity(config.effectiveBrightness());
     if(!displayReady){disable(now,true);return;}
     // SPI initialization may take time. Never expose signals until the physical
     // pilot and a fresh measurement still qualify this powered connection.

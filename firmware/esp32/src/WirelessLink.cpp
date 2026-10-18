@@ -162,8 +162,12 @@ void Link::tick(uint32_t now) {
     return;
   } // Driver completion failure cannot wedge the link.
   Received item;
-  for (unsigned received = 0; received < ReceiveBudget && radio.receive(item);
-       ++received) {
+  for (unsigned received = 0; received < ReceiveBudget; ++received) {
+    // Preserve queued records while the authentication budget cools down.
+    // Dequeuing the whole burst here silently discarded legitimate ACK/status
+    // records after the first attempted authentication in the same window.
+    if(connected() && now-lastRxCheck<AuthIntervalMs/10)break;
+    if(!radio.receive(item))break;
     if (!valid(item.frame.bytes, PacketBytes, role == Paw ? Helmet : Paw)) {
       increment(item.frame.bytes[1] != Version ? budget.diagnostics.versions
                                                : budget.diagnostics.malformed);

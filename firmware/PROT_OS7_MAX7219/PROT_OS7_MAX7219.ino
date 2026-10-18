@@ -17,6 +17,7 @@
 #include "src/HelmetProtocol/Efficiency.h"
 #include "BlinkTiming.h"
 #include "ControllerIdle.h"
+#include "ResponseTiming.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
@@ -84,10 +85,12 @@ struct RenderMetrics {
   uint64_t totalUs = 0;
 } renderMetrics;
 ControllerIdle controllerIdle;
+ResponseTiming responseTiming;
+bool transitionVisiblePending=false;
 bool brightnessBoostActive = false;
 uint32_t brightnessBoostAt = 0, brightnessBoostMs = 0;
 void cancelBrightnessBoost() {
-  if (brightnessBoostActive) matrix.setIntensity(Settings::effectiveBrightness(config.brightness));
+  if (brightnessBoostActive) matrix.setIntensity(config.effectiveBrightness());
   brightnessBoostActive = false;
 }
 
@@ -123,7 +126,7 @@ void setup() {
   state = static_cast<uint8_t>(config.startupExpression);
   displayReady = matrix.begin(Settings::SpiFrequencyHz, true);
   matrix.shutdown(true);
-  matrix.setIntensity(Settings::effectiveBrightness(config.brightness));
+  matrix.setIntensity(config.effectiveBrightness());
   analogReadResolution(10);
   for (uint8_t tile = 0; tile < numberOfHorizontalDisplays * numberOfVerticalDisplays; ++tile) matrix.setRotation(tile, 3);
   matrix.fillScreen(LOW);
@@ -142,6 +145,7 @@ void setup() {
 
 void loop() {
   const uint32_t now = millis();
+  responseTiming.poll(micros());
   if (brightnessBoostActive && now - brightnessBoostAt >= brightnessBoostMs) cancelBrightnessBoost();
   serviceBlinkRandomness();
   serviceSerial(now);
@@ -155,7 +159,7 @@ void loop() {
   }
   if (sleeping || !visorVisible || !displayReady || !connectorReady) {
     if (!displayBlanked) {
-      matrix.shutdown(true); setColor(0,0,0); resetAnimations(now);
+      matrix.shutdown(true); responseTiming.visible(micros()); setColor(0,0,0); resetAnimations(now);
       displayBlanked = true;
     }
     // Finish queued USB/UART work before waiting. RX/USB interrupts wake the
@@ -185,11 +189,12 @@ void loop() {
   if (boopActive) pauseMicrophone();
   else { if (microphoneEnabled) microphone(); else pauseMicrophone(); glitch(now); Blink(now); }
   if (now - previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
-  // At most 60-ish display frames per second; inputs/audio are serviced every loop.
-  if (waking || rising || now - lastFrameTime >= 16) {
+  // Routine frames use16ms; sample first transition feedback at2ms until a
+  // visible frame changes. Unchanged rows produce no redundant SPI traffic.
+  if (waking || rising || now - lastFrameTime >= (transitionVisiblePending ? 2u : 16u)) {
     renderFace(now); lastFrameTime = now; rising = false;
   }
-  if (waking) { matrix.shutdown(false); displayBlanked = false; }
+  if (waking) { matrix.shutdown(false); displayBlanked = false; responseTiming.visible(micros()); }
 }
 
 void renderFace(uint32_t now) {
@@ -206,7 +211,9 @@ void renderFace(uint32_t now) {
     if (!config.transitionMs || elapsed >= config.transitionMs) transitionActive = false;
     else {
       const uint32_t half = config.transitionMs / 2;
-      const uint32_t ramp = config.transitionMs * 3UL / 8;
+      const uint32_t scaledRamp = config.transitionMs * 3UL / 8;
+      const uint32_t ramp = scaledRamp < Settings::TransitionFeedbackRampMs
+          ? scaledRamp : Settings::TransitionFeedbackRampMs;
       if (elapsed < half) pose.expression = transitionFrom;
       // A short closed interval ensures the swap is hidden even at 60 Hz.
       if (elapsed < ramp) pose.closure = static_cast<uint8_t>(elapsed * 8 / ramp);
@@ -226,14 +233,18 @@ void renderFace(uint32_t now) {
   Efficiency::increment(renderMetrics.compositions);
   Face::Frame composed;
   Face::compose(composed, pose);
-  if (!frameValid || memcmp(composed.bytes, displayedFrame.bytes, sizeof(composed.bytes)))
-    Efficiency::increment(renderMetrics.changed);
+  const bool changed = !frameValid || memcmp(composed.bytes, displayedFrame.bytes, sizeof(composed.bytes));
+  if (changed) Efficiency::increment(renderMetrics.changed);
   for (int y = 0; y < Face::Height; ++y)
     for (int x = 0; x < Face::Width; ++x) {
       const bool value = Face::pixel(composed, x, y);
       if (!frameValid || value != Face::pixel(displayedFrame, x, y)) matrix.drawPixel(x, y, value);
     }
   displayedFrame = composed; frameValid = true; matrix.write();
+  if(changed) {
+    transitionVisiblePending=false;
+    if(!displayBlanked)responseTiming.visible(micros());
+  }
   if (PROTOGEN_CACHE_FACE) visualCache.remember(pose);
   const uint32_t elapsed = micros() - started;
   renderMetrics.totalUs += elapsed;
@@ -245,7 +256,7 @@ void selectExpression(uint8_t expression, uint32_t now) {
   const uint8_t old = state;
   state = expression; resetAnimations(now); rising = true;
   if (!sleeping && visorVisible && !boopActive && config.transitionMs) {
-    transitionActive = true; transitionFrom = old; transitionStarted = now;
+    transitionActive = true; transitionVisiblePending=true; transitionFrom = old; transitionStarted = now;
   }
 }
 
@@ -268,7 +279,7 @@ void serviceBlinkRandomness() {
   blinkRandomPending = false;
 }
 void resetAnimations(uint32_t now) {
-  Step = 0; blinkState = false; counter = 0; transitionActive = false;
+  Step = 0; blinkState = false; counter = 0; transitionActive = false; transitionVisiblePending=false;
   blinkTime = blinkSpeed = glitchDelay = glitchSpeed = now;
   scheduleBlink(); pauseMicrophone();
 }
