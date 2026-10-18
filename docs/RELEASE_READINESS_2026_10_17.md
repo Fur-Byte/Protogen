@@ -117,7 +117,7 @@ manifests retain local evidence; hosted CI uploads its own build evidence.
 | `test-s31-platform.sh` | PASS, host profile/authentication/partial-I/O/fault suite; no board I/O |
 | `test-wireless.sh` | PASS, full default suite including million-record and million-event corpora, 52,000 corrupt/fuzz cases, 135,983 storage/schema/power-loss model cases and 100,000 malformed UART streams |
 | `test-v4.sh`, `test-dtls.sh` | PASS, real cryptographic core plus authenticated-UART integration; real Mbed TLS DTLS and fault/replay/recovery suite |
-| `check-v4.py`, `check-mlkem-preflight.py` | PASS, full host tests, 145 NIST vectors, 42 upstream functional outputs, independent vectors, static analysis and production negative-compilation guards; direct-main KEM remains NO_GO |
+| `check-v4.py`, `check-mlkem-preflight.py` | PASS, full host tests, 145 NIST vectors, 42 verified vendor files, upstream functional tests, independent vectors, static analysis and production negative-compilation guards; direct-main KEM remains NO_GO |
 | `check-pq-worker.py` | PASS as isolated qualification tooling on macOS; actual OS entropy, 2571 operations, 1,000,000 worker transitions and 12,000 admission rejections; no single-core or target timing claim |
 | All 11 top-level `scripts/tests/test-*.py` programs | PASS in normal and `python3 -O` modes, including mandatory actual Face Studio JS regression and PATH without ripgrep |
 | `build.py`, `check-features.py`, `check-extensions.py`, `check-uart-auth.py` | PASS, pinned actual Teensy compiler, all requested combinations, zero warnings |
