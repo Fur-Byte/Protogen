@@ -12,6 +12,7 @@ constexpr uint32_t PairingMs = 60000, PairRetryMs = 400, HandshakeMs = 4000,
                    HandshakeRetryMs = 250;
 constexpr uint32_t KeepaliveMinMs = 3000, KeepaliveMaxMs = 5000,
                    DisconnectMs = 12000;
+constexpr uint32_t ServicePollMs = 2; // Representable by the pinned1kHz scheduler.
 constexpr uint32_t ActiveMs = 1500, ActivePollMs = 100, FreshStatusMs = 200,
                    FastRecoveryMs = 15000;
 constexpr uint32_t HelmetPairHoldMs = 2000, PawPairHoldMs = 3000,

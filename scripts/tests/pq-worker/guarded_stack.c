@@ -1,4 +1,4 @@
-// Linux/x86-64 guarded host stacks. This is NOT MCU stack high-water.
+// POSIX guarded host stacks. This is NOT MCU stack high-water.
 #define _GNU_SOURCE
 #include <assert.h>
 #include <pthread.h>
@@ -7,13 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/random.h>
+#include "host_rng.h"
 #include <unistd.h>
 #include "mlkem_native.h"
 static uint8_t pk[1568],sk[3168],ct[1568],ss[32],recovered[32];
 int randombytes(uint8_t* p,size_t n) {
-  while (n) { ssize_t r=getrandom(p,n,0); if (r<=0) return -1; p+=r; n-=(size_t)r; }
-  return 0;
+  return qualification_os_random(p,n);
 }
 static void* task(void* unused) {
   (void)unused;

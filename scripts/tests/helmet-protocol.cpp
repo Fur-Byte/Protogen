@@ -4,10 +4,50 @@
 #include <cassert>
 #include <iostream>
 #include <random>
+#include <vector>
+#include <limits>
 using namespace HelmetLink;
 int main() {
   assert(crc16(reinterpret_cast<const uint8_t*>("123456789"),9)==0x29b1);
   std::mt19937 rng(13);
+  // Each complete nonzero 254-byte run reserves another COBS code byte.
+  for (size_t n : {size_t(0),size_t(1),size_t(253),size_t(254),size_t(255),
+                   size_t(256),size_t(508),size_t(509),size_t(510),size_t(4096)}) {
+    std::vector<uint8_t> input(n, 1), encoded(n + n / 254 + 2), decoded(n + 1);
+    const size_t size = cobsEncode(input.data(), n, encoded.data(), encoded.size());
+    assert(size == encoded.size());
+    assert(cobsDecode(encoded.data(), size - 1, decoded.data(), n) == n);
+    assert(!n || !memcmp(input.data(), decoded.data(), n));
+    for (size_t capacity = 0; capacity < size; ++capacity) {
+      std::vector<uint8_t> guarded(capacity + 2, 0xa5);
+      assert(!cobsEncode(input.data(), n, guarded.data() + 1, capacity));
+      assert(guarded.front() == 0xa5 && guarded.back() == 0xa5);
+    }
+  }
+  uint8_t scratch[8]{};
+  assert(cobsEncode(nullptr, 0, scratch, sizeof(scratch)) == 2);
+  assert(!cobsEncode(nullptr, 1, scratch, sizeof(scratch)));
+  assert(!cobsEncode(scratch, 1, nullptr, sizeof(scratch)));
+  assert(!cobsEncode(scratch, std::numeric_limits<size_t>::max(), scratch, sizeof(scratch)));
+  assert(!cobsDecode(nullptr, 1, scratch, sizeof(scratch)));
+  assert(!cobsDecode(scratch, 1, nullptr, sizeof(scratch)));
+  for (unsigned run = 0; run < 10000; ++run) {
+    const size_t n = rng() % 8193;
+    std::vector<uint8_t> input(n), encoded(n + n / 254 + 2), decoded(n + 1);
+    for (auto &byte : input) byte = uint8_t(rng());
+    const size_t size = cobsEncode(input.data(), n, encoded.data(), encoded.size());
+    assert(size && encoded[size - 1] == 0);
+    assert(cobsDecode(encoded.data(), size - 1, decoded.data(), n) == n);
+    assert(!n || !memcmp(input.data(), decoded.data(), n));
+    if (size > 1) assert(!cobsEncode(input.data(), n, encoded.data(), size - 1));
+    // Malformed random input plus small output capacities must stay bounded.
+    const size_t capacity = rng() % (n + 1);
+    std::vector<uint8_t> guarded(capacity + 2, 0xa5);
+    for (auto &byte : encoded) byte = uint8_t(rng());
+    const size_t result = cobsDecode(encoded.data(), encoded.size(),
+                                     guarded.data() + 1, capacity);
+    assert(result <= capacity && guarded.front() == 0xa5 && guarded.back() == 0xa5);
+  }
   for(unsigned run=0;run<20000;++run) {
     Packet p;p.kind=1+rng()%5;p.length=rng()%73;p.sequence=rng();p.epoch=rng();p.ticket=rng();
     for(auto &b:p.payload)b=rng();

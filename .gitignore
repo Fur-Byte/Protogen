@@ -3,3 +3,8 @@
 __pycache__/
 *.pyc
 .venv/
+
+# Generated local PlatformIO MCP state and private per-helmet UART material.
+.pio-mcp-workspace/
+ProtogenUartKey.h
+!scripts/tests/uart-fixture/ProtogenUartKey.h

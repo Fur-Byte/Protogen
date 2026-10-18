@@ -48,8 +48,8 @@ int main() {
   // Expiring boosts never persist or alter saved brightness, including rollover.
   fakeUs=uint64_t(0xfffffff0UL)*1000;
   char boost[]="BOOST 3 100";handleUsbCommand(boost,millis());
-  assert(brightnessBoostActive && SPI.registers[10]==3);
-  advanceTime(101000);loop();assert(!brightnessBoostActive && SPI.registers[10]==config.brightness);
+  assert(brightnessBoostActive && SPI.registers[10]==Settings::effectiveBrightness(3));
+  advanceTime(101000);loop();assert(!brightnessBoostActive && SPI.registers[10]==Settings::effectiveBrightness(config.brightness));
   char invalid[]="BOOST 16 100";handleUsbCommand(invalid,millis());assert(!brightnessBoostActive);
   Efficiency::Checkpoint c;c.at=0xfffffff0UL;c.value=1;c.known=true;
   assert(!c.due(15,2,true,100));assert(c.due(100,2,true,100));

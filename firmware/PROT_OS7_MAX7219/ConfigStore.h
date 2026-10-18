@@ -7,7 +7,12 @@
 namespace ConfigStore {
 inline uint32_t writeAttempts = 0, verifiedWrites = 0, writeFailures = 0;
 constexpr int SlotBytes = 64, HeaderBytes = 12;
-constexpr int PayloadBytes = configFieldCount * 2;
+// Storage format is versioned independently of public USB config schema 2.
+// Formats 1/2 had no approval: their high requests never authorize more than 1.
+constexpr uint16_t RecordVersion = 3, LegacyBrightnessApproval = 1;
+constexpr int ConfigPayloadBytes = configFieldCount * 2;
+constexpr int ApprovalOffset = HeaderBytes + ConfigPayloadBytes;
+constexpr int PayloadBytes = ConfigPayloadBytes + 2;
 constexpr int CrcOffset = HeaderBytes + PayloadBytes, MarkerOffset = CrcOffset + 4;
 constexpr int RecordBytes = MarkerOffset + 1;
 static_assert(RecordBytes <= SlotBytes, "Configuration record exceeds storage slot.");
@@ -33,14 +38,19 @@ inline Record readSlot(int slot) {
   if (EEPROM.length() < SlotBytes * 2) return record;
   for (int i = 0; i < RecordBytes; ++i) record.bytes[i] = EEPROM.read(slot * SlotBytes + i);
   const auto *data = record.bytes;
-  const uint32_t schema = readNumber(data + 4, 2), payload = readNumber(data + 6, 2);
-  const bool legacy = schema == 1 && payload == 30;
-  if (memcmp(data, "P8CF", 4) || (!legacy && (schema != configSchemaVersion || payload != PayloadBytes))) return record;
+  const uint32_t format = readNumber(data + 4, 2), payload = readNumber(data + 6, 2);
+  const bool legacy1 = format == 1 && payload == 30;
+  const bool legacy2 = format == 2 && payload == ConfigPayloadBytes;
+  const bool current = format == RecordVersion && payload == PayloadBytes;
+  if (memcmp(data, "P8CF", 4) || (!legacy1 && !legacy2 && !current)) return record;
   const int crcAt = HeaderBytes + static_cast<int>(payload), markerAt = crcAt + 4;
   if (data[markerAt] != 0xa5 || readNumber(data + crcAt, 4) != crc(data, crcAt)) return record;
   // The appended boop fields default to Feronium's held reaction when loading v1.
-  for (size_t i = 0; i < payload / 2; ++i)
+  for (size_t i = 0; i < (legacy1 ? 15 : configFieldCount); ++i)
     record.config.*(configFields[i].member) = static_cast<uint16_t>(readNumber(data + HeaderBytes + i * 2, 2));
+  record.config.brightnessApproval = current
+      ? static_cast<uint16_t>(readNumber(data + ApprovalOffset, 2)) : LegacyBrightnessApproval;
+  if (current && record.config.brightnessApproval > record.config.brightness) return record;
   record.sequence = readNumber(data + 8, 4);
   record.valid = validConfig(record.config);
   return record;
@@ -61,18 +71,22 @@ inline bool loadStoredConfig(RuntimeConfig &value) {
 inline bool saveStoredConfig(const RuntimeConfig &value) {
   using namespace ConfigStore;
   if (!validConfig(value) || EEPROM.length() < SlotBytes * 2) return false;
+  RuntimeConfig approved = value;
+  approved.brightnessApproval = value.effectiveBrightness();
   const auto a = readSlot(0), b = readSlot(1);
   const int active = newest(a, b);
   const auto &previous = active == 0 ? a : b;
-  if (active >= 0 && sameConfig(value, previous.config)) return true; // No flash wear for identical saves.
+  if (active >= 0 && sameConfig(approved, previous.config) &&
+      readNumber(previous.bytes + 4, 2) == RecordVersion) return true; // No flash wear for identical saves.
   Record record;
   memcpy(record.bytes, "P8CF", 4);
-  writeNumber(record.bytes + 4, configSchemaVersion, 2);
+  writeNumber(record.bytes + 4, RecordVersion, 2);
   writeNumber(record.bytes + 6, PayloadBytes, 2);
   const uint32_t sequence = active >= 0 ? previous.sequence + 1 : 1;
   writeNumber(record.bytes + 8, sequence, 4);
   for (size_t i = 0; i < configFieldCount; ++i)
-    writeNumber(record.bytes + HeaderBytes + i * 2, value.*(configFields[i].member), 2);
+    writeNumber(record.bytes + HeaderBytes + i * 2, approved.*(configFields[i].member), 2);
+  writeNumber(record.bytes + ApprovalOffset, approved.brightnessApproval, 2);
   writeNumber(record.bytes + CrcOffset, crc(record.bytes, CrcOffset), 4);
   const int slot = active == 0 ? 1 : 0, base = slot * SlotBytes;
   if (writeAttempts != UINT32_MAX) ++writeAttempts;
@@ -80,7 +94,7 @@ inline bool saveStoredConfig(const RuntimeConfig &value) {
   for (int i = 0; i < MarkerOffset; ++i) EEPROM.update(base + i, record.bytes[i]);
   EEPROM.update(base + MarkerOffset, 0xa5);
   const auto result = readSlot(slot);
-  const bool okay = result.valid && result.sequence == sequence && sameConfig(result.config, value);
+  const bool okay = result.valid && result.sequence == sequence && sameConfig(result.config, approved);
   uint32_t &count = okay ? verifiedWrites : writeFailures;
   if (count != UINT32_MAX) ++count;
   return okay;

@@ -1,4 +1,10 @@
 #pragma once
+#ifdef ESP_PLATFORM
+#include "sdkconfig.h"
+#if !CONFIG_IDF_TARGET_ESP32C3 && !(CONFIG_IDF_TARGET_ESP32S31 && defined(PROTOGEN_S31_PREFLIGHT_ONLY))
+#error NO_QUALIFIED_BOARD_MAPPING_USE_C3_OR_ISOLATED_S31_PREFLIGHT
+#endif
+#endif
 #include "HelmetProtocol.h"
 #include "SecureZero.h"
 #include <stdint.h>

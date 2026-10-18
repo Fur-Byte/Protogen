@@ -4,7 +4,23 @@
 // User adjustments. Pin assignments, panel rotations, and artwork stay in the sketch.
 // Optional hardware is still enabled by the three #define lines in the main .ino.
 namespace Settings {
-constexpr int Brightness = 1;              // MAX7219 intensity: 0 (dimmest) .. 15.
+// Existing protected-visor wiring; MAX7219 has no MISO connection.
+constexpr int DockPowerEnablePin = 6, DockBufferEnablePin = 4;
+constexpr int DockPilotPin = 12, DockVoltagePin = 15;
+constexpr uint32_t SensorConversionTimeoutMs = 5;
+constexpr uint32_t SensorFreshnessMs = 20;
+constexpr uint32_t SensorRetryInitialMs = 100;
+constexpr uint32_t SensorRetryMaxMs = 5000;
+static_assert(DockPilotPin != DockVoltagePin && DockPowerEnablePin != DockBufferEnablePin,
+              "Dock control and sense pins must be distinct.");
+// Unmeasured hardware: keep the software ceiling conservative. Intensity 0
+// still lights LEDs; this ceiling is not an electrical safety certification.
+constexpr int MaxBrightness = 1;       // Raise only after assembled-helmet qualification.
+constexpr int Brightness = 1;              // Requested intensity: 0 (dimmest) .. 15.
+constexpr uint8_t effectiveBrightness(unsigned requested) {
+  return requested > static_cast<unsigned>(MaxBrightness)
+      ? static_cast<uint8_t>(MaxBrightness) : static_cast<uint8_t>(requested);
+}
 constexpr int StartupExpression = 0;       // 0 happy, 1 surprised, 2 angry, 3 vwv, 4 sleepy, 5 wink.
 constexpr uint32_t ButtonDebounceMs = 25;
 constexpr uint32_t ButtonHoldMs = 1200;    // Hold to sleep; tap or hold to wake.
@@ -21,6 +37,9 @@ constexpr uint32_t BlinkIntervalMs = 4000; // Center of ordinary inter-blink pau
 constexpr uint32_t GlitchIntervalMs = 7000;
 constexpr uint32_t GlitchStepMs = 100;
 constexpr uint32_t TransitionMs = 160;
+constexpr uint32_t TransitionFeedbackRampMs = 60; // Prompt closing feedback; long transitions extend the closed hold.
+static_assert(TransitionFeedbackRampMs>0 && TransitionFeedbackRampMs<=60,
+              "TransitionFeedbackRampMs must be 1..60ms for prompt feedback.");
 constexpr uint32_t BlinkJitterMs = 2000;
 constexpr uint32_t AudioAttackMs = 20;
 constexpr uint32_t AudioReleaseMs = 120;
@@ -32,6 +51,7 @@ constexpr int MouthMode = 0; // 0 spectrum (original style), 1 amplitude.
 // Conservative default for the 14-module chain; faster clocks need helmet validation.
 constexpr uint32_t SpiFrequencyHz = 4000000UL;
 
+static_assert(MaxBrightness >= 0 && MaxBrightness <= 15, "MaxBrightness must be 0..15.");
 static_assert(Brightness >= 0 && Brightness <= 15, "Brightness must be 0..15.");
 static_assert(StartupExpression >= 0 && StartupExpression < 6,
               "StartupExpression must be 0..5.");
@@ -51,6 +71,11 @@ static_assert(SpiFrequencyHz > 0 && SpiFrequencyHz <= 10000000UL,
 constexpr bool validInterval(uint32_t interval) {
   return interval > 0 && interval < 0x80000000UL;
 }
+static_assert(validInterval(SensorConversionTimeoutMs) && validInterval(SensorFreshnessMs) &&
+              validInterval(SensorRetryInitialMs) && validInterval(SensorRetryMaxMs) &&
+              SensorFreshnessMs > SensorConversionTimeoutMs && SensorFreshnessMs > BoopPollMs &&
+              SensorRetryMaxMs >= SensorRetryInitialMs,
+              "Sensor acquisition/freshness/retry intervals must be bounded and ordered.");
 static_assert(ButtonHoldMs > ButtonDebounceMs, "Hold must be longer than debounce.");
 static_assert(validInterval(ButtonDebounceMs) && validInterval(ButtonHoldMs) &&
               validInterval(VisorDebounceMs) && validInterval(IndicatorMs) &&

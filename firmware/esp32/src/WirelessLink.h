@@ -73,6 +73,12 @@ public:
       nextPoll = now;
     activeUntil = now + ActiveMs;
   }
+  // Called only after a matched authenticated command ACK. Coalesce a fresh
+  // status request so queued intent does not wait for the ordinary100ms poll.
+  bool refreshStatus(uint32_t now) {
+    if(role!=Paw || !online())return false;
+    activity(now);nextPoll=now;return true;
+  }
   bool online() const {
     return phase == State::Online && paired && session.ready() &&
            !pairing.active();

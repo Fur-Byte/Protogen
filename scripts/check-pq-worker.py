@@ -17,6 +17,7 @@ import statistics
 import subprocess
 import tarfile
 import time
+from host_support import non_pie_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 B = ROOT / 'build/pq-worker'
@@ -246,15 +247,15 @@ def main():
             'native_commit':pre.PINS['commit'],'wolf_commit':pins['commit'],'target_compiler':run([str(CC),'--version']).splitlines()[0]}
     native_flags=['-I'+str(T),'-I'+str(SOURCE/'mlkem'),'-DMLK_CONFIG_FILE="native_config.h"']
     host_flags=['-O2','-Wall','-Wextra','-Werror']
-    san=['-g','-fno-omit-frame-pointer','-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-pie']
+    san=['-g','-fno-omit-frame-pointer','-fsanitize=address,undefined','-fno-sanitize-recover=all']
     nobj=B/'native-host.o'
     run(['cc']+host_flags+san+native_flags+['-c',str(SOURCE/'mlkem/mlkem_native.c'),'-o',str(nobj)],B/'native-host.log')
     stress=B/'stress'
-    run(['c++','-std=c++17']+host_flags+san+native_flags+['-pthread','-no-pie',str(T/'stress.cpp'),str(T/'kem.cpp'),str(nobj),'-o',str(stress)],B/'stress-build.log')
+    run(['c++','-std=c++17']+host_flags+san+native_flags+non_pie_flags()+['-pthread',str(T/'stress.cpp'),str(T/'kem.cpp'),str(nobj),'-o',str(stress)],B/'stress-build.log')
     report['stress_asan_ubsan']=json.loads(run([str(stress)],B/'stress.log'))
     report['entropy_fault_cases']=2
     acvp=B/'acvp-pct-sanitized'
-    run(['cc']+host_flags+san+['-no-pie']+native_flags+
+    run(['cc']+host_flags+san+non_pie_flags()+native_flags+
         [str(SOURCE/'mlkem/mlkem_native.c'),str(SOURCE/'test/notrandombytes/notrandombytes.c'),
          str(SOURCE/'test/acvp/acvp_mlkem.c'),'-o',str(acvp)],B/'acvp-pct-build.log')
     report['native_pct_acvp']=pre.vectors(acvp)
@@ -293,17 +294,18 @@ def main():
     for name,shim,extra,sources in [('arena',T/'arena_shim.c',aflags,[SOURCE/'mlkem/mlkem_native.c']),
                                    ('wolf',T/'wolf_shim.c',wflags,files)]:
         binary=B/(name+'-sanitizer-test')
-        run(['cc']+host_flags+san+['-no-pie']+(['-DQUAL_ARENA'] if name=='arena' else [])+extra+[str(shim),str(T/'primitive_stress.c')]+
+        run(['cc']+host_flags+san+non_pie_flags()+(['-DQUAL_ARENA'] if name=='arena' else [])+extra+[str(shim),str(T/'primitive_stress.c')]+
             list(map(str,sources))+['-o',str(binary)],B/(name+'-sanitizer-build.log'))
         report['backend_sanitizer_stress'][name]=run([str(binary)],B/(name+'-sanitizer.log')).strip()
     guard=B/'guarded-stack'
     run(['cc']+host_flags+native_flags+['-pthread',str(T/'guarded_stack.c'),str(SOURCE/'mlkem/mlkem_native.c'),'-o',str(guard)],B/'guarded-stack-build.log')
     report['host_guarded_stack']={}
     for stack in (24576,32768):
-        process=subprocess.run([str(guard),str(stack)],cwd=B,text=True,capture_output=True,timeout=30)
-        report['host_guarded_stack'][str(stack)]={'exit_code':process.returncode,
+        page=os.sysconf("SC_PAGESIZE");allocated=(stack+page-1)//page*page
+        process=subprocess.run([str(guard),str(allocated)],cwd=B,text=True,capture_output=True,timeout=30)
+        report['host_guarded_stack'][str(stack)]={'exit_code':process.returncode,'requested_stack_bytes':stack,'allocated_stack_bytes':allocated,
             'measurements':json.loads(process.stdout) if process.returncode==0 else None,
-            'limitation':'Linux x86-64 pthread startup and written canary extent; not MCU high-water or reserved-frame depth'}
+            'limitation':'POSIX host pthread startup and written canary extent; not MCU high-water or reserved-frame depth'}
         if process.returncode not in (0,-11):raise RuntimeError('Unexpected guarded stack failure')
     clang=os.environ.get('MLKEM_CLANG') or shutil.which('clang')
     if not clang:

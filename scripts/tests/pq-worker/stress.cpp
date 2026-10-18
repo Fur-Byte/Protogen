@@ -7,31 +7,36 @@
 #include <thread>
 #include <atomic>
 #include <initializer_list>
-#include <sys/random.h>
+#include "host_rng.h"
+#if defined(__linux__)
 #include <sched.h>
+#endif
 #include <unistd.h>
 namespace pqqual { int native_execute(Op,Buffers&); }
 static std::atomic<bool> rng_fail{false};
 static std::atomic<unsigned> rng_call{0},rng_fail_at{0};
 extern "C" int randombytes(uint8_t* p,size_t n) {
   if (rng_fail.load() || ++rng_call==rng_fail_at.load()) return -1;
-  while (n) { auto r=getrandom(p,n,0); if (r<=0) return -1; p+=r; n-=size_t(r); }
-  return 0;
+  return qualification_os_random(p,n);
 }
 using namespace pqqual;
 using Clock=std::chrono::steady_clock;
 static uint64_t ms() { return uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count()); }
-static void pin() {
+static bool pin() {
+#if defined(__linux__)
   cpu_set_t available; CPU_ZERO(&available);
   assert(sched_getaffinity(0,sizeof(available),&available)==0);
   for (int i=0;i<CPU_SETSIZE;++i) if (CPU_ISSET(i,&available)) {
     cpu_set_t one; CPU_ZERO(&one); CPU_SET(i,&one);
-    assert(sched_setaffinity(0,sizeof(one),&one)==0); return;
+    assert(sched_setaffinity(0,sizeof(one),&one)==0); return true;
   }
-  assert(false);
+  assert(false);return false;
+#else
+  return false; // macOS has no equivalent strict single-CPU affinity API.
+#endif
 }
 int main() {
-  pin(); Worker w; Buffers pair{},enc{},dec{},out{};
+  const bool pinned=pin(); Worker w; Buffers pair{},enc{},dec{},out{};
   // Initial entropy failure and a separate failure in KeyGen's PCT entropy call.
   for (unsigned fault : {1u,2u}) {
     rng_call=0; rng_fail_at=fault; Worker failing; Token token{}; Op op{};
@@ -159,7 +164,7 @@ int main() {
   }
   { std::lock_guard<std::mutex> lock(mutex); stop=true; cv.notify_all(); }
   thread.join(); service_stop=true; service.join();
-  std::printf("{\"real_worker_operations\":%zu,\"completed\":%zu,\"cancelled_or_expired\":%zu,\"admission_rejects\":%zu,\"transitions\":%zu,\"threaded_operations\":20,\"simulated_uart_ticks\":%zu,\"linux_service_max_gap_ms\":%.6f,\"host_mean_ms\":[%.6f,%.6f,%.6f],\"host_max_ms\":[%.6f,%.6f,%.6f]}\n",
-    count[0]+count[1]+count[2],completed,cancelled,rejected,transitions,uart_ticks.load(),service_gap,
+  std::printf("{\"real_worker_operations\":%zu,\"completed\":%zu,\"cancelled_or_expired\":%zu,\"admission_rejects\":%zu,\"transitions\":%zu,\"threaded_operations\":20,\"simulated_uart_ticks\":%zu,\"host_service_max_gap_ms\":%.6f,\"single_cpu_pinned\":%s,\"host_mean_ms\":[%.6f,%.6f,%.6f],\"host_max_ms\":[%.6f,%.6f,%.6f]}\n",
+    count[0]+count[1]+count[2],completed,cancelled,rejected,transitions,uart_ticks.load(),service_gap,pinned?"true":"false",
     mean[0]/count[0],mean[1]/count[1],mean[2]/count[2],maximum[0],maximum[1],maximum[2]);
 }

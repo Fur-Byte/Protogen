@@ -85,3 +85,23 @@ full nonces, pairing secrets, factory MACs, or authentication codes are logged.
 [release validation](docs/WIRELESS_VALIDATION.md) describe the implementation
 and remaining physical release gates. This is not a claim of invisibility,
 unjammability, or immunity to compromise.
+
+
+## Reporting a vulnerability
+
+Use a minimal public [issue in this repository](https://github.com/Fur-Byte/Protogen/issues/new)
+to request a private reporting channel from the maintainers. Include the affected
+version and component; withhold exploit instructions, pairing/UART keys, firmware
+images containing private keys, personal data and unredacted serial captures.
+This project does not currently publish a security email address or promise a
+response deadline. If GitHub offers **Report a vulnerability** in the repository's
+Security tab, use it; its availability has not been assumed or configured here.
+Do not use the original archive author's historical contact as this project's
+reporting address.
+
+Private per-helmet `ProtogenUartKey.h` files are ignored by Git; the explicitly
+public placeholder fixture remains tracked for regressions. Diagnostics must
+report only non-secret counters/status. Ordinary Teensy flash remains extractable
+with physical access: obfuscation or storing another software wrapping key in the
+same image would not remedy that risk. Re-pair/re-provision after a suspected
+extraction; keep UART keys distinct from wireless pairing keys and from other helmets.

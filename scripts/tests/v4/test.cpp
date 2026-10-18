@@ -4,6 +4,7 @@
 void checks();
 void vectors();
 void qualification();
+void uartIntegration();
 int main(int argc, char **argv) {
   setbuf(stdout, nullptr);
   if (argc == 2 && std::strcmp(argv[1], "--qualification") == 0) {
@@ -24,5 +25,6 @@ int main(int argc, char **argv) {
   sim.step();
   assert(sim.reconnect());
   std::puts("v4 pairing and rekey passed");
+  uartIntegration();
   checks();
 }

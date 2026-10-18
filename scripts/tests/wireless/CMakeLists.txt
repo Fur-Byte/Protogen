@@ -50,3 +50,10 @@ target_include_directories(benchmark-wireless PRIVATE "${SRC}" "${TEENSY}/src/He
 target_compile_features(benchmark-wireless PRIVATE cxx_std_17)
 target_compile_options(benchmark-wireless PRIVATE -Wall -Wextra -Werror -UNDEBUG -fstack-usage)
 target_link_libraries(benchmark-wireless PRIVATE mbedtls)
+
+# Isolated S31 platform preparation: host protocol tests, never ESP-IDF selection.
+add_executable(test-s31-platform ../s31/platform.cpp "${SRC}/WirelessCrypto.cpp")
+target_include_directories(test-s31-platform PRIVATE "${ROOT}/firmware/esp32/platform_research" "${SRC}" "${TEENSY}/src/HelmetProtocol")
+target_link_libraries(test-s31-platform PRIVATE mbedtls)
+target_compile_features(test-s31-platform PRIVATE cxx_std_17)
+target_compile_options(test-s31-platform PRIVATE -Wall -Wextra -Werror -UNDEBUG)

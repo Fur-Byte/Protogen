@@ -18,6 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 
+static_assert(configTICK_RATE_HZ==1000, "Production bounded poll requires pinned1000Hz RTOS tick");
 namespace {
 uint32_t nowMs() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 Device::Config config;
@@ -33,6 +34,7 @@ Wireless::Indicator indicator;
 bool radioStarted = false, connected = false;
 TaskHandle_t mainTask = nullptr;
 uint32_t mainExecutions = 0, mainMaxUs = 0;
+uint32_t uartQueueMaxMs=0, uartQueueFull=0, intentQueueMaxMs=0, commandAckMaxMs=0;
 uint64_t mainWorkUs = 0;
 void buttonEdge(void *) {
   BaseType_t wake = pdFALSE;
@@ -51,6 +53,7 @@ Wireless::HelmetStatus helmetStatus;
 #ifdef HELMET_RECEIVER
 uint32_t helloAt = 0, uartHeartbeatAt = 0, statusSentAt = 0;
 HelmetLink::Packet lastSentStatus{};
+Wireless::UartStatusFence statusFence;
 #endif
 bool queueSecure(const HelmetLink::Packet &p) {
 #ifdef HELMET_RECEIVER
@@ -82,10 +85,10 @@ constexpr size_t UartMaxEncoded = HelmetLink::MaxEncoded;
 #endif
 uint8_t uartTx[4][UartMaxEncoded]{};
 size_t uartLengths[4]{}, uartSent = 0;
+uint32_t uartQueuedAt[4]{};
 unsigned uartRead = 0, uartWrite = 0, uartCount = 0;
 bool queueUart(const HelmetLink::Packet &p) {
-  if (uartCount == 4)
-    return false;
+  if (uartCount == 4) {Efficiency::increment(uartQueueFull);return false;}
 #ifdef PROTOGEN_UART_AUTH
   uartLengths[uartWrite] =
       uartDecoder.seal(p, uartTx[uartWrite], sizeof(uartTx[0]));
@@ -99,11 +102,13 @@ bool queueUart(const HelmetLink::Packet &p) {
 #endif
   if (!uartLengths[uartWrite])
     return false;
+  uartQueuedAt[uartWrite]=nowMs();
   uartWrite = (uartWrite + 1) % 4;
   ++uartCount;
   return true;
 }
 void serviceUart(uint32_t now) {
+  if(statusFence.poll(now))helmetStatus.available=false;
 #ifdef PROTOGEN_UART_AUTH
   if (!uartAuthStarted)
     uartAuthStarted = uartDecoder.begin(0, now);
@@ -112,6 +117,7 @@ void serviceUart(uint32_t now) {
         uartDecoder.poll(now, uartTx[uartWrite], sizeof(uartTx[0]));
     if (n) {
       uartLengths[uartWrite] = n;
+      uartQueuedAt[uartWrite]=now;
       uartWrite = (uartWrite + 1) % 4;
       ++uartCount;
     }
@@ -127,6 +133,8 @@ void serviceUart(uint32_t now) {
     if (written > 0)
       uartSent += written;
     if (uartSent == uartLengths[uartRead]) {
+      const uint32_t queueMs=now-uartQueuedAt[uartRead];
+      if(queueMs>uartQueueMaxMs)uartQueueMaxMs=queueMs;
       uartSent = 0;
       uartRead = (uartRead + 1) % 4;
       --uartCount;
@@ -140,14 +148,16 @@ void serviceUart(uint32_t now) {
       continue;
     if (p.kind == HelmetLink::Status && p.length == HelmetLink::StatusBytes &&
         p.epoch) {
+      const bool postAck=statusFence.awaitingStatus();
+      const bool usable=statusFence.status(p);
       helmetStatus.packet = p;
       helmetStatus.at = now;
-      helmetStatus.available = true;
+      helmetStatus.available = usable;
       WearerIO::face(p, connected);
-      if (connected && HelmetLink::u32(p.payload) == helmetStatus.bridge &&
-          (now - statusSentAt >= Wireless::ActivePollMs &&
+      if (usable && connected && HelmetLink::u32(p.payload) == helmetStatus.bridge &&
+          (postAck || (now - statusSentAt >= Wireless::ActivePollMs &&
            (memcmp(p.payload + 4, lastSentStatus.payload + 4, 4) ||
-            memcmp(p.payload + 10, lastSentStatus.payload + 10, 2)))) {
+            memcmp(p.payload + 10, lastSentStatus.payload + 10, 2))))) {
         if (queueSecure(p)) {
           lastSentStatus = p;
           statusSentAt = now;
@@ -155,8 +165,9 @@ void serviceUart(uint32_t now) {
       }
     } else if (p.kind == HelmetLink::Ack && p.length == 5 && connected &&
                p.epoch == helmetStatus.packet.epoch &&
-               HelmetLink::u32(p.payload) == helmetStatus.bridge)
-      queueSecure(p);
+               HelmetLink::u32(p.payload) == helmetStatus.bridge) {
+      statusFence.ack(p);queueSecure(p);
+    }
   }
   // Wired Teensy liveness causes no RF traffic.
   if (connected && helmetStatus.available &&
@@ -254,6 +265,8 @@ void serviceCommands(uint32_t now) {
   p.payload[5] = intent.value;
   HelmetLink::put16(p.payload + 6, intent.duration);
   if (queueSecure(p)) {
+    const uint32_t queueMs=now-intent.at;
+    if(queueMs>intentQueueMaxMs)intentQueueMaxMs=queueMs;
     pendingCommand = p;
     commandWaiting = true;
     commandAt = retriedAt = now;
@@ -313,7 +326,7 @@ void connectionChanged(void *, bool online) {
   connected = online;
 #ifdef HELMET_RECEIVER
   uartCount = uartRead = uartWrite = 0;
-  uartSent = 0;
+  uartSent = 0;statusFence.clear();
   if (online) {
     do {
       Wireless::Crypto::random(&helmetStatus.bridge, sizeof(helmetStatus.bridge));
@@ -326,7 +339,7 @@ void connectionChanged(void *, bool online) {
   commandSequence = 0;
   actions.clear();
   helmetStatus.available = false;
-  helmetStatus.bridge = 0;
+  helmetStatus.bridge = 0;helmetStatus.expecting=false;
   WearerIO::face(helmetStatus.packet, online);
 #endif
   printf("{\"event\":\"%s\"}\n", online ? "connected" : "disconnected");
@@ -355,11 +368,13 @@ void wirelessPacket(void *, const HelmetLink::Packet &p) {
   }
   if ((p.kind == HelmetLink::Command && p.length == 8) ||
       (p.kind == HelmetLink::Heartbeat && p.length == 4)) {
-    if (helmetStatus.available &&
+    if ((helmetStatus.available || statusFence.retry(p)) &&
         now - helmetStatus.at < Wireless::FreshStatusMs &&
         p.epoch == helmetStatus.packet.epoch &&
         HelmetLink::u32(p.payload) == helmetStatus.bridge)
-      queueUart(p);
+      if(queueUart(p) && p.kind==HelmetLink::Command) {
+        statusFence.queued(p,now);helmetStatus.available=false;
+      }
   }
 #else
   bool changed = false;
@@ -374,9 +389,11 @@ void wirelessPacket(void *, const HelmetLink::Packet &p) {
              p.epoch == pendingCommand.epoch &&
              p.sequence == pendingCommand.sequence &&
              HelmetLink::u32(p.payload) == helmetStatus.bridge) {
+    const uint32_t ackMs=now-commandAt;
+    if(ackMs>commandAckMaxMs)commandAckMaxMs=ackMs;
     commandWaiting = false;
-    helmetStatus.available = false;
-    wirelessLink.activity(now);
+    helmetStatus.expectAfterAck(pendingCommand,p.payload[4],now);
+    wirelessLink.refreshStatus(now);
     printf("{\"event\":\"ack\",\"result\":%u}\n", p.payload[4]);
   }
 #endif
@@ -449,6 +466,25 @@ void consoleCommand(char *line) {
   const char *cmd = strtok_r(line, " \t", &save);
   if (!cmd)
     return;
+  if (!strcmp(cmd, "LATENCY") && !strtok_r(nullptr, " \t", &save)) {
+    printf("{\"ok\":true,\"role\":%u,\"tick_hz\":%u,\"service_poll_ms\":%u,\"intent_queue_max_ms\":%lu,"
+      "\"uart_queue_max_ms\":%lu,\"uart_queue_full\":%lu,\"command_ack_max_ms\":%lu,\"main_max_us\":%lu}\n",
+      Device::Role,unsigned(configTICK_RATE_HZ),unsigned(Wireless::ServicePollMs),static_cast<unsigned long>(intentQueueMaxMs),
+      static_cast<unsigned long>(uartQueueMaxMs),static_cast<unsigned long>(uartQueueFull),
+      static_cast<unsigned long>(commandAckMaxMs),static_cast<unsigned long>(mainMaxUs));
+    return;
+  }
+  if (!strcmp(cmd, "ENERGY") && !strtok_r(nullptr, " \t", &save)) {
+    const auto s=WearerIO::snapshot();
+    printf("{\"ok\":true,\"rail\":\"upstream_pd_input\",\"enabled\":%s,\"valid\":%s,"
+      "\"fault\":%u,\"samples\":%lu,\"last_valid_ms\":%lu,\"failures\":%lu,\"recoveries\":%lu,"
+      "\"volts\":%.3f,\"amps\":%.4f,\"measured_mwh\":%.6f,\"soc_qualified\":%s}\n",
+      s.energyEnabled?"true":"false",s.energyValid?"true":"false",unsigned(s.energyFault),
+      static_cast<unsigned long>(s.energySamples),static_cast<unsigned long>(s.energyValidAt),
+      static_cast<unsigned long>(s.energyFailures),static_cast<unsigned long>(s.energyRecoveries),
+      static_cast<double>(s.volts),static_cast<double>(s.amps),s.measuredMWh,s.estimateQualified?"true":"false");
+    return;
+  }
   if (!strcmp(cmd, "PERF") && !strtok_r(nullptr, " \t", &save)) {
     const auto s = WearerIO::snapshot();
     const auto &m = s.metrics;
@@ -706,8 +742,16 @@ extern "C" void app_main() {
 #endif
     serviceUnlock(now);
     serviceConsole(now);
-    if (radioStarted)
-      wirelessLink.tick(now);
+    if (radioStarted)wirelessLink.tick(now);
+#ifdef HELMET_RECEIVER
+    // A command accepted during tick must not wait an extra polling period
+    // before beginning UART transmission. This second pass remains bounded.
+    if(uartCount)serviceUart(nowMs());
+#else
+    const unsigned queuedBefore=wirelessLink.queued();
+    serviceCommands(nowMs()); // A fresh status received in tick can unblock intent.
+    if(wirelessLink.queued()>queuedBefore)wirelessLink.tick(nowMs());
+#endif
     uint32_t code = 0;
     const bool hasCode = wirelessLink.pairingCode(code);
     gpio_set_level(
@@ -747,6 +791,6 @@ extern "C" void app_main() {
         // than sleep past it. Pending notifications are still consumed.
         ulTaskNotifyTake(pdTRUE,0);vTaskDelay(0);
       }
-    } else vTaskDelay(pdMS_TO_TICKS(5));
+    } else vTaskDelay(pdMS_TO_TICKS(Wireless::ServicePollMs));
   }
 }

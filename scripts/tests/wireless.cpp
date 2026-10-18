@@ -100,7 +100,7 @@ struct DeviceTest {
   uint8_t role;
   uint8_t secret[32]{};
   bool stored = false, allowStorage = true;
-  unsigned actions = 0, connections = 0, losses = 0;
+  unsigned actions = 0, connections = 0, losses = 0, statusRequests = 0;
   bool properties = false;
   std::map<uint32_t, Mac> authority;
   std::set<uint32_t> executed;
@@ -128,8 +128,9 @@ struct DeviceTest {
       }
       ++d.actions;
     }
-    if (d.role == Helmet && v.kind == HelmetLink::Status && !v.length)
-      d.link->queue(status());
+    if (d.role == Helmet && v.kind == HelmetLink::Status && !v.length) {
+      ++d.statusRequests;d.link->queue(status());
+    }
   }
   static bool store(void *p, const uint8_t key[32]) {
     auto &d = *static_cast<DeviceTest *>(p);
@@ -636,6 +637,106 @@ void testHandshakeAndForwardSecrecy() {
   increment(d.aeadFailures);
   assert(d.aeadFailures == UINT32_MAX);
 }
+void testHelloAdmission() {
+  Frame ingress;
+  header(ingress, SessionHello, Paw);
+  assert(admitIngress(ingress.bytes, PacketBytes, true, false));
+  assert(!admitIngress(ingress.bytes, PacketBytes, true, true));
+  assert(!admitIngress(ingress.bytes, PacketBytes, false, true));
+  header(ingress, Data, Paw);
+  assert(admitIngress(ingress.bytes, PacketBytes, false, true));
+  assert(!admitIngress(ingress.bytes, PacketBytes, true, true));
+  assert(!admitIngress(ingress.bytes, PacketBytes - 1, false, true));
+  assert(!admitIngress(nullptr, PacketBytes, false, true));
+  uint8_t psk[32] = {29};
+  Handshake p, h;
+  assert(p.start(psk, Paw, paw, 100) && h.start(psk, Helmet, helmet, 100));
+  Frame hello, response;
+  Mac destination;
+  bool broadcast = false;
+  assert(p.tick(100, hello, destination, broadcast) && broadcast);
+  Frame forged = hello;
+  forged.bytes[127] ^= 1;
+  assert(!h.receive(forged, paw, 100));
+  assert(h.state() == Handshake::Phase::Rendezvous);
+  assert(h.receive(hello, paw, 100));
+  assert(h.tick(100, response, destination, broadcast));
+  for (uint32_t now = 101; now < 100 + HandshakeRetryMs; ++now) {
+    assert(h.receive(hello, paw, now));
+    assert(!h.tick(now, response, destination, broadcast));
+    assert(h.state() == Handshake::Phase::AwaitPawFinished);
+  }
+  assert(h.tick(100 + HandshakeRetryMs, response, destination, broadcast));
+  assert(p.receive(response, helmet, 350));
+  Frame finished;
+  assert(p.tick(350, finished, destination, broadcast));
+  for (uint32_t now = 351; now < 350 + HandshakeRetryMs; ++now) {
+    assert(p.receive(response, helmet, now));
+    assert(!p.tick(now, finished, destination, broadcast));
+  }
+  assert(p.tick(350 + HandshakeRetryMs, finished, destination, broadcast));
+  CryptoBudget attackBudget;
+  Handshake attacked(&attackBudget);
+  assert(attacked.start(psk, Helmet, helmet, 100));
+  for (unsigned i = 0; i < 1000; ++i)
+    assert(!attacked.receive(forged, paw, 100));
+  assert(attacked.state() == Handshake::Phase::Rendezvous);
+  assert(attackBudget.diagnostics.handshakeFailures == AuthBurst);
+  assert(attackBudget.diagnostics.rateDrops >= 1000 - AuthBurst);
+  assert(attacked.receive(hello, paw, 1100));
+  // The replay cache survives handshake restart; a fresh legitimate offer wins.
+  assert(h.start(psk, Helmet, helmet, 1100));
+  assert(!h.receive(hello, paw, 1100));
+  assert(p.start(psk, Paw, paw, 1100));
+  assert(p.tick(1100, hello, destination, broadcast));
+  assert(h.receive(hello, paw, 1100));
+
+  Rig rig;
+  rig.connect();
+  Frame captured{};
+  Mac originalSource{};
+  // The direct handshake's valid old Hello can be spoofed with its original
+  // source or with the current peer MAC, as broadcast or unicast.
+  captured = hello;
+  originalSource = paw;
+  const auto connections = rig.h.connections, losses = rig.h.losses;
+  const Mac onlineIdentity = rig.h.radio.own;
+  for (unsigned i = 0; i < 1000; ++i) {
+    rig.h.radio.incoming.push_back({captured, i % 2 ? originalSource : rig.p.radio.own,
+                                  (i % 3) == 0});
+    assert(rig.p.link->queue(command(i + 100)));
+    rig.step(10);
+    assert(rig.online() && rig.h.connections == connections && rig.h.losses == losses);
+    assert(same(onlineIdentity, rig.h.radio.own));
+  }
+  assert(rig.h.actions > 800);
+  rig.p.reset(rig.now);
+  rig.connect();
+  std::cout << "PASS: Hello spoof/replay admission, bounded cached responses, online isolation and reconnect\n";
+}
+void testStatusRefreshLatency() {
+  Rig rig;rig.connect();
+  const unsigned initial=rig.h.statusRequests;
+  while(rig.h.statusRequests==initial)rig.step(5);
+  rig.step(10);
+  const unsigned before=rig.h.statusRequests;
+  // A fresh status is required after command ACK; waiting for the next100ms
+  // active poll alone can consume the entire response budget for queued input.
+  for(unsigned i=0;i<10;++i)assert(rig.p.link->refreshStatus(rig.now));
+  assert(!rig.h.link->refreshStatus(rig.now));
+  rig.step(10);
+  assert(rig.h.statusRequests==before+1);
+}
+void testQueuedReceivePacing() {
+  Rig r;r.connect();r.step(20);
+  r.h.radio.incoming.clear();r.p.radio.incoming.clear();
+  const auto before=r.h.actions;
+  assert(r.p.link->queue(command(10001))&&r.p.link->queue(command(10002)));
+  r.p.link->tick(r.now);r.now+=5;r.p.link->tick(r.now);
+  assert(r.h.radio.incoming.size()>=2);
+  r.h.link->tick(r.now);r.now+=5;r.h.link->tick(r.now);
+  assert(r.h.actions==before+2);
+}
 void testRecordBudget() {
   uint8_t ecdh[32]{42}, transcript[32]{43};
   Material m;
@@ -792,9 +893,13 @@ void testIdentityAndActions() {
   assert(!led.level(2500, true, true, 123456));
 }
 } // namespace
-int main() {
+int main(int argc,char **argv) {
   std::cout.setf(std::ios::unitbuf);
   assert(Crypto::init());
+  if(argc==2 && !strcmp(argv[1],"--service-regressions")) {
+    testStatusRefreshLatency();testQueuedReceivePacing();return 0;
+  }
+  assert(argc==1);
   testVectors();
   testPairing();
   testSasMismatchAndReplacement();
@@ -803,6 +908,9 @@ int main() {
   testRecovery();
   testIdentityAndActions();
   testHandshakeAndForwardSecrecy();
+  testHelloAdmission();
+  testStatusRefreshLatency();
+  testQueuedReceivePacing();
   testRecordBudget();
   testStateCorpus();
   std::cout

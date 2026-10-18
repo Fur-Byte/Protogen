@@ -52,5 +52,18 @@ for candidate in BASELINE CASE_2HZ OLED_1HZ OLED_PAGES CHECKPOINT_5MIN WEARER_DE
     "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer"
   "$EFF_TEMP/wearer"
 done
+# Retain the old coarse-tick deadline stress as well as production1000Hz.
+"${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES=1 -DPROTOGEN_TEST_TICK_HZ=100 \
+  -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
+  "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer-coarse"
+"$EFF_TEMP/wearer-coarse"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-efficiency.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-host-build.py"
+
+# Optional existing INA228: actual task validation, freshness and fault recovery.
+for deadlines in 0 1; do
+  "${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES="$deadlines" \
+    -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
+    "$ROOT/scripts/tests/energy-monitor.cpp" -o "$EFF_TEMP/energy-monitor"
+  for mode in direct task bus disabled; do "$EFF_TEMP/energy-monitor" "$mode"; done
+done

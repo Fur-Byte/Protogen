@@ -117,6 +117,27 @@ void fragmentChecks() {
     assert(c.random(x.objects[i], objectSize(Object(i))));
   uint8_t key[32];
   assert(c.random(key, 32));
+  // Independent deadline boundaries: duplicates never extend a fixed window,
+  // and adding its duration near UINT64_MAX must fail without wrapping.
+  {
+    Reassembly boundary(c);
+    Frame first, last;
+    assert(makeFragment(c, x, Object::EncapsulationKey, 0, key, first));
+    assert(makeFragment(c, x, Object::EncapsulationKey, 23, key, last));
+    assert(last.bytes[10] == 4);
+    assert(boundary.accept(first, x.helmet, x.mode, x.wire,
+                           Object::EncapsulationKey, key, 100) == FragmentStatus::Accepted);
+    assert(boundary.accept(first, x.helmet, x.mode, x.wire,
+                           Object::EncapsulationKey, key, 1599) == FragmentStatus::Accepted);
+    assert(boundary.accept(last, x.helmet, x.mode, x.wire,
+                           Object::EncapsulationKey, key, 1600) == FragmentStatus::Expired);
+    assert(!boundary.active() && zero(boundary.bytes(), PublicKeyBytes));
+    assert(boundary.accept(first, x.helmet, x.mode, x.wire,
+                           Object::EncapsulationKey, key, UINT64_MAX - 1499) == FragmentStatus::Rejected);
+    assert(!boundary.active());
+    assert(!makeFragment(c, x, Object(255), 0, key, first));
+    assert(!makeFragment(c, x, Object::EncapsulationKey, 24, key, first));
+  }
   Random rng(0xa43099813579ULL);
   Reassembly r(c);
   for (unsigned iteration = 0; iteration < 500000; ++iteration) {

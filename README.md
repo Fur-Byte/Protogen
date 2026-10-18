@@ -227,3 +227,7 @@ buffering and diagnostics; real interrupt latency and electrical behavior still
 need helmet validation. Test the new transitions, every expression, microphone
 response, visor restoration, and boop expiry on the assembled helmet. Compiling
 and simulation cannot verify the wiring, power supply, or physical appearance.
+
+Licensing and original-author/model attribution are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The original sketch’s license grant remains unresolved; no blanket project license is asserted.
+
+The [2026-10-17 comprehensive remediation report](docs/AUDIT_REMEDIATION_2026_10_17.md) records finding dispositions, software validation and remaining hardware/SDK gates.

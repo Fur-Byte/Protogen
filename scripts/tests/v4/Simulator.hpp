@@ -148,6 +148,8 @@ struct Store final : Storage {
 struct Hook final : Hooks {
   uint64_t commands = 0, ups = 0, downs = 0, localTicks = 0;
   bool connected = false;
+  void *forwardContext = nullptr;
+  void (*forward)(void *, const HelmetLink::Packet &) = nullptr;
   void connection(bool up) override {
     connected = up;
     if (up)
@@ -155,9 +157,10 @@ struct Hook final : Hooks {
     else
       ++downs;
   }
-  void packet(const HelmetLink::Packet &) override {
+  void packet(const HelmetLink::Packet &p) override {
     assert(connected);
     ++commands;
+    if (forward) forward(forwardContext,p);
   }
 };
 struct Radio;

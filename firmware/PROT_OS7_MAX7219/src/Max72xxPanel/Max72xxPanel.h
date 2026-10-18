@@ -50,7 +50,10 @@ public:
 
   // Initialize SPI and the displays from setup(), after Teensy core startup.
   // Returns false for zero/over-255 tiles or failed allocation; no I/O in that case.
-  bool begin(uint32_t spiFrequency = 4000000UL, bool stayShutdown = false);
+  // Optional busReady runs after SPI/pilot setup and before sending registers.
+  // A protected connector may qualify and enable its signal buffer here.
+  bool begin(uint32_t spiFrequency = 4000000UL, bool stayShutdown = false,
+             bool (*busReady)() = nullptr);
 
 	/*
 	 * Define how the displays are ordered. The first display (0)
@@ -103,6 +106,7 @@ public:
    * intensity	the brightness of the display. (0..15)
    */
   void setIntensity(byte intensity);
+  byte getIntensity() const { return appliedIntensity; }
 
   /*
    * After you're done filling the bitmap buffer with your picture,
@@ -114,6 +118,7 @@ public:
 private:
   uint8_t dirtyRows = 0xff; // One bit per MAX7219 digit register.
   bool initialized = false;
+  byte appliedIntensity = 0;
   uint32_t spiClock = 4000000UL;
   byte SPI_CS; /* SPI chip selection */
 

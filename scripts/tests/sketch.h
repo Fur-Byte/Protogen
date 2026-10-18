@@ -16,6 +16,16 @@ void glitch(uint32_t);
 void setupSensors();
 int readBoopSensor();
 int readDisplayVoltage();
+uint32_t sensorFailureCount();
+uint32_t sensorRetryCount();
+uint32_t sensorRecoveryCount();
+uint8_t sensorRecoveryState();
+uint8_t sensorLastFailure();
+uint32_t microphoneFailureCount();
+uint32_t microphoneRetryCount();
+uint32_t microphoneRecoveryCount();
+uint8_t microphoneRecoveryState();
+uint8_t microphoneLastFailure();
 void serviceSensorAcquisition(uint32_t);
 void setupPawLink();
 void servicePawLink(uint32_t);
@@ -30,6 +40,8 @@ bool calibrateMicrophone();
 void fft();
 void renderFFTBars(float *, uint16_t);
 void serviceSerial(uint32_t);
+bool usbHasPendingWork();
+bool pawHasPendingWork();
 #include "PROT_OS7_MAX7219.ino"
 #include "Control.ino"
 #include "Blink.ino"

@@ -23,7 +23,7 @@ uint32_t lastStatus = 0, ticket = 0, statusSequence = 0, heartbeatAt = 0;
 uint8_t tx[UartMaxEncoded] = {}, serialRxMemory[256] = {};
 size_t txLength = 0, txSent = 0;
 HelmetLink::Result lastResult = HelmetLink::Unavailable;
-bool haveHeartbeat = false;
+bool haveHeartbeat = false, statusPending=false;
 
 bool enqueue(const HelmetLink::Packet &packet) {
   if (txSent < txLength) return false;
@@ -70,7 +70,7 @@ void status(uint32_t now) {
   const uint32_t elapsed = now-boopTime;
   HelmetLink::put16(p.payload+16, boopActive && elapsed<duration ? static_cast<uint16_t>(duration-elapsed) : 0);
   p.payload[18] = static_cast<uint8_t>(configSchemaVersion);
-  if (enqueue(p)) {gate.issue(p.ticket, now);lastStatus=now;}
+  if (enqueue(p)) {gate.issue(p.ticket, now);lastStatus=now;statusPending=false;}
 }
 void receive(const HelmetLink::Packet &p, uint32_t now) {
   if (p.kind == HelmetLink::Hello) {
@@ -86,28 +86,39 @@ void receive(const HelmetLink::Packet &p, uint32_t now) {
     haveHeartbeat=true;heartbeatAt=now;return;
   }
   if (p.kind != HelmetLink::Command) return;
+  const uint32_t receivedUs=micros();
+  bool expectedChange=false;
   HelmetLink::Result result=gate.check(p,now);
   if (result == HelmetLink::Duplicate) result = lastResult == HelmetLink::Accepted ? HelmetLink::Duplicate : lastResult;
   else if (result == HelmetLink::Accepted) {
     switch(p.payload[4]) {
-      case HelmetLink::Expression: selectExpression(p.payload[5],now); break;
-      case HelmetLink::Sleep: sleeping=p.payload[5]!=0; break;
+      case HelmetLink::Expression:
+        expectedChange=p.payload[5]!=state && !sleeping && visorVisible && displayReady && connectorReady;
+        selectExpression(p.payload[5],now); break;
+      case HelmetLink::Sleep:
+        expectedChange=sleeping!=(p.payload[5]!=0) && visorVisible && displayReady && connectorReady;
+        sleeping=p.payload[5]!=0; break;
       case HelmetLink::MicControl:
 #ifdef Microphone
         microphoneEnabled=p.payload[5]!=0;
-        if(!microphoneEnabled)pauseMicrophone();else sensorFaults&=static_cast<uint16_t>(~4u);
+        if(!microphoneEnabled)pauseMicrophone();
         break;
 #else
         result=HelmetLink::Unavailable;break;
 #endif
       case HelmetLink::Boop:
         if(sleeping || !visorVisible || !connectorReady || !displayReady || boopActive) result=HelmetLink::Unavailable;
-        else {boopActive=true;boopFromRemote=true;remoteBoopDuration=HelmetLink::u16(p.payload+6);
+        else {expectedChange=state!=ExpressionVwv || speakingActive || Step || transitionActive;
+          boopActive=true;boopFromRemote=true;remoteBoopDuration=HelmetLink::u16(p.payload+6);
           boopTime=previousMillis=now;resetAnimations(now);setColor(16,4,0);rising=true;}
         break;
     }
+    if(result==HelmetLink::Accepted) {
+      if(expectedChange)responseTiming.start(p.sequence,receivedUs);else responseTiming.skip();
+    }
     lastResult=result;
   }
+  statusPending=true; // Publish updated state immediately after this ACK drains.
   HelmetLink::Packet ack;ack.kind=HelmetLink::Ack;ack.length=5;
   ack.sequence=p.sequence;ack.epoch=gate.epoch;ack.ticket=p.ticket;
   HelmetLink::put32(ack.payload,gate.bridge);ack.payload[4]=result;enqueue(ack);
@@ -156,9 +167,18 @@ void servicePawLink(uint32_t now) {
 #ifdef PROTOGEN_UART_AUTH
     if(txSent>=txLength) {txLength=decoder.poll(now,tx,sizeof(tx));txSent=0;}
 #endif
-    if(txSent>=txLength && now-lastStatus>=100) status(now);
+    if(txSent>=txLength && (statusPending || now-lastStatus>=100)) status(now);
   }
 #else
   (void)now;
+#endif
+}
+
+bool pawHasPendingWork() {
+#ifdef WirelessPaw
+  return PawLink::txSent < PawLink::txLength
+      ? Serial1.availableForWrite() > 0 : Serial1.available() > 0;
+#else
+  return false;
 #endif
 }
