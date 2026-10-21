@@ -87,6 +87,11 @@ struct RenderMetrics {
 ControllerIdle controllerIdle;
 ResponseTiming responseTiming;
 bool transitionVisiblePending=false;
+Face::Pose displayedPose;
+uint8_t transitionStartClosure=0;
+uint32_t localCommandSequence=0, usbCommandSequence=0;
+Face::Frame responseBaseline;
+uint32_t blinkRandomStarted=0, blinkFallbacks=0;
 bool brightnessBoostActive = false;
 uint32_t brightnessBoostAt = 0, brightnessBoostMs = 0;
 void cancelBrightnessBoost() {
@@ -159,9 +164,14 @@ void loop() {
   }
   if (sleeping || !visorVisible || !displayReady || !connectorReady) {
     if (!displayBlanked) {
-      matrix.shutdown(true); responseTiming.visible(micros()); setColor(0,0,0); resetAnimations(now);
+      matrix.shutdown(true);
+      if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&responseTiming.target&&
+          sleeping&&visorVisible&&displayReady&&connectorReady)
+        responseTiming.observe(micros(),true,false,true);
+      setColor(0,0,0); resetAnimations(now);
       displayBlanked = true;
     }
+    responseTiming.delay();
     // Finish queued USB/UART work before waiting. RX/USB interrupts wake the
     // core; a byte arriving between this check and WFI waits at most one tick.
     bool pending = usbHasPendingWork();
@@ -194,9 +204,43 @@ void loop() {
   if (waking || rising || now - lastFrameTime >= (transitionVisiblePending ? 2u : 16u)) {
     renderFace(now); lastFrameTime = now; rising = false;
   }
-  if (waking) { matrix.shutdown(false); displayBlanked = false; responseTiming.visible(micros()); }
+  if (waking) {
+    matrix.shutdown(false); displayBlanked = false;
+    if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&!responseTiming.target)
+      responseTiming.observe(micros(),true,false,true);
+    else observeExpressionResponse(displayedPose);
+  }
 }
 
+// Eye-only comparison excludes spectrum/glitch mouth changes. The counterfactual
+// source uses the SAME closure/offset, so simply closing the old face cannot be
+// reported as requested-expression onset.
+bool responseEyesDiffer(const Face::Frame &a,const Face::Frame &b) {
+  for(int y=0;y<Face::Height;++y)for(int x=0;x<16;++x)
+    if(Face::pixel(a,x,y)!=Face::pixel(b,x,y)||Face::pixel(a,96+x,y)!=Face::pixel(b,96+x,y))return true;
+  return false;
+}
+bool responseEyesPresent(const Face::Frame &frame) {
+  for(int y=0;y<Face::Height;++y)for(int x=0;x<16;++x)
+    if(Face::pixel(frame,x,y)||Face::pixel(frame,96+x,y))return true;
+  return false;
+}
+void observeExpressionResponse(const Face::Pose &pose) {
+  if(!responseTiming.pending||displayBlanked)return;
+  if(responseTiming.action==ResponseTiming::Visibility)return;
+  const bool boop=responseTiming.action==ResponseTiming::Boop;
+  if(boop!=pose.boop||(!boop&&pose.expression!=responseTiming.target&& !transitionActive)) {
+    responseTiming.delay();return;
+  }
+  if(!boop&&state!=responseTiming.target)return;
+  Face::Pose source=pose;source.boop=false;source.expression=responseTiming.source;
+  Face::Frame old;Face::compose(old,source);
+  const bool target=boop||pose.expression==responseTiming.target;
+  const bool onset=target&&(responseEyesDiffer(displayedFrame,old)||
+    (responseTiming.source==responseTiming.target&&responseEyesPresent(displayedFrame)));
+  const bool feedback=responseEyesDiffer(displayedFrame,responseBaseline);
+  responseTiming.observe(micros(),feedback,onset,target&&!transitionActive&&!blinkState);
+}
 void renderFace(uint32_t now) {
   Efficiency::increment(renderMetrics.attempts);
   Face::Pose pose;
@@ -214,9 +258,11 @@ void renderFace(uint32_t now) {
       const uint32_t scaledRamp = config.transitionMs * 3UL / 8;
       const uint32_t ramp = scaledRamp < Settings::TransitionFeedbackRampMs
           ? scaledRamp : Settings::TransitionFeedbackRampMs;
-      if (elapsed < half) pose.expression = transitionFrom;
-      // A short closed interval ensures the swap is hidden even at 60 Hz.
-      if (elapsed < ramp) pose.closure = static_cast<uint8_t>(elapsed * 8 / ramp);
+      if (!Settings::EarlyExpressionReveal && elapsed < half) pose.expression = transitionFrom;
+      // Retarget from the last emitted closure, never from the obsolete logical
+      // target. The unmodified first transition retains the original curve.
+      const uint32_t closeMs=(ramp*(8-transitionStartClosure)+7)/8;
+      if (elapsed < closeMs) pose.closure = static_cast<uint8_t>(transitionStartClosure+elapsed*(8-transitionStartClosure)/closeMs);
       else if (elapsed < config.transitionMs - ramp) pose.closure = 8;
       else pose.closure = static_cast<uint8_t>((config.transitionMs - elapsed) * 8 / (ramp ? ramp : 1));
     }
@@ -227,7 +273,7 @@ void renderFace(uint32_t now) {
     pose.eyeOffset = phase >= 2200 && phase < 2500 ? 1 : phase >= 4400 && phase < 4700 ? -1 : 0;
   }
   if (PROTOGEN_CACHE_FACE && frameValid && visualCache.unchanged(pose)) {
-    Efficiency::increment(renderMetrics.skipped); return;
+    Efficiency::increment(renderMetrics.skipped); observeExpressionResponse(pose); return;
   }
   const uint32_t started = micros();
   Efficiency::increment(renderMetrics.compositions);
@@ -240,30 +286,52 @@ void renderFace(uint32_t now) {
       const bool value = Face::pixel(composed, x, y);
       if (!frameValid || value != Face::pixel(displayedFrame, x, y)) matrix.drawPixel(x, y, value);
     }
-  displayedFrame = composed; frameValid = true; matrix.write();
-  if(changed) {
-    transitionVisiblePending=false;
-    if(!displayBlanked)responseTiming.visible(micros());
-  }
+  displayedFrame = composed; displayedPose=pose; frameValid = true; matrix.write();
+  observeExpressionResponse(pose);
+  if(responseTiming.feedback||!responseTiming.pending) transitionVisiblePending=false;
   if (PROTOGEN_CACHE_FACE) visualCache.remember(pose);
   const uint32_t elapsed = micros() - started;
   renderMetrics.totalUs += elapsed;
   if (elapsed > renderMetrics.maxUs) renderMetrics.maxUs = elapsed;
 }
 
-void selectExpression(uint8_t expression, uint32_t now) {
-  if (expression >= ExpressionCount || expression == state) return;
-  const uint8_t old = state;
-  state = expression; resetAnimations(now); rising = true;
-  if (!sleeping && visorVisible && !boopActive && config.transitionMs) {
-    transitionActive = true; transitionVisiblePending=true; transitionFrom = old; transitionStarted = now;
+void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Origin origin,uint32_t id,uint32_t receivedUs) {
+  if(expression>=ExpressionCount)return;
+  if(expression==state) {responseTiming.skip(id,origin);return;}
+  const uint8_t source=frameValid?displayedPose.expression:state;
+  const uint8_t closure=frameValid?displayedPose.closure:Step;
+  responseBaseline=displayedFrame;
+  responseTiming.start(id,receivedUs,origin,ResponseTiming::Expression,source,expression);
+  if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)) {
+    // Reversing to artwork that is still on screen has zero target-onset delay;
+    // the record explicitly distinguishes this from newly revealed pixels.
+    responseTiming.targetAlreadyVisible=true;responseTiming.onset=true;
   }
+  state=expression;resetAnimations(now);rising=true;
+  if(!sleeping&&visorVisible&&!boopActive&&config.transitionMs) {
+    transitionActive=true;transitionVisiblePending=true;transitionFrom=source;
+    transitionStartClosure=closure;transitionStarted=now;
+  } else if(sleeping||!visorVisible||boopActive||!displayReady||!connectorReady) responseTiming.delay();
+}
+void selectExpression(uint8_t expression, uint32_t now) {
+  selectExpressionCommand(expression,now,ResponseTiming::Local,++localCommandSequence,micros());
+}
+
+void setSleepingCommand(bool value,ResponseTiming::Origin origin,uint32_t id,uint32_t receivedUs) {
+  if(sleeping==value){responseTiming.skip(id,origin);return;}
+  responseBaseline=displayedFrame;
+  responseTiming.start(id,receivedUs,origin,ResponseTiming::Visibility,state,value);
+  sleeping=value;
+  if(!visorVisible||!displayReady||!connectorReady)responseTiming.delay();
+}
+void setSleepingLocal(bool value) {
+  setSleepingCommand(value,ResponseTiming::Local,++localCommandSequence,micros());
 }
 
 void scheduleBlink() {
   nextBlinkInterval = config.blinkInterval;
   blinkTiming = BlinkTiming::Timing{};
-  blinkRandomCount = 0; blinkDoublePending = false;
+  blinkRandomCount = 0; blinkDoublePending = false;blinkRandomStarted=millis();
   blinkRandomPending = config.naturalBlinks != 0;
 }
 void serviceBlinkRandomness() {
@@ -272,7 +340,12 @@ void serviceBlinkRandomness() {
   // at most two reads per loop; controls/audio keep running if entropy is late.
   while (blinkRandomCount < 2 && Entropy.available())
     blinkRandomWords[blinkRandomCount++] = Entropy.random();
-  if (blinkRandomCount < 2) return;
+  if (blinkRandomCount < 2) {
+    if(millis()-blinkRandomStarted<100)return;
+    // Cosmetic fallback only: fixed bounded blink, no synthetic entropy and no
+    // coupling to the authentication/TRNG interfaces.
+    blinkRandomPending=false;ResponseTiming::add(blinkFallbacks);return;
+  }
   blinkTiming = BlinkTiming::sample(config, blinkRandomWords[0], blinkRandomWords[1]);
   nextBlinkInterval = blinkTiming.pauseMs;
   blinkDoublePending = blinkTiming.doubleBlink;

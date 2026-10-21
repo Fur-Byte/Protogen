@@ -9,7 +9,7 @@ This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB ind
 | Change | Result / reason |
 | --- | --- |
 | Animation state separated from rendering | Eyes and mouth compose into one logical frame. Speech owns the mouth, blinking owns the eye mask, and boop takes priority over both. Inputs, USB, and audio run independently of the display's 16 ms frame interval. |
-| Expression transitions | A configurable close/swap/open transition hides the expression change. The default is 160 ms (configurable 0–1000 ms; 0 disables it). Navigation activates on button release (25 ms debounce on helmet, 30 ms on wireless paw). Saved EEPROM settings override compiled defaults upon reboot. Rapid selections, sleep, and visor changes reset animations cleanly. |
+| Expression transitions | A configurable close/swap/open transition hides the expression change. The default is 160 ms (configurable 0–1000 ms; 0 disables it). Navigation activates on button release (25 ms debounce on helmet, 30 ms on wireless paw). Saved EEPROM settings override compiled defaults upon reboot. Rapid selections retarget from the last emitted face and eyelid position; sleep and visor changes reset animations cleanly. |
 | Six selectable expressions | Happy, surprised, angry, and vwv keep their exact resting artwork. Sleepy and wink derive eye masks from the happy artwork. The button cycles all six. |
 | Hardware-random blink timing | Fresh Teensy TRNG data chooses each sequence. Ordinary pauses cluster around 4 seconds within a 2–6-second range; quick closing, slower reopening, and occasional double blinks produce about 15 blinks/minute with the defaults. |
 | Optional idle glances | Small horizontal eye movements add character. Off by default so the original resting face remains exact. The Expressive profile enables them. |
@@ -27,8 +27,13 @@ This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB ind
 | Reproducible builds and evidence | Dependencies are pinned in toolchain.lock.json. Each build records a source fingerprint, selected library versions, commands, results, and memory metrics. Failed preflight checks replace current success evidence with a failure report. Prior HEX files retain their own manifests. |
 | Recoverable history | Git's initial commit preserves the pre-upgrade project. A second independent baseline copy is in build/upgrade-baseline. Original historical audit evidence remains available. |
 
-The responsiveness goal applies to p99 **triggering physical action edge to first
-emitted-light reaction**, below 100 ms in qualified online and idle-wake conditions.
+The responsiveness goal tracks p99 **physical action edge to first causal feedback
+and to requested-expression onset** separately, below100ms in qualified online
+and idle-wake conditions. Default close/swap/open is modeled at98.370ms feedback
+but180.818ms target onset with authenticated UART. Optional compile-time
+`PROTOGEN_EARLY_EXPRESSION_REVEAL=1` models both at60.762ms, with a visible
+early-eye-swap tradeoff and the same animation duration. Physical qualification
+is pending; see [the three-stage latency procedure](RELEASE_LATENCY_QUALIFICATION.md).
 Initial press to completed expression and action edge to completed expression are
 separate diagnostic intervals, with no universal 100 ms limit. The original 160 ms
 default transition remains unchanged, and an early closing frame is not the
@@ -62,7 +67,7 @@ Existing saved settings and downloaded profiles keep their earlier blink interva
 
 ## Blink timing in 8.1
 
-The fixed-seed xorshift generator was removed. Teensy's bundled Entropy library initializes the i.MX RT1062 hardware true random number generator. Each ordinary blink sequence consumes two new 32-bit random words. The loop checks availability before reading and consumes at most two words per pass. If entropy is unavailable or only one word has arrived, the blink waits while buttons, audio, rendering, and USB keep running. No pseudorandom fallback substitutes for missing hardware entropy. The selected Entropy.h/Entropy.cpp sources are pinned by SHA-256 because this legacy library has no version metadata.
+The fixed-seed xorshift generator was removed. Teensy's bundled Entropy library initializes the i.MX RT1062 hardware true random number generator. Each ordinary blink sequence consumes two new 32-bit random words. The loop checks availability before reading and consumes at most two words per pass. If entropy is unavailable or only one word has arrived, blink scheduling waits at most100ms before using a fixed cosmetic pause. A diagnostic counts this fallback; local controls/audio/USB continue. No pseudorandom fallback enters any cryptographic path. The selected Entropy.h/Entropy.cpp sources are pinned by SHA-256 because this legacy library has no version metadata.
 
 Two independent 16-bit halves are added to form a triangular pause distribution: values near the configured interval occur more often than the extremes. The default pause is 2–6 seconds, centered near 4 seconds, measured from one blink's end to the next one's start. Other random bits choose closing (60–90 ms), a fully closed hold (20–35 ms), and reopening (130–180 ms). Total nominal animation time is 210–305 ms; actual displayed motion is quantized by the eight rows and the 16-ms frame interval. Around 8% of sequences contain one follow-up blink after a 180–320-ms open pause; a double blink cannot chain into a third. Expression changes, sleep, and visor changes cancel any pending follow-up. The vwv expression retains its original behavior without automatic blinks.
 

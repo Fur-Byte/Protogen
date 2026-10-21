@@ -26,6 +26,8 @@ int main() {
     assert(h.tick(now, f, dest, broadcast) && p.receive(f, helmet, now));
     assert(p.tick(now, f, dest, broadcast) && h.receive(f, paw, now));
     assert(h.tick(now, f, dest, broadcast) && p.receive(f, helmet, now));
+    assert(p.tick(now, f, dest, broadcast) && h.receive(f, paw, now));
+    assert(h.tick(now, f, dest, broadcast) && p.receive(f, helmet, now));
     assert(p.tick(now, f, dest, broadcast));
     p.sent(f);
     assert(h.receive(f, paw, now));
@@ -45,8 +47,14 @@ int main() {
                "no RF hardware\",\"sessions\":"
             << Sessions << ",\"mean_ms\":" << total / Sessions
             << ",\"max_ms\":" << maximum << ",\"cpu_ms_total\":" << cpu
-            << ",\"protocol_frames\":5,\"control_bytes\":640,\"ecdh_operations_"
+            << ",\"protocol_frames\":7,\"control_bytes\":896,\"ecdh_operations_"
                "per_peer\":2,\"handshake_object_bytes\":"
             << sizeof(Handshake) << ",\"link_object_bytes\":" << sizeof(Link)
-            << ",\"process_peak_rss_kib\":" << usage.ru_maxrss << "}\n";
+            << ",\"process_peak_rss_kib\":" <<
+#if defined(__APPLE__)
+            usage.ru_maxrss / 1024
+#else
+            usage.ru_maxrss
+#endif
+            << "}\n";
 }

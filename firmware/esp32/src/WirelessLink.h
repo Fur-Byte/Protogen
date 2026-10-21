@@ -21,7 +21,8 @@ private:
   bool paired = false, haveRecovery = false, fallback = false, started = false;
   State phase = State::Unpaired;
   CryptoBudget budget;
-  uint32_t sessionAt = 0, retryAt = 0;
+  uint32_t sessionAt = 0, retryAt = 0, lastRecoveryRx = 0;
+  bool recoveryRxSeen = false;
   bool connected() const {
     return phase == State::Online || phase == State::Rekeying;
   }

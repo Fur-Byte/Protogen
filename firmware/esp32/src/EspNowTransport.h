@@ -15,6 +15,10 @@ class EspNowTransport final : public Transport {
   std::atomic<uint32_t> txAttempts{0}, txCompletions{0}, rxPackets{0};
   std::atomic<TaskHandle_t> waiter{nullptr};
   Mac destination{};
+  portMUX_TYPE ingressMux = portMUX_INITIALIZER_UNLOCKED;
+  IngressIdentity ingress{};
+  void publishIngress(bool enabled, bool operational, const Mac &peer);
+  IngressIdentity ingressSnapshot();
 
 public:
   bool begin();

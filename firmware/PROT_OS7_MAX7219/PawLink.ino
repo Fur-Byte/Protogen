@@ -93,11 +93,9 @@ void receive(const HelmetLink::Packet &p, uint32_t now) {
   else if (result == HelmetLink::Accepted) {
     switch(p.payload[4]) {
       case HelmetLink::Expression:
-        expectedChange=p.payload[5]!=state && !sleeping && visorVisible && displayReady && connectorReady;
-        selectExpression(p.payload[5],now); break;
+        selectExpressionCommand(p.payload[5],now,ResponseTiming::Uart,p.sequence,receivedUs); break;
       case HelmetLink::Sleep:
-        expectedChange=sleeping!=(p.payload[5]!=0) && visorVisible && displayReady && connectorReady;
-        sleeping=p.payload[5]!=0; break;
+        setSleepingCommand(p.payload[5]!=0,ResponseTiming::Uart,p.sequence,receivedUs);break;
       case HelmetLink::MicControl:
 #ifdef Microphone
         microphoneEnabled=p.payload[5]!=0;
@@ -114,7 +112,13 @@ void receive(const HelmetLink::Packet &p, uint32_t now) {
         break;
     }
     if(result==HelmetLink::Accepted) {
-      if(expectedChange)responseTiming.start(p.sequence,receivedUs);else responseTiming.skip();
+      if(p.payload[4]!=HelmetLink::Expression&&p.payload[4]!=HelmetLink::Sleep) {
+        if(expectedChange) {
+          responseBaseline=displayedFrame;
+          responseTiming.start(p.sequence,receivedUs,ResponseTiming::Uart,ResponseTiming::Boop,
+            displayedPose.expression,ExpressionVwv);
+        } else responseTiming.skip(p.sequence,ResponseTiming::Uart);
+      }
     }
     lastResult=result;
   }

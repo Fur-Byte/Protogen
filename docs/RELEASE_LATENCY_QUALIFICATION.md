@@ -1,4 +1,4 @@
-# Response latency and scheduling qualification — 2026-10-17
+# Response latency and scheduling qualification — updated 2026-10-20
 
 ## Pipeline and corrected delays
 
@@ -64,24 +64,52 @@ execute the complete ESP main task, measure RF, or charge target graphics,
 HMAC/CRC/DSP/ISR execution or unpredictable task scheduling. Separate tests run
 real wireless Link/crypto and exact production callback/status-ordering logic.
 
-Before dense first-feedback scheduling, the ordinary160ms sleepy/heavy scenario
-was103.684ms (CRC mode). With the original42ms upstream fixture, dense rendering produced93.628ms CRC
-and99.370ms authenticated. The refined idle-aware41ms upstream fixture produces
-final maxima92.628ms CRC and98.370ms authenticated across160/1000ms durations.
-The same-fixture rendering improvement is10.056ms; the extra1ms is a modeled
-scheduling-fixture difference, not measured physical gain;
-no pre-change authenticated maximum was recorded because the earlier assertion
-stopped that run. The authenticated model has only1630us margin: it is useful
-regression arithmetic, **not proof of physical under100ms**. Unmodeled costs
-can exceed that margin; the physical target remains an explicit release gate.
+The October17 **98.370ms authenticated** maximum measures first feedback,
+often the old eyes beginning to close. It does **not** measure requested artwork
+onset. Current tests separate all three causal stages, using actual emitted eye
+pixels and a source-expression counterfactual to exclude unrelated mouth/audio,
+natural blink, glitch and visor blanking. A reversal to artwork already visible
+sets `target_already_visible` with a valid zero-time onset and continues tracking
+feedback and completion. A request for the already selected logical expression
+is skipped.
 
-`LATENCY` on Teensy reports validated-UART entry to subsequent visible SPI
-change/shutdown: accepted/completed/skipped/superseded/expired/pending and last/
-maximum microseconds. It is a diagnostic segment on a local clock, not an
-end-to-end measurement or a causal proof under overlapping local input.
-Sequence/keys/nonces are not printed. ESP `LATENCY` reports intent queue, UART
-queue/full, ACK and main-work maxima with tick rate; these local segments must
-not be added across unsynchronized clocks as if measured end-to-end.
+Current maxima from the same idealized action-edge model (milliseconds):
+
+| Authenticated UART / transition | First feedback | Requested-expression onset | Completion |
+| --- | ---: | ---: | ---: |
+| Default close/swap/open,160ms |98.370|180.818|228.986|
+| Optional early reveal,160ms |60.762|60.762|220.658|
+| Default close/swap/open,1000ms |98.370|1012.874|1073.874|
+| Optional early reveal,1000ms |60.762|60.762|1068.658|
+
+These are **modeled**, not physical CPU/RF/electrical measurements. The maximum
+may come from different source/scenario cases; columns are not additive stage
+budgets. The model includes ordinary idle-wake, all sensors and4kHz acquisition,
+real HMAC and FFT functionality, bounded malformed UART input and stalled USB.
+It excludes target instruction/ISR execution cost, real radio loss/retries and
+unpredictable scheduling. A pixel difference is a reproducible onset proxy;
+human recognizability still requires optical/artistic review on the helmet.
+
+Default `PROTOGEN_EARLY_EXPRESSION_REVEAL=0` preserves the160ms artistic style.
+Building with `-DPROTOGEN_EARLY_EXPRESSION_REVEAL=1` reveals new eyes at the start
+while retaining close/hold/open duration and continuous retargeting. This is an
+explicit visible tradeoff, not a silent speedup or a new EEPROM setting. The
+same option is tested at0/160/1000ms. Neither option guarantees100ms in loss,
+reconnect, safety inhibition or arbitrary hostile traffic.
+
+Teensy `LATENCY` reports **local dispatch to causal SPI** only, with
+`physical_clock:false`. Origin, source sequence and monotonic observation ID
+identify commands even when a sequence is reused after reconnect. Feedback,
+onset and completion have separate last/max/valid fields. Superseded/skipped
+identities, boop-delayed observations and5s expirations are tracked. Safety
+blanking cannot complete an expression observation. Local, USB and UART commands
+share this causal path. Keys/nonces/tags are never printed.
+
+ESP `LATENCY` still reports local intent/UART/ACK/main-work segments; clocks are
+unsynchronized and must not be summed as physical end-to-end measurements.
+Teensy `IDLE` is explicitly `wfi_call_elapsed`, `includes_isr:true`: it measures
+wall time around WFI, including interrupt execution, not true sleep residency or
+energy savings. CPU baselines remain Teensy600MHz/C3160MHz.
 
 ## Exact physical measurement procedure
 
@@ -100,9 +128,10 @@ packet loss/rekey and local override; classify offline/recovery and safety-held
 samples separately, not as successful online trials. Repeat with the optically
 slowest first-change expression and maximum permitted transition duration.
 
-Capture press, action edge, first visible change and complete expression with
-an external shared timebase; report all four and p50/p95/p99/max, missing responses,
-trial count and instrument uncertainty. Target action-edge-to-first-visible
+Capture press, action edge, first causal feedback, requested-eye artwork onset
+and completed expression with
+an external shared timebase; report these separate intervals and p50/p95/p99/max, missing responses,
+trial count and instrument uncertainty. Target action-edge-to-first-feedback and requested-expression onset
 under100ms in healthy online and ordinary idle-wake conditions. Preserve the
 160ms transition completion metric separately. Compare ADC sample/ISR cadence,
 audio drops, queue counters and watchdog/reset cause during the same trials.

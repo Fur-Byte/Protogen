@@ -15,10 +15,12 @@ for unit in md sha256 platform_util; do
  "${CXX:-clang++}" -x c -g -Wall -Wextra -Werror -fsanitize="${PROTOGEN_HOST_SANITIZERS:-address,undefined}" -DPROTOGEN_UART_AUTH=1 \
  -I"$ROOT/firmware/PROT_OS7_MAX7219" -I"$ROOT/scripts/tests/uart-fixture" -c "$UART_SOURCE/$unit.c" -o "$LATENCY_TEMP/$unit.o"
 done
+for early in 0 1; do
 for auth in 0 1; do
  AUTH_FLAGS=(); OBJECTS=()
  if [[ "$auth" == 1 ]]; then AUTH_FLAGS=(-DPROTOGEN_UART_AUTH=1); OBJECTS=("$LATENCY_TEMP/md.o" "$LATENCY_TEMP/sha256.o" "$LATENCY_TEMP/platform_util.o"); fi
- "${CXX:-clang++}" "${FLAGS[@]}" ${AUTH_FLAGS[@]+"${AUTH_FLAGS[@]}"} "$ROOT/scripts/tests/response-latency.cpp" \
+ "${CXX:-clang++}" "${FLAGS[@]}" -DPROTOGEN_EARLY_EXPRESSION_REVEAL="$early" ${AUTH_FLAGS[@]+"${AUTH_FLAGS[@]}"} "$ROOT/scripts/tests/response-latency.cpp" \
  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$LATENCY_TEMP/fft.o" ${OBJECTS[@]+"${OBJECTS[@]}"} -o "$LATENCY_TEMP/latency"
  "$LATENCY_TEMP/latency"
+done
 done

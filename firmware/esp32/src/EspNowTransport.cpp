@@ -54,6 +54,8 @@ bool EspNowTransport::configure(const Mac &own, const Mac *peer,
                                 uint8_t c) {
   if (!initialized || !unicast(own) || !channelAllowed(c))
     return false;
+  // Retire the old callback identity before stopping/replacing the driver.
+  publishIngress(false, false, Mac{});
   if (started) {
     esp_now_unregister_recv_cb();
     esp_now_unregister_send_cb();
@@ -96,7 +98,23 @@ bool EspNowTransport::configure(const Mac &own, const Mac *peer,
                     esp_now_register_recv_cb(rx) == ESP_OK &&
                     esp_now_register_send_cb(tx) == ESP_OK;
   Crypto::wipe(&p, sizeof(p));
+  if (okay) publishIngress(true, peer != nullptr, peer ? *peer : Mac{});
   return okay;
+}
+void EspNowTransport::publishIngress(bool enabled, bool operational,
+                                     const Mac &peer) {
+  portENTER_CRITICAL(&ingressMux);
+  ++ingress.generation;
+  ingress.enabled = enabled;
+  ingress.operational = operational;
+  ingress.peer = peer;
+  portEXIT_CRITICAL(&ingressMux);
+}
+IngressIdentity EspNowTransport::ingressSnapshot() {
+  portENTER_CRITICAL(&ingressMux);
+  const IngressIdentity result = ingress;
+  portEXIT_CRITICAL(&ingressMux);
+  return result;
 }
 bool EspNowTransport::channel(uint8_t c) {
   if (!started || !channelAllowed(c) || busy())
@@ -138,7 +156,13 @@ bool EspNowTransport::send(const Frame &f, const Mac *peer) {
   return true;
 }
 bool EspNowTransport::receive(Received &out) {
-  return xQueueReceive(queue, &out, 0) == pdTRUE;
+  if (!queue) return false;
+  for (unsigned i = 0; i < RxSlots; ++i) {
+    if (xQueueReceive(queue, &out, 0) != pdTRUE) return false;
+    if (currentIngress(out, ingressSnapshot())) return true;
+    ++drops;
+  }
+  return false;
 }
 void EspNowTransport::received(const uint8_t *source, const uint8_t *dest,
                                const uint8_t *b, int n) {
@@ -147,17 +171,26 @@ void EspNowTransport::received(const uint8_t *source, const uint8_t *dest,
     return;
   }
   const bool broadcast = memcmp(dest, Broadcast.bytes, 6) == 0;
-  if (!admitIngress(b, size_t(n), broadcast, native.load())) {
+  const IngressIdentity identity = ingressSnapshot();
+  Mac sender{};memcpy(sender.bytes, source, 6);
+  if (!identity.enabled ||
+      !admitIngress(b, size_t(n), broadcast, identity.operational,
+                    sender, identity.peer)) {
     ++drops;
     return;
   }
   Received item{};
   memcpy(item.source.bytes, source, 6);
   item.broadcast = broadcast;
+  item.ingressGeneration = identity.generation;
   memcpy(item.frame.bytes, b, PacketBytes);
+  if (!currentIngress(item, ingressSnapshot())) { ++drops; return; }
   ++rxPackets;
   if (xQueueSend(queue, &item, 0) != pdTRUE)
     ++drops;
+  // The queue operation stays outside the critical section. A callback that
+  // crosses reconfiguration can enqueue only a retired generation; receive()
+  // drops it before use, even if it raced the queue reset.
   notify();
 }
 } // namespace Wireless

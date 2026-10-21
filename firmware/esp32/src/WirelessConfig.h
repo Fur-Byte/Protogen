@@ -13,6 +13,11 @@ constexpr uint32_t PairingMs = 60000, PairRetryMs = 400, HandshakeMs = 4000,
 constexpr uint32_t KeepaliveMinMs = 3000, KeepaliveMaxMs = 5000,
                    DisconnectMs = 12000;
 constexpr uint32_t ServicePollMs = 2; // Representable by the pinned1kHz scheduler.
+// Production v3 data/pairing stay unchanged; both roles require this explicit
+// handshake revision. Legacy Hello has no live receiver freshness and is denied.
+constexpr uint8_t HandshakeRevision = 2;
+constexpr uint32_t HandshakeServiceMs = 2, ChallengeReplyMs = 5;
+constexpr unsigned ChallengeReplies = 4;
 constexpr uint32_t ActiveMs = 1500, ActivePollMs = 100, FreshStatusMs = 200,
                    FastRecoveryMs = 15000;
 constexpr uint32_t HelmetPairHoldMs = 2000, PawPairHoldMs = 3000,
@@ -42,7 +47,10 @@ enum Type : uint8_t {
   PairReveal = 5,
   PairConfirm = 6,
   Data = 7,
-  SessionCommit = 8
+  SessionCommit = 8,
+  SessionRequest = 9,
+  SessionChallenge = 10,
+  SessionProof = 11
 };
 inline uint64_t get64(const uint8_t *p) {
   uint64_t v = 0;
@@ -90,6 +98,6 @@ inline void header(Frame &f, Type t, uint8_t role) {
 }
 inline bool valid(const uint8_t *b, size_t n, uint8_t role) {
   return b && n == PacketBytes && b[0] == 0x70 && b[1] == Version &&
-         b[2] >= SessionHello && b[2] <= SessionCommit && b[3] == role;
+         b[2] >= SessionHello && b[2] <= SessionProof && b[3] == role;
 }
 } // namespace Wireless

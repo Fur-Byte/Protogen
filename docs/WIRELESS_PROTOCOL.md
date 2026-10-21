@@ -86,52 +86,59 @@ firmware upgrade of both peers: its random PSK is only an authentication secret.
 Old radio records are rejected. No operational session is persisted or resumed.
 
 Every session, including initial post-pair connection, boot, loss, reset, time
-renewal and channel recovery, uses a new PSA ephemeral P-256 keypair on each side.
-The paw generates its pair at attempt creation; the helmet generates only after
-validating the PSK-authenticated Hello. Each contributes 16 hardware-random bytes.
+renewal and channel recovery, uses new PSA ephemeral P-256 keypairs and hardware
+random nonces. **Handshake revision 2 requires both C3 peers to be upgraded.**
+DATA wire version3, 128-byte packet size, pairing storage and Teensy framing remain
+unchanged; new control types9/10/11 make old peers reject admission explicitly.
+Legacy Hello1 is rejected, with no insecure fallback. Pairing PSKs need not be
+erased. Experimental v4 remains excluded.
 
-1. **Hello**, paw broadcast: header plus its 65-byte uncompressed P-256 public
-   key at offset 4, random nonce at 69, temporary MAC at 85, zero bytes 91–95.
-   HMAC-SHA-256 authenticates bytes 0–95 using
-   `HKDF(PSK, empty salt, "protogen/v3/session/auth/hello", 32)`.
-2. **Response**, helmet unicast: same layout with the helmet contribution.
-   The canonical transcript is exactly the first 96 bytes of Hello followed by
-   the first 96 bytes of Response, in that order. Its SHA-256 digest binds magic,
-   version, message types, roles, both public keys, both nonces, both temporary
-   MACs and reserved zeros. The response HMAC authenticates this digest with
-   `HKDF(PSK, empty salt, "protogen/v3/session/auth/transcript", 32)`.
-   Paw computes the digest using its current Hello; a stale response cannot bind
-   to a fresh attempt. Both check the claimed MAC against the observed source.
-3. After authentication, each performs PSA P-256 ECDH with its new private key
-   and the peer's validated point. `HKDF-SHA-256(ECDH result, transcript digest,
-   label)` derives each final output independently. Both private key handles are
-   destroyed and the raw shared secret is securely wiped immediately afterwards.
-   PSK authentication subkeys are also wiped; the transcript remains for Finished.
-4. **Paw Finished**, unicast: transcript digest at 4, session ID at 36, zeros
-   44–95; HMAC over bytes 0–95 with the new paw Finished key.
-5. **Helmet Finished**, unicast: same layout, helmet role; new helmet Finished
-   key. Helmet sends this only after validating Paw Finished.
-6. **Paw Commit**, type 8 unicast: same layout, distinct newly derived paw Commit
-   key. Paw sends it only after validating Helmet Finished. Helmet requires this
-   acknowledgement before ONLINE. Paw becomes eligible after queuing Commit;
-   both wait for native send completion before rotating/reconfiguring the radio.
-7. Install new session MACs, CCMP LMK/PMK and AES-GCM material, clear candidate
-   material, enter ONLINE, then accept operational DATA. Never dispatch DATA in
-   rendezvous, confirmation, pairing, recovery or rekey transition states.
+1. **Request9**, paw broadcast: P-256 uncompressed public key65 at offset4,
+   nonce16 at69, temporary MAC6 at85, revision2 at91, zeros92–95; full HMAC32
+   at96 over bytes0–95. A request cannot own an expensive helmet candidate.
+2. **Challenge10**, helmet unicast: SHA256(Request bytes0–95) at4, current live
+   helmet admission nonce16 at36, helmet MAC6 at52, revision2 at58, zeros59–95;
+   HMAC32 at96 over bytes0–95. Paw accepts only a challenge bound to its locally
+   fresh Request. Replaying an old challenge cannot pin a new paw attempt.
+3. **Proof11**, paw unicast: Request layout with type11; HMAC32 authenticates
+   Challenge bytes0–95 followed by Proof bytes0–95. Helmet reconstructs the
+   challenge using its current nonce and Request hash. It reserves two ECC
+   credits atomically, rotates/consumes the live nonce before expensive work,
+   and only then creates/replaces its candidate. Insufficient credits preserve
+   both the current candidate and proof eligibility. An exact accepted Proof
+   retry uses the cached response without new ECC or extending the lifetime.
+4. **Response2**, helmet unicast: its P-256/nonce/MAC contribution in the same
+   key layout. SHA256(Challenge prefix96 || Proof prefix96 || Response prefix96)
+   is the canonical transcript digest; Response HMAC authenticates that digest.
+   Admission HMAC keys use separate HKDF(PSK, empty salt, label,32) labels
+   `protogen/v3/handshake/r2/request`, `/challenge`, `/proof`, `/response`.
+5. After validating the peer's contribution, both compute P-256 ECDH and derive
+   the independently labeled outputs below using this transcript as HKDF salt.
+   Private handles and raw shared secret are destroyed immediately. Admission
+   keys/nonce/reply hashes are wiped at completion or clearing; candidate traffic
+   keys are wiped after installation or failure.
+6. **Paw Finished3 → Helmet Finished3 → Paw Commit8** use transcript digest32
+   at4, session ID8 at36, zeros44–95 and full32-byte HMAC with separately derived
+   ECDH confirmation keys. Direction/role/type are authenticated. Helmet requires
+   Commit before ONLINE. Paw is eligible only after queuing Commit; both wait
+   for native send completion before reconfiguring the radio. Invalid tags do
+   not abort a valid pending exchange or reset its timeout.
+7. Install new MACs, CCMP LMK/PMK and AES-GCM material, clear candidates and enter
+   ONLINE. Only then dispatch operational DATA.
 
-The loss-free exchange has five 128-byte frames (640 application bytes). Only
-Hello is broadcast. These are authenticated control proofs, not operational
-commands or secret transfers. Finished messages use independently derived HMAC
-keys from the **new ECDH** secret, never the old PSK. Full transcript, version,
-role, message type/direction and session ID are authenticated. Commit has a unique
-key label as well as a distinct authenticated message type.
+The loss-free exchange has **seven128-byte frames (896 application bytes)**,
+with Request broadcast and six unicast frames. Each device still performs one
+P-256 generation and one agreement. A captured Request can elicit only a cheap
+challenge; a captured Proof cannot pass a different live nonce after acceptance,
+restart or timeout. Four fixed hash/source FIFO entries bound challenge storage,
+coalesce queued duplicates and send at most one challenge per5ms. Link applies
+backpressure before dequeuing RX when this FIFO is full, so a delivered live
+request is retained rather than discarded behind replayed requests.
 
-Attempts expire after 4 s and clear all candidate keys; retries use fresh
-keypairs. A bad tag on a matching Finished fails immediately and wipes material;
-a stale transcript/identity is rejected without trusting it. Identical in-flight
-messages retransmit cached replies without repeating ECC. A bounded four-entry
-8 s authenticated-Hello digest cache rejects recent completed/aborted replay.
-This cache and all budgets survive handshake clearing, not physical reboot.
+Attempts expire after4s and retry with fresh keypairs. Each accepted fresh stage
+starts its bounded confirmation interval; duplicates/invalid packets do not
+renew it. A newer authenticated live Proof may supersede a stale candidate.
+The historical eight-second Hello replay cache is no longer an admission rule.
 
 An acknowledgement can still be lost: distributed link readiness cannot be made
 atomic over a lossy radio. Paw has verified both directional proofs before it
@@ -212,8 +219,9 @@ and command-field checks precede marking the replay bitmap and dispatch. The
 Teensy separately rejects old command sequences, modified retries and stale
 epoch/tickets; authenticated out-of-order commands cannot execute backwards.
 
-Control frames remain 128 bytes. Types: Hello 1, Response 2, Finished 3,
-PairCommit 4, PairReveal 5, PairConfirm 6, DATA 7, Paw Commit 8. Public-key control
+Control frames remain 128 bytes. Types: legacy/rejected Hello1, Response2, Finished3,
+PairCommit4, PairReveal5, PairConfirm6, DATA7, Paw Commit8, Request9,
+Challenge10, Proof11. Public-key control
 bodies and Finished layouts are specified above. PairCommit body: 32-byte digest;
 PairReveal: public key 65, nonce 16, source MAC 6; PairConfirm: transcript hash 32,
 physical-confirmation flag 0/1. Operational parsers never execute control frames.
@@ -275,18 +283,29 @@ commands or frozen rendering. This does not defeat broadband jamming.
 
 ## Parser, resource and SDK boundaries
 
-Wi-Fi callbacks only length-check and copy fixed frames/source/destination to an
-8-slot queue. Main processing budgets 4 frames per 5 ms turn, receive AEAD at most
-200/s, handshake HMAC token bucket: burst 8, refill one every 50 ms (20/s sustained).
-ECC generation/agreement share a bucket: burst 4, refill one every 500 ms
-(2 operations/s sustained). Attempt creation: burst 2, refill one every 1 s.
-Pairing also keeps its one-agreement/s candidate gate. Eight invalid
-handshake/Finished tags cause 250 ms temporary backoff. Dropped frames cannot
-extend a running backoff; credits refill by unsigned elapsed time across wrap.
-These permit a loss-free reconnect's two ECC operations per device immediately,
-then bound replay/garbage cost. Online DATA bypasses handshake budgets entirely.
-One candidate is pinned until the 60 s attempt expires. There is no persistent
-attacker-triggered lockout. Four outgoing slots and one ciphertext retry slot
+Wi-Fi callbacks check fixed envelope fields and copy to an8-slot queue. In
+operational mode they admit only unicast DATA from the published peer; offline
+mode admits control traffic without prematurely filtering legitimate recovery.
+A short critical section publishes a coherent peer/mode/generation snapshot;
+queue operations stay outside it. Stale-generation entries are drained before
+use. This is defense in depth, not proof of a physically reproduced RF exploit.
+[Espressif's ESP-NOW documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/network/esp_now.html)
+states that unencrypted unicast/broadcast may arrive without adding a peer,
+whereas encrypted unicast requires the matching peer/LMK; callbacks run on the
+Wi-Fi task and must remain short.
+
+Recovery consumes at most4 received records per2ms, including notification storms;
+unread records remain queued during the service cooldown or challenge FIFO
+backpressure. Handshake bad tags consume bounded short HMAC work without taking
+a global verification credit or triggering failure backoff. Pairing retains its
+original verification/backoff policy. ECC generation/agreement still share a
+bucket: burst4, refill one per500ms. Helmet admission reserves its two credits
+atomically. Attempt creation remains burst2/refill1s; pairing retains its
+one-agreement/s gate. ONLINE DATA authentication remains at most200/s and
+independent of handshake traffic. Invalid Finished/Commit cannot clear a pending
+candidate. This bounds software work and gives delivered legitimate traffic
+progress under the tested bounded floods; queue saturation and RF jamming can
+still prevent delivery. Four outgoing slots and one ciphertext retry slot
 bound memory. PSA internals may allocate; application hot paths allocate no
 variable-size memory. Length/version/role/session/sequence checks precede copies
 or expensive operations. Sustained RF flooding can deny radio service but cannot
@@ -360,15 +379,25 @@ commands. ESP32 uses PSA HMAC-SHA-256; Teensy uses an unmodified upstream Mbed T
 3.6.5 SHA-256/MD subset with isolated symbol names. A reusable MAC context allocates
 once on Teensy initialization, not for every command. No custom hash/MAC is used.
 
-UART exchange: ESP sends a MAC-authenticated fresh 16-byte request nonce; Teensy
-responds with a new random 16-byte UART session ID, its boot epoch and the echoed
-nonce; ESP verifies the current request and confirms both contributions. Teensy
-commits only a matching authenticated confirmation; a replayed Request cannot
-replace/deactivate its existing active session. The first authenticated status
-confirms receiver readiness to ESP. Control retries do not reset record counters.
-ESP renews the UART handshake after 2 s without valid status, supporting either
-controller reset. Pending candidates expire at 2 s; receiver processes requests
-at most once/s, without blocking local controls.
+UART exchange: ESP sends a full-HMAC-authenticated fresh16-byte request nonce.
+Teensy replies with its boot epoch, echoed nonce and an opaque16-byte session ID.
+The session ID is issue-time32 plus96 PRF bits from HMAC binding a separate
+`protogen/v3/uart/challenge-id` domain, volatile CSPRNG seed16, request nonce,
+boot epoch, committed generation, issue time and wrap era. These public96 bits
+are **not** an authentication tag: every control/DATA frame still has the full
+256-bit HMAC. No cipher or authentication algorithm was substituted.
+
+Teensy validates a Confirm by recomputing the ID and checking its exact2s TTL;
+Requests cannot replace pending candidates or deactivate the active session.
+A committed Confirm increments generation, retiring prior challenges and
+preventing captured confirmations from resetting DATA counters. Continuous
+poll/feed tracks timer wrap era so an uncommitted recording does not become
+fresh again after a49-day millis wrap. Seed generation is lazy and retried at
+most once/s on entropy failure; successful Requests need only short bounded
+HMAC work. Wire baud, finite parser and64-byte Teensy service budget bound that
+work. The first authenticated status confirms readiness to ESP; ESP renews
+after2s without valid status. SID layout is opaque to the existing ESP peer,
+so this receiver change preserves the v3 UART envelope.
 
 Raw UART envelope: magic `0x75`, version 3, direction/role, message type (4 bytes);
 UART session ID (16); Teensy epoch (4); monotonic sequence (8); complete raw v1

@@ -35,6 +35,7 @@ bool Link::begin(bool isPaired, const uint8_t secret[32], uint32_t now) {
   return started;
 }
 void Link::recover(uint32_t now) {
+  recoveryRxSeen = false;
   const bool wasConnected = connected();
   session.clear();
   handshake.clear();
@@ -162,12 +163,20 @@ void Link::tick(uint32_t now) {
     return;
   } // Driver completion failure cannot wedge the link.
   Received item;
+  // Notifications may wake this task faster than the ordinary service period.
+  // Bound cheap handshake HMAC work without charging bad tags to a scarce
+  // global verification bucket. Unread records remain in the finite RX queue.
+  const bool recoveryReceiveDue = !recovering() || !recoveryRxSeen ||
+      now - lastRecoveryRx >= HandshakeServiceMs;
   for (unsigned received = 0; received < ReceiveBudget; ++received) {
+    if (recovering() && !recoveryReceiveDue) break;
+    if (recovering() && !handshake.canReceive()) break;
     // Preserve queued records while the authentication budget cools down.
     // Dequeuing the whole burst here silently discarded legitimate ACK/status
     // records after the first attempted authentication in the same window.
     if(connected() && now-lastRxCheck<AuthIntervalMs/10)break;
     if(!radio.receive(item))break;
+    if (recovering()) { recoveryRxSeen = true; lastRecoveryRx = now; }
     if (!valid(item.frame.bytes, PacketBytes, role == Paw ? Helmet : Paw)) {
       increment(item.frame.bytes[1] != Version ? budget.diagnostics.versions
                                                : budget.diagnostics.malformed);

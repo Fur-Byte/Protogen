@@ -27,6 +27,15 @@ target_link_libraries(test-wireless PRIVATE mbedtls)
 target_compile_features(test-wireless PRIVATE cxx_std_17)
 target_compile_options(test-wireless PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 
+add_executable(test-handshake-availability ../handshake-availability.cpp
+  "${SRC}/WirelessCrypto.cpp" "${SRC}/WirelessSession.cpp"
+  "${SRC}/WirelessPairing.cpp" "${SRC}/SessionHandshake.cpp"
+  "${SRC}/IdentityRecovery.cpp" "${SRC}/WirelessLink.cpp" "${SRC}/PairingIndicator.cpp")
+target_include_directories(test-handshake-availability PRIVATE "${SRC}" "${ROOT}/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
+target_link_libraries(test-handshake-availability PRIVATE mbedtls)
+target_compile_features(test-handshake-availability PRIVATE cxx_std_17)
+target_compile_options(test-handshake-availability PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+
 add_executable(test-storage ../storage-faults.cpp)
 target_include_directories(test-storage PRIVATE "${SRC}" "${ROOT}/firmware/PROT_OS7_MAX7219/src/HelmetProtocol")
 target_compile_features(test-storage PRIVATE cxx_std_17)
