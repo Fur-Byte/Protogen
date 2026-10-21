@@ -48,6 +48,7 @@ struct FakeRadio : Transport {
   uint8_t c = 6;
   bool encrypted = false, blocked = false, stuck = false;
   unsigned packets = 0, dropFinish = 0;
+  std::array<unsigned, SessionProof + 1> dropControl{};
   uint16_t deniedChannels = 0;
   std::deque<Received> incoming;
   std::vector<Frame> captured;
@@ -74,6 +75,9 @@ struct FakeRadio : Transport {
       captured.erase(captured.begin());
     captured.push_back(f);
     assert(f.bytes[2] != Data || (p && encrypted));
+    if (f.bytes[2] < dropControl.size() && dropControl[f.bytes[2]]) {
+      --dropControl[f.bytes[2]]; return true;
+    }
     if (f.bytes[2] == SessionFinish && dropFinish) {
       --dropFinish;
       return true;
@@ -565,10 +569,14 @@ void testHandshakeAndForwardSecrecy() {
   uint8_t psk[32] = {19};
   Handshake p, h;
   assert(p.start(psk, Paw, paw, 100) && h.start(psk, Helmet, helmet, 100));
-  Frame hello, response, finish, helmetFinish, commit;
+  Frame requestFrame, challenge, hello, response, finish, helmetFinish, commit;
   Mac dest;
   bool broadcast = false;
-  assert(p.tick(100, hello, dest, broadcast) && broadcast);
+  assert(p.tick(100, requestFrame, dest, broadcast) && broadcast);
+  assert(h.receive(requestFrame, paw, 100) && !h.pending());
+  assert(h.tick(100, challenge, dest, broadcast));
+  assert(p.receive(challenge, helmet, 100));
+  assert(p.tick(100, hello, dest, broadcast));
   assert(h.receive(hello, paw, 100));
   assert(!h.ready());
   assert(h.tick(100, response, dest, broadcast) && !broadcast);
@@ -588,9 +596,10 @@ void testHandshakeAndForwardSecrecy() {
   assert(Crypto::equal(old.pawKey, h.keys().pawKey, 32));
   // The public transcript + extracted PSK can authenticate this recording,
   // but using the PSK as the KDF input cannot reproduce the ECDH traffic key.
-  uint8_t canonical[192], hash[32];
-  memcpy(canonical, hello.bytes, 96);
-  memcpy(canonical + 96, response.bytes, 96);
+  uint8_t canonical[288], hash[32];
+  memcpy(canonical, challenge.bytes, 96);
+  memcpy(canonical + 96, hello.bytes, 96);
+  memcpy(canonical + 192, response.bytes, 96);
   assert(Crypto::hash(canonical, sizeof(canonical), hash));
   Material attacker;
   assert(deriveMaterial(psk, hash, attacker));
@@ -603,10 +612,14 @@ void testHandshakeAndForwardSecrecy() {
   assert(sender.seal(command(), captured));
   assert(!receiver.open(captured.bytes, 128, decoded));
   assert(p.start(psk, Paw, paw, 1100) && h.start(psk, Helmet, helmet, 1100));
-  Frame newHello, newResponse, newFinished;
+  Frame newHello, newChallenge, newProof, newResponse, newFinished;
   assert(p.tick(1100, newHello, dest, broadcast));
   assert(!Crypto::equal(newHello.bytes + 4, hello.bytes + 4, 65));
-  assert(h.receive(newHello, paw, 1100));
+  assert(h.receive(newHello, paw, 1100) && !h.pending());
+  assert(h.tick(1100, newChallenge, dest, broadcast));
+  assert(p.receive(newChallenge, helmet, 1100));
+  assert(p.tick(1100, newProof, dest, broadcast));
+  assert(h.receive(newProof, paw, 1100));
   assert(h.tick(1100, newResponse, dest, broadcast));
   assert(p.receive(newResponse, helmet, 1100));
   assert(!Crypto::equal(old.pawKey, p.keys().pawKey, 32) &&
@@ -614,11 +627,14 @@ void testHandshakeAndForwardSecrecy() {
   assert(!h.receive(finish, paw, 1100));
   assert(!h.ready());
   assert(p.tick(1100, newFinished, dest, broadcast));
-  newFinished.bytes[127] ^= 1;
-  assert(!h.receive(newFinished, paw, 1100));
-  assert(h.failed() && !h.ready());
-  Material zero{};
-  assert(Crypto::equal(&h.keys(), &zero, sizeof(zero)));
+  Frame badFinished = newFinished; badFinished.bytes[127] ^= 1;
+  assert(!h.receive(badFinished, paw, 1100));
+  assert(!h.failed() && !h.ready() && h.pending());
+  assert(h.receive(newFinished, paw, 1100));
+  assert(h.tick(1100, helmetFinish, dest, broadcast));
+  assert(p.receive(helmetFinish, helmet, 1100));
+  assert(p.tick(1100, commit, dest, broadcast)); p.sent(commit);
+  assert(h.receive(commit, paw, 1100) && p.ready() && h.ready());
   Crypto::wipe(&old, sizeof(old));
   Crypto::wipe(&attacker, sizeof(attacker));
   CryptoBudget budget;
@@ -640,25 +656,28 @@ void testHandshakeAndForwardSecrecy() {
 void testHelloAdmission() {
   Frame ingress;
   header(ingress, SessionHello, Paw);
-  assert(admitIngress(ingress.bytes, PacketBytes, true, false));
-  assert(!admitIngress(ingress.bytes, PacketBytes, true, true));
-  assert(!admitIngress(ingress.bytes, PacketBytes, false, true));
+  assert(admitIngress(ingress.bytes, PacketBytes, true, false, paw, paw));
+  assert(!admitIngress(ingress.bytes, PacketBytes, true, true, paw, paw));
+  assert(!admitIngress(ingress.bytes, PacketBytes, false, true, paw, paw));
   header(ingress, Data, Paw);
-  assert(admitIngress(ingress.bytes, PacketBytes, false, true));
-  assert(!admitIngress(ingress.bytes, PacketBytes, true, true));
-  assert(!admitIngress(ingress.bytes, PacketBytes - 1, false, true));
-  assert(!admitIngress(nullptr, PacketBytes, false, true));
+  assert(admitIngress(ingress.bytes, PacketBytes, false, true, paw, paw));
+  assert(!admitIngress(ingress.bytes, PacketBytes, true, true, paw, paw));
+  assert(!admitIngress(ingress.bytes, PacketBytes - 1, false, true, paw, paw));
+  assert(!admitIngress(nullptr, PacketBytes, false, true, paw, paw));
   uint8_t psk[32] = {29};
   Handshake p, h;
   assert(p.start(psk, Paw, paw, 100) && h.start(psk, Helmet, helmet, 100));
-  Frame hello, response;
+  Frame requestFrame, hello, challenge, response;
   Mac destination;
   bool broadcast = false;
-  assert(p.tick(100, hello, destination, broadcast) && broadcast);
-  Frame forged = hello;
-  forged.bytes[127] ^= 1;
+  assert(p.tick(100, requestFrame, destination, broadcast) && broadcast);
+  Frame forged = requestFrame; forged.bytes[127] ^= 1;
   assert(!h.receive(forged, paw, 100));
   assert(h.state() == Handshake::Phase::Rendezvous);
+  assert(h.receive(requestFrame, paw, 100) && !h.pending());
+  assert(h.tick(100, challenge, destination, broadcast));
+  assert(p.receive(challenge, helmet, 100));
+  assert(p.tick(100, hello, destination, broadcast));
   assert(h.receive(hello, paw, 100));
   assert(h.tick(100, response, destination, broadcast));
   for (uint32_t now = 101; now < 100 + HandshakeRetryMs; ++now) {
@@ -678,18 +697,23 @@ void testHelloAdmission() {
   CryptoBudget attackBudget;
   Handshake attacked(&attackBudget);
   assert(attacked.start(psk, Helmet, helmet, 100));
+  // Direct fixture calls are intentionally adversarial. Production Link bounds
+  // these cheap operations per service interval (separately regression-tested).
   for (unsigned i = 0; i < 1000; ++i)
     assert(!attacked.receive(forged, paw, 100));
   assert(attacked.state() == Handshake::Phase::Rendezvous);
-  assert(attackBudget.diagnostics.handshakeFailures == AuthBurst);
-  assert(attackBudget.diagnostics.rateDrops >= 1000 - AuthBurst);
-  assert(attacked.receive(hello, paw, 1100));
-  // The replay cache survives handshake restart; a fresh legitimate offer wins.
+  assert(attackBudget.diagnostics.handshakeFailures == 1000);
+  assert(attackBudget.diagnostics.rateDrops == 0);
+  assert(attacked.receive(requestFrame, paw, 101));
+  assert(attackBudget.spend(attackBudget.ecc,101,CryptoBurst));
+  // Restart creates fresh receiver admission. An old Request only earns a cheap
+  // reply; a captured Proof cannot recover its spent freshness or block a peer.
   assert(h.start(psk, Helmet, helmet, 1100));
-  assert(!h.receive(hello, paw, 1100));
+  assert(!h.receive(hello, paw, 1100) && !h.pending());
+  assert(h.receive(requestFrame, paw, 1100) && !h.pending());
   assert(p.start(psk, Paw, paw, 1100));
   assert(p.tick(1100, hello, destination, broadcast));
-  assert(h.receive(hello, paw, 1100));
+  assert(h.receive(hello, paw, 1100) && !h.pending());
 
   Rig rig;
   rig.connect();
@@ -918,4 +942,5 @@ int main(int argc,char **argv) {
          "failures, AEAD, replay, 52000 fuzz/corruption cases, fresh "
          "sessions/MACs, reboot/loss/channel recovery, quiet keepalives, "
          "bounded rapid actions\n";
+  return 0;
 }

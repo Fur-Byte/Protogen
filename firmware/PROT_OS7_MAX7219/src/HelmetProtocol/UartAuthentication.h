@@ -28,17 +28,19 @@ inline bool equal(const uint8_t *a, const uint8_t *b, size_t n) {
     v |= *a++ ^ *b++;
   return v == 0;
 }
-// No secret is owned here. The adapter uses PSA or upstream Mbed TLS HMAC.
+// The adapter owns the long-term HMAC key. A volatile receiver seed binds
+// stateless challenges to this boot; it is wiped on clear and never exported.
 class Endpoint {
   uint8_t role;
   State phase = State::Idle;
   void *context;
   MacFunction mac;
   RandomFunction random;
-  uint8_t id[16]{}, clientNonce[16]{}, candidateId[16]{}, candidateNonce[16]{};
-  uint32_t epoch = 0, nextControl = 0, candidateAt = 0, lastRequest = 0,
-           lastLive = 0;
-  bool candidate = false, requestSeen = false;
+  uint8_t id[16]{}, clientNonce[16]{};
+  uint8_t challengeSeed[16]{};
+  uint32_t generation = 0, seedAttemptAt = 0, clockAt = 0, clockEra = 0;
+  bool seedReady = false, seedAttempted = false;
+  uint32_t epoch = 0, nextControl = 0, lastLive = 0;
   uint64_t transmit = 0, received = 0;
   uint8_t encoded[MaxEncoded]{};
   size_t used = 0;
@@ -76,6 +78,47 @@ class Endpoint {
                       HelmetLink::crc16(out, authenticated + Tag));
     return authenticated + Tag + 2;
   }
+  void advanceClock(uint32_t now) {
+    // poll/feed are serviced continuously. Retaining the wrap era prevents a
+    // never-committed recording becoming fresh again after a millis wrap.
+    if (now < clockAt && clockEra != UINT32_MAX) ++clockEra;
+    clockAt = now;
+  }
+  bool readySeed(uint32_t now) {
+    if (seedReady) return true;
+    if (seedAttempted && now - seedAttemptAt < RequestLimitMs) return false;
+    seedAttempted = true; seedAttemptAt = now;
+    if (!random(context, challengeSeed, sizeof(challengeSeed))) {
+      protogenSecureZero(challengeSeed, sizeof(challengeSeed)); return false;
+    }
+    uint8_t value = 0;
+    for (auto b : challengeSeed) value |= b;
+    seedReady = value != 0;
+    return seedReady;
+  }
+  bool challengeId(const uint8_t nonce[16], uint32_t issued, uint32_t era,
+                   uint8_t out[16]) {
+    static constexpr char label[] = "protogen/v3/uart/challenge-id";
+    uint8_t input[sizeof(label) - 1 + 16 + 16 + 16]{};
+    size_t at = sizeof(label) - 1;
+    memcpy(input, label, at);
+    memcpy(input + at, challengeSeed, 16); at += 16;
+    memcpy(input + at, nonce, 16); at += 16;
+    HelmetLink::put32(input + at, epoch); at += 4;
+    HelmetLink::put32(input + at, generation); at += 4;
+    HelmetLink::put32(input + at, issued); at += 4;
+    HelmetLink::put32(input + at, era);
+    uint8_t tag[32]{};
+    const bool okay = mac(context, input, sizeof(input), tag);
+    if (okay) {
+      // Public SID: exact issue time and 96 PRF bits. This is NOT the frame
+      // authentication tag; every frame still carries its full 256-bit HMAC.
+      HelmetLink::put32(out, issued); memcpy(out + 4, tag, 12);
+    }
+    protogenSecureZero(input, sizeof(input));
+    protogenSecureZero(tag, sizeof(tag));
+    return okay;
+  }
   bool decode(const uint8_t *b, size_t n, uint32_t now,
               HelmetLink::Packet &packet) {
     if (n < Header + Tag + 2 || n > MaxRaw || b[0] != 0x75 || b[1] != Version ||
@@ -99,6 +142,17 @@ class Endpoint {
     if (type == Challenge && (role != Esp || phase != State::AwaitChallenge ||
                               !equal(b + Header, clientNonce, 16)))
       return false;
+    if (type == Request || type == Confirm) {
+      if (!epoch) return false;
+      if (type == Request) {
+        for (unsigned i = 4; i < Header; ++i)
+          if (b[i])
+            return false;
+      } else {
+        if (ep != epoch || !seedReady || generation == UINT32_MAX ||
+            now - HelmetLink::u32(b + 4) >= CandidateMs) return false;
+      }
+    }
     // Structural checks precede the bounded MAC operation. Tags never escape.
     uint8_t copy[MaxRaw]{};
     memcpy(copy, b, n - Tag - 2);
@@ -108,25 +162,13 @@ class Endpoint {
     if (!authenticated)
       return false;
     if (type == Request) {
-      for (unsigned i = 4; i < Header; ++i)
-        if (b[i])
-          return false;
-      if (requestSeen && now - lastRequest < RequestLimitMs)
-        return false;
-      requestSeen = true;
-      lastRequest = now;
-      // A replayed request cannot deactivate the active session. A fresh
-      // receiver contribution and authenticated confirmation must commit it.
-      if (!candidate || !equal(candidateNonce, b + Header, 16) ||
-          now - candidateAt >= CandidateMs) {
-        if (!random(context, candidateId, 16))
-          return false;
-        memcpy(candidateNonce, b + Header, 16);
-        candidate = true;
-        candidateAt = now;
-      }
-      controlLength =
-          make(control, Challenge, candidateId, epoch, 0, candidateNonce, 16);
+      // No Request owns a candidate slot or can invalidate an earlier Confirm.
+      // Wire service bounds short HMAC work; RNG is needed only once per boot.
+      uint8_t sid[16]{};
+      if (!readySeed(now) || generation == UINT32_MAX ||
+          !challengeId(b + Header, now, clockEra, sid)) return false;
+      controlLength = make(control, Challenge, sid, epoch, 0, b + Header, 16);
+      protogenSecureZero(sid, sizeof(sid));
       nextControl = now;
       handledControl = true;
       return false;
@@ -145,19 +187,20 @@ class Endpoint {
       return false;
     }
     if (type == Confirm) {
-      if (ep != epoch)
-        return false;
-      if (candidate && now - candidateAt < CandidateMs &&
-          equal(b + 4, candidateId, 16) &&
-          equal(b + Header, candidateNonce, 16)) {
-        memcpy(id, candidateId, 16);
-        memcpy(clientNonce, candidateNonce, 16);
-        transmit = received = 0;
-        phase = State::Online;
-        candidate = false;
-        protogenSecureZero(candidateId, 16);
-        protogenSecureZero(candidateNonce, 16);
-      }
+      const uint32_t issued = HelmetLink::u32(b + 4);
+      if (issued > now && !clockEra) return false;
+      const uint32_t issuedEra = issued > now ? clockEra - 1 : clockEra;
+      uint8_t expected[16]{};
+      const bool matches = challengeId(b + Header, issued, issuedEra, expected) &&
+                           equal(expected, b + 4, sizeof(expected));
+      protogenSecureZero(expected, sizeof(expected));
+      if (!matches) return false;
+      memcpy(id, b + 4, 16);
+      memcpy(clientNonce, b + Header, 16);
+      ++generation; // Retires every prior challenge without resetting Data twice.
+      transmit = received = 0;
+      phase = State::Online;
+      controlLength = 0;
       return false;
     }
     HelmetLink::Packet decoded;
@@ -188,19 +231,20 @@ public:
   Endpoint &operator=(const Endpoint &) = delete;
   void clear() {
     phase = State::Idle;
-    candidate = false;
+    seedReady = seedAttempted = false;
+    generation = seedAttemptAt = clockAt = clockEra = 0;
+    protogenSecureZero(challengeSeed, sizeof(challengeSeed));
     controlLength = used = 0;
     transmit = received = 0;
     protogenSecureZero(id, 16);
     protogenSecureZero(clientNonce, 16);
-    protogenSecureZero(candidateId, 16);
-    protogenSecureZero(candidateNonce, 16);
     protogenSecureZero(encoded, sizeof(encoded));
     protogenSecureZero(control, sizeof(control));
   }
   bool begin(uint32_t bootEpoch, uint32_t now) {
     clear();
     epoch = bootEpoch;
+    clockAt = now;
     lastLive = now;
     if (role == Teensy)
       return epoch != 0;
@@ -214,15 +258,13 @@ public:
   }
   bool online() const { return phase == State::Online; }
   size_t poll(uint32_t now, uint8_t *out, size_t capacity) {
+    advanceClock(now);
     if (role == Esp &&
         (phase == State::Online || phase == State::AwaitStatus) &&
         now - lastLive >= CandidateMs)
       begin(0, now);
-    if (candidate && now - candidateAt >= CandidateMs) {
-      candidate = false;
-      protogenSecureZero(candidateId, 16);
-      protogenSecureZero(candidateNonce, 16);
-    }
+    if (role == Teensy && controlLength && control[3] == Challenge &&
+        now - HelmetLink::u32(control + 4) >= CandidateMs) controlLength = 0;
     if (!controlLength || int32_t(now - nextControl) < 0)
       return 0;
     nextControl = now + RetryMs;
@@ -248,6 +290,7 @@ public:
     return result;
   }
   bool feed(uint8_t byte, uint32_t now, HelmetLink::Packet &p) {
+    advanceClock(now);
     if (used && now - frameAt > 100) {
       used = 0;
       discarding = true;

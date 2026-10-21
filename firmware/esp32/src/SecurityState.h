@@ -66,16 +66,16 @@ class Bucket {
 public:
   Bucket(unsigned cap, uint32_t refill)
       : capacity(cap), credits(cap), period(refill) {}
-  bool take(uint32_t now) {
+  bool take(uint32_t now, unsigned amount = 1) {
     const uint32_t elapsed = now - at;
     const uint32_t add = elapsed / period;
     if (add) {
       credits = add >= capacity - credits ? capacity : credits + add;
       at = now - elapsed % period;
     }
-    if (!credits)
+    if (!amount || amount > credits)
       return false;
-    --credits;
+    credits -= amount;
     return true;
   }
 };
@@ -97,8 +97,8 @@ struct CryptoBudget {
     }
     return spend(auth, now);
   }
-  bool spend(Bucket &b, uint32_t now) {
-    if (b.take(now))
+  bool spend(Bucket &b, uint32_t now, unsigned amount = 1) {
+    if (b.take(now, amount))
       return true;
     increment(diagnostics.rateDrops);
     return false;
