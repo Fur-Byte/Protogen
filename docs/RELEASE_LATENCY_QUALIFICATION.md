@@ -68,8 +68,10 @@ The October17 **98.370ms authenticated** maximum measures first feedback,
 often the old eyes beginning to close. It does **not** measure requested artwork
 onset. Current tests separate all three causal stages, using actual emitted eye
 pixels and a source-expression counterfactual to exclude unrelated mouth/audio,
-natural blink, glitch and visor blanking. An already visible target is explicitly
-skipped with reason `target_already_visible`, not counted as a new onset.
+natural blink, glitch and visor blanking. A reversal to artwork already visible
+sets `target_already_visible` with a valid zero-time onset and continues tracking
+feedback and completion. A request for the already selected logical expression
+is skipped.
 
 Current maxima from the same idealized action-edge model (milliseconds):
 

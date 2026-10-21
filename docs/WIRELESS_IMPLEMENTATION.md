@@ -83,8 +83,8 @@ property, checks actual compiler commands, and verifies linked UART HMAC/adapter
 symbols. A regression rejects ignored security flags. All final builds have zero
 warnings and match the final source digest recorded in WIRELESS_VALIDATION.md.
 
-A 64-session host benchmark records mean/max wall time, process CPU time, five
-control frames/640 bytes, object sizes and process RSS in the ignored build tree.
+A 64-session host benchmark records mean/max wall time, process CPU time, seven
+control frames/896 bytes, object sizes and process RSS in the ignored build tree.
 Host `.su` stack frames and sanitizer RSS are not MCU stack/heap/energy data.
 Target ECDH/reconnect timing, heap/stack high-water, current draw, SSID visibility,
 RF injection/CCMP/MAC races, actual NVS power cuts, readable SAS LEDs and protected
