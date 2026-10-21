@@ -36,6 +36,14 @@ constexpr uint32_t SpeakingHoldMs = 100;
 constexpr uint32_t BlinkIntervalMs = 4000; // Center of ordinary inter-blink pauses.
 constexpr uint32_t GlitchIntervalMs = 7000;
 constexpr uint32_t GlitchStepMs = 100;
+// Opt-in artistic tradeoff: reveal the selected eyes immediately, then retain
+// the closing/opening animation. Default preserves the original hidden swap.
+#ifndef PROTOGEN_EARLY_EXPRESSION_REVEAL
+#define PROTOGEN_EARLY_EXPRESSION_REVEAL 0
+#endif
+static_assert(PROTOGEN_EARLY_EXPRESSION_REVEAL==0 || PROTOGEN_EARLY_EXPRESSION_REVEAL==1,
+              "Early expression reveal must be 0 or 1.");
+constexpr bool EarlyExpressionReveal=PROTOGEN_EARLY_EXPRESSION_REVEAL!=0;
 constexpr uint32_t TransitionMs = 160;
 constexpr uint32_t TransitionFeedbackRampMs = 60; // Prompt closing feedback; long transitions extend the closed hold.
 static_assert(TransitionFeedbackRampMs>0 && TransitionFeedbackRampMs<=60,

@@ -10,6 +10,9 @@ void resetAnimations(uint32_t);
 void scheduleBlink();
 void serviceBlinkRandomness();
 void selectExpression(uint8_t, uint32_t);
+void setSleepingLocal(bool);
+namespace Face { struct Pose; }
+void observeExpressionResponse(const Face::Pose &);
 void renderFace(uint32_t);
 void Blink(uint32_t);
 void glitch(uint32_t);

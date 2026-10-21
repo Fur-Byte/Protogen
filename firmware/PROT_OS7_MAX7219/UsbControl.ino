@@ -60,7 +60,7 @@ void replyStatus() {
     "\"sleeping\":%s,\"visible\":%s,\"display_ready\":%s,\"boop\":%s,\"boop_reading\":%d,"
     "\"speaking\":%s,\"envelope\":%u,\"noise_floor\":%u,\"audio_gate\":%u,\"calibrating\":%s,"
     "\"audio_drops\":%lu,\"audio_frames\":%lu,\"sample_rate_hz\":%lu,\"spi_hz\":%lu,"
-    "\"blink_random_ready\":%s,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu,"
+    "\"blink_random_ready\":%s,\"blink_entropy_fallbacks\":%lu,\"next_blink_ms\":%lu,\"blink_duration_ms\":%lu,"
     "\"paw_connected\":%s,\"paw_rejected\":%lu,\"microphone_enabled\":%s,"
     "\"sensor_faults\":%u,\"connector_ready\":%s,\"boop_mode\":%u,"
     "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",
@@ -70,7 +70,7 @@ void replyStatus() {
     envelope, floor, gate, calibration ? "true" : "false",
     static_cast<unsigned long>(drops), static_cast<unsigned long>(frames),
     static_cast<unsigned long>(frequency), static_cast<unsigned long>(Settings::SpiFrequencyHz),
-    blinkRandomPending ? "false" : "true", static_cast<unsigned long>(nextBlinkInterval),
+    blinkRandomPending ? "false" : "true", static_cast<unsigned long>(blinkFallbacks),static_cast<unsigned long>(nextBlinkInterval),
     static_cast<unsigned long>(blinkTiming.duration()),pawIsOnline(millis())?"true":"false",
     static_cast<unsigned long>(pawRejectedPackets()),microphoneEnabled?"true":"false",
     sensorFaults,connectorReady?"true":"false",config.boopMode,
@@ -158,8 +158,9 @@ void handleUsbCommand(char *line, uint32_t now) {
         number >= (strcmp(command, "EXPR") == 0 ? ExpressionCount : 2)) {
       replyError("invalid_argument"); return;
     }
-    if (strcmp(command, "EXPR") == 0) selectExpression(static_cast<uint8_t>(number), now);
-    else if(strcmp(command,"SLEEP")==0) sleeping = number != 0;
+    if (strcmp(command, "EXPR") == 0)
+      selectExpressionCommand(static_cast<uint8_t>(number),now,ResponseTiming::Usb,++usbCommandSequence,micros());
+    else if(strcmp(command,"SLEEP")==0) setSleepingCommand(number!=0,ResponseTiming::Usb,++usbCommandSequence,micros());
     else {
 #ifdef Microphone
       microphoneEnabled=number!=0;
@@ -173,19 +174,34 @@ void handleUsbCommand(char *line, uint32_t now) {
   if (argument) { replyError("unexpected_argument"); return; }
   if (strcmp(command, "LATENCY") == 0) {
     BoundedReply out(usbReply,sizeof(usbReply));
-    static const char responseFormat[] PROGMEM = "{\"ok\":true,\"segment\":\"validated_uart_to_visible_spi\",\"accepted\":%lu,"
-      "\"completed\":%lu,\"skipped\":%lu,\"superseded\":%lu,\"expired\":%lu,"
-      "\"pending\":%s,\"last_us\":%lu,\"max_us\":%lu}\n";
+    static const char responseFormat[] PROGMEM = "{\"ok\":true,\"segment\":\"teensy_dispatch_to_causal_spi\",\"physical_clock\":false,"
+      "\"accepted\":%lu,\"completed\":%lu,\"skipped\":%lu,\"superseded\":%lu,\"expired\":%lu,\"delayed\":%lu,"
+      "\"pending\":%s,\"observation\":%lu,\"sequence\":%lu,\"origin\":%u,\"action\":%u,\"target\":%u,\"status\":%u,"
+      "\"feedback_valid\":%s,\"onset_valid\":%s,\"target_already_visible\":%s,\"feedback_us\":%lu,\"target_onset_us\":%lu,\"completion_us\":%lu,"
+      "\"max_feedback_us\":%lu,\"max_target_onset_us\":%lu,\"max_completion_us\":%lu,"
+      "\"skipped_sequence\":%lu,\"skipped_origin\":%u,\"skipped_observation\":%lu,"
+      "\"superseded_sequence\":%lu,\"superseded_origin\":%u,\"superseded_observation\":%lu,\"early_reveal\":%s}\n";
     out.append(responseFormat,
       static_cast<unsigned long>(responseTiming.accepted),static_cast<unsigned long>(responseTiming.completed),
       static_cast<unsigned long>(responseTiming.skipped),static_cast<unsigned long>(responseTiming.superseded),
-      static_cast<unsigned long>(responseTiming.expired),responseTiming.pending?"true":"false",
-      static_cast<unsigned long>(responseTiming.lastUs),static_cast<unsigned long>(responseTiming.maxUs));
+      static_cast<unsigned long>(responseTiming.expired),static_cast<unsigned long>(responseTiming.delayed),
+      responseTiming.pending?"true":"false",static_cast<unsigned long>(responseTiming.observation),static_cast<unsigned long>(responseTiming.sequence),
+      responseTiming.origin,responseTiming.action,responseTiming.target,responseTiming.status,
+      responseTiming.feedback?"true":"false",responseTiming.onset?"true":"false",responseTiming.targetAlreadyVisible?"true":"false",
+      static_cast<unsigned long>(responseTiming.feedbackUs),static_cast<unsigned long>(responseTiming.onsetUs),
+      static_cast<unsigned long>(responseTiming.completionUs),static_cast<unsigned long>(responseTiming.maxFeedbackUs),
+      static_cast<unsigned long>(responseTiming.maxOnsetUs),static_cast<unsigned long>(responseTiming.maxCompletionUs),
+      static_cast<unsigned long>(responseTiming.skippedSequence),responseTiming.skippedOrigin,
+      static_cast<unsigned long>(responseTiming.skippedObservation),
+      static_cast<unsigned long>(responseTiming.supersededSequence),responseTiming.supersededOrigin,
+      static_cast<unsigned long>(responseTiming.supersededObservation),
+      Settings::EarlyExpressionReveal?"true":"false");
     if(!out.okay())replyTooLarge();
   }
   else if (strcmp(command, "IDLE") == 0) {
     BoundedReply out(usbReply, sizeof(usbReply));
     static const char responseFormat[] PROGMEM = "{\"ok\":true,\"attempts\":%lu,\"waits\":%lu,\"declined\":%lu,"
+      "\"measurement\":\"wfi_call_elapsed\",\"includes_isr\":true,"
       "\"last_guard\":%u,\"over_budget_waits\":%lu,\"total_us\":%llu,\"max_us\":%lu}\n";
     out.append(responseFormat,
       static_cast<unsigned long>(controllerIdle.attempts),static_cast<unsigned long>(controllerIdle.waits),

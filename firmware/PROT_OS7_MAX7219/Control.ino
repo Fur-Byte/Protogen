@@ -25,7 +25,7 @@ void updateControls(uint32_t now) {
     }
     else if (!holdHandled) {
       if (sleeping) {
-        sleeping = false; // Wake to the same expression; don't also advance it.
+        setSleepingLocal(false); // Wake to the same expression; don't also advance it.
       }
       else {
         selectExpression((state + 1) % ExpressionCount, now);
@@ -34,7 +34,7 @@ void updateControls(uint32_t now) {
   }
   if (buttonStable == LOW && buttonCandidate == LOW && !holdHandled &&
       now - pressedAt >= Settings::ButtonHoldMs) {
-    sleeping = !sleeping;
+    setSleepingLocal(!sleeping);
     holdHandled = true;
   }
 

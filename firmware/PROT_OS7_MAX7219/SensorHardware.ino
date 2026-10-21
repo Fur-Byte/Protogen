@@ -129,6 +129,18 @@ void serviceSensorAcquisition(uint32_t now) {
     sensorAdc->adc1->stopContinuous();sensorAdc->adc1->resetError();
     ++retries;failed=false;
   }
+#ifdef BoopSensor
+  if(sleeping || !visorVisible) {
+    // A boop conversion belongs to the visible/awake acquisition period that
+    // started it. Cancel before pausing so wake cannot time out or accept it.
+    // With a connector fitted, leave any rail conversion running for safety.
+    if(pendingPin==irPin) {
+      sensorAdc->adc1->stopContinuous();sensorAdc->adc1->resetError();
+      pendingPin=-1;
+    }
+    boop=-1;verified&=static_cast<uint8_t>(~1u);
+  }
+#endif
 #ifndef VisorConnector
   if(sleeping || !visorVisible)return;
 #endif

@@ -339,14 +339,14 @@ int main() {
   assert(!SPI.shutdown && SPI.display == angry);
 
   // Fresh hardware entropy is requested per ordinary sequence. No entropy must
-  // leave controls and rendering responsive, with no fabricated random fallback.
+  // leave controls responsive; cosmetic blinking uses a fixed fallback.
   config.naturalBlinks = 1; config.blinkJitter = 2000;
   Entropy.ready = false;
   scheduleBlink();
   const auto entropyReads = Entropy.reads;
   const auto expressionBeforeWait = state;
   runMs(config.blinkInterval + config.blinkJitter + 1);
-  assert(blinkRandomPending && !blinkState && Entropy.reads == entropyReads);
+  assert(!blinkRandomPending && blinkFallbacks && Entropy.reads == entropyReads);
   shortPress(); assert(state == (expressionBeforeWait + 1) % ExpressionCount);
   Entropy.ready = true; Entropy.budget = 1;
   serviceBlinkRandomness(); assert(blinkRandomPending && blinkRandomCount == 1);
