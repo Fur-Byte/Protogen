@@ -187,8 +187,19 @@ All commands listed below completed successfully locally (strict warnings, ASan/
 - PlatformIO MCP fresh helmet/paw builds and size reports independently confirmed
   the C3 default build accounting. No serial monitor/upload/hardware operation.
 
+The first [hosted PR run39540100638](https://github.com/Fur-Byte/Protogen/actions/runs/39540100638)
+passed the new adversarial suites but exposed a preview fixture assumption:
+immediate simulated approach after wake sometimes preceded the fresh released IR
+sample required to rearm. A fixed-clock local sweep reproduced89/300 failing
+phases with no sensor fault. The fixture now advances10 modeled ms with released
+input and explicitly asserts a fresh release/no fault before the original positive
+boop assertion. Sixteen wake-phase cases and40 repeated preview suites pass in
+addition to normal/optimized tests. Firmware safety policy was not weakened.
+The final pushed commit requires a new successful hosted run; the failed run is
+retained as reproduction evidence.
+
 Final source identity for firmware/scripts/tools/profiles/lock:
-`24fdd01423931a79a56fea33c7d709a1af5ef9d26b8b9ba73a0fc265f0142409`.
+`4a305ff3d0e24177fd8d82a92f3928cc2752d593080ab86e60548e490d13a531`.
 Each build manifest was checked against that identity. The PR records the exact
 published commit and hosted Actions run links once final CI completes. Rolling
 Ubuntu package revisions are recorded, not claimed fully hermetic. Physical

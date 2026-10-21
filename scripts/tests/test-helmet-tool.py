@@ -92,25 +92,53 @@ class PreviewChecks(unittest.TestCase):
         self.helmet.action({"action": "defaults"})
 
     def test_reactions_and_save_load(self):
-        self.helmet.action({"action": "expression", "value": 4})
-        self.transport.command("tick 200")
-        self.assertEqual(self.helmet.state()["status"]["expression"], 4)
-        state = self.helmet.action({"action": "sleep", "value": 1})
-        self.assertTrue(state["display"]["hidden"])
-        self.assertEqual(set(state["display"]["frame"]), {"0"})
-        self.helmet.action({"action": "sleep", "value": 0})
-        state = self.helmet.action({"action": "simulate", "sensor": "boop", "value": 1})
-        self.assertTrue(state["status"]["boop"])
-        self.helmet.action({"action": "simulate", "sensor": "visor", "value": 1})
-        for _ in range(7):
-            self.transport.command("tick 1000")
-        state = self.helmet.action({"action": "simulate", "sensor": "visor", "value": 0})
-        self.assertFalse(state["status"]["boop"])
-        self.helmet.action({"action": "simulate", "sensor": "boop", "value": 0})
-        self.helmet.action({"action": "set", "config": {"brightness": 3}})
-        self.helmet.action({"action": "save"})
-        self.helmet.action({"action": "defaults"})
-        self.assertEqual(self.helmet.action({"action": "load"})["config"]["brightness"], 3)
+        # Explicit simulation time, independent of compiler/host speed.
+        with patch.object(tool.time, "monotonic", return_value=self.transport.updated):
+            self.helmet.action({"action": "expression", "value": 4})
+            self.transport.command("tick 200")
+            self.assertEqual(self.helmet.state()["status"]["expression"], 4)
+            state = self.helmet.action({"action": "sleep", "value": 1})
+            self.assertTrue(state["display"]["hidden"])
+            self.assertEqual(set(state["display"]["frame"]), {"0"})
+            self.helmet.action({"action": "sleep", "value": 0})
+            # Wake invalidates the cached IR sample. Observe a fresh released
+            # reading before simulating a new approach, as the rearm policy
+            # requires; host wall-clock delays must not supply this implicitly.
+            self.transport.command("tick 10")
+            released = self.helmet.state()
+            self.assertGreaterEqual(released["status"]["boop_reading"], released["config"]["boop_release"])
+            self.assertFalse(released["status"]["boop"])
+            self.assertEqual(released["status"]["sensor_faults"], 0)
+            state = self.helmet.action({"action": "simulate", "sensor": "boop", "value": 1})
+            self.assertTrue(state["status"]["boop"])
+            self.helmet.action({"action": "simulate", "sensor": "visor", "value": 1})
+            for _ in range(7):
+                self.transport.command("tick 1000")
+            state = self.helmet.action({"action": "simulate", "sensor": "visor", "value": 0})
+            self.assertFalse(state["status"]["boop"])
+            self.helmet.action({"action": "simulate", "sensor": "boop", "value": 0})
+            self.helmet.action({"action": "set", "config": {"brightness": 3}})
+            self.helmet.action({"action": "save"})
+            self.helmet.action({"action": "defaults"})
+            self.assertEqual(self.helmet.action({"action": "load"})["config"]["brightness"], 3)
+
+    def test_wake_boop_fresh_release_sampling_phases(self):
+        with patch.object(tool.time, "monotonic", return_value=self.transport.updated):
+            for phase in range(16):
+                with self.subTest(phase=phase):
+                    self.helmet.action({"action": "sleep", "value": 0})
+                    self.helmet.action({"action": "simulate", "sensor": "boop", "value": 0})
+                    self.transport.command("tick " + str(phase))
+                    self.helmet.action({"action": "sleep", "value": 1})
+                    self.helmet.action({"action": "sleep", "value": 0})
+                    self.transport.command("tick 10")
+                    released = self.helmet.state()
+                    self.assertGreaterEqual(released["status"]["boop_reading"], released["config"]["boop_release"])
+                    self.assertFalse(released["status"]["boop"])
+                    self.assertEqual(released["status"]["sensor_faults"], 0)
+                    state = self.helmet.action({"action": "simulate", "sensor": "boop", "value": 1})
+                    self.assertTrue(state["status"]["boop"])
+            self.helmet.action({"action": "simulate", "sensor": "boop", "value": 0})
 
 
 class HandlerChecks(unittest.TestCase):
