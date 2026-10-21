@@ -1,5 +1,7 @@
 # Comprehensive audit remediation — 2026-10-17
 
+> Historical report: the [October20 targeted follow-up](POSTMERGE_REMEDIATION_2026_10_20.md) supersedes reconnect admission and the single first-visible latency interpretation.
+
 > Historical first-pass report for commit3275ff8. The follow-up
 > [release-readiness report](RELEASE_READINESS_2026_10_17.md) supersedes current
 > storage/latency/power/S31/CI status: EEPROM format3 is an explicit migration,

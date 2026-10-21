@@ -19,3 +19,13 @@ terms as well as obtaining any missing permission for the original sketch.
 The original sketch's missing grant remains unresolved; absence of a LICENSE
 file must not be interpreted as permission. Head-model credit above records the
 available downloaded notice without inventing broader rights.
+
+Post-merge release disposition (2026-10-20): do not represent the combined binary
+as having a blanket permissive license. Before public source/binary distribution,
+the owner needs the original sketch/artwork grant, the exact head-model license
+version and required attribution, and a reviewed plan for arduinoFFT's
+GPL-3.0-or-later obligations for the combined firmware (including corresponding
+source and notices as applicable). This inventory supplies no missing permission
+or legal conclusion; the FFT implementation is retained without an unrelated
+rewrite. Local private builds remain functional. Licensing is an external
+permission/distribution blocker rather than a reproduced runtime safety defect.

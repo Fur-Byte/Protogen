@@ -16,22 +16,21 @@ P-256, 128-byte operational envelopes, local MAC identities, replay window,
 physical/SAS pairing, channel rendezvous and bounded queues remain intact.
 No SoftAP/SSID/scan, extra application cipher, negotiation or raw-frame disguise.
 
-Every reconnect uses new P-256 keys and random nonces. Paw Hello authenticates
-its contribution; helmet Response authenticates the complete ordered transcript;
-ECDH plus its digest derives traffic, identity, CCMP, recovery and confirmation
-keys. Private keys/raw ECDH are destroyed immediately. Paw Finished → Helmet
-Finished → separately keyed Paw Commit precede ONLINE and MAC/radio installation.
-[WIRELESS_PROTOCOL.md](WIRELESS_PROTOCOL.md) contains the exact layouts, key labels
-and state diagram, including the unavoidable lost-final-ack readiness limitation.
+Every reconnect uses new P-256 keys and random nonces. Handshake revision2 adds
+request-bound receiver Challenge→Proof before expensive helmet admission.
+Captured Requests cannot own candidates; accepted Proofs consume the current
+nonce. Full Challenge/Proof/Response transcript binding, separate HKDF/HMAC
+labels, two directional Finished proofs and independently keyed Commit precede
+ONLINE. Both C3 peers must upgrade; 128-byte DATA and pairing storage are unchanged.
+See [WIRELESS_PROTOCOL.md](WIRELESS_PROTOCOL.md) for exact layouts and migration.
 
-Rekey by randomized 15–17 minutes, 1,000,000 authenticated records, or near
-sequence exhaustion. The codec stops at the record limit, and fresh keys are
-required for any production sequence reset. Crypto budgets survive handshake
-resets: four ECC credits refilling every 500 ms; two creation credits every 1 s;
-eight verification credits every 50 ms. Eight invalid tags produce bounded
-250 ms backoff. Existing ONLINE data is independent of these unauthenticated
-budgets. Duplicate in-flight handshakes use cached replies; four recent authenticated
-Hello digests suppress short-lived replay across attempts. No permanent lockout.
+Rekey remains randomized15–17minutes,1,000,000 authenticated records, or near
+sequence exhaustion. ECC budgets survive handshake resets (burst4/refill500ms,
+atomic two-credit helmet admission); creation is burst2/refill1s. Handshake
+bad-tag processing uses a bounded4records/2ms owner service, without a global
+invalid-tag lockout. Four cheap challenge replies drain at5ms and apply RX
+backpressure. Pairing keeps its original budgets. ONLINE DATA remains separate.
+This provides tested bounded-load progress, not RF-jamming protection.
 
 Link, Handshake, Pairing and Session now use explicit phase enums. Production
 ONLINE/dispatch checks and transition checks enforce paired/active/confirmed

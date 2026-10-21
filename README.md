@@ -27,6 +27,14 @@ radio availability and security parameters retain their defaults; physical energ
 savings and physical idle-wake latency are unmeasured. See
 [release packaging and USB recovery](docs/RELEASE_RECOVERY.md) for maintenance tools.
 
+The [targeted post-merge remediation](docs/POSTMERGE_REMEDIATION_2026_10_20.md)
+fixes reconnect availability, rapid transition retargeting and ADC sleep recovery.
+**Upgrade both C3 peers together:** handshake revision2 rejects legacy admission;
+DATA packet size, pairing records and Teensy UART framing remain compatible.
+[Latency qualification](docs/RELEASE_LATENCY_QUALIFICATION.md) now separates
+first feedback, target artwork onset and completion; all published timing is
+modeled until physical qualification.
+
 The original four resting faces are pixel-identical to the ZIP archive, including
 the rotated physical module data. See [the archive comparison](docs/ARCHIVE_FACE_COMPARISON.md).
 Ordinary blink pauses now vary between 2 and 6 seconds, centered near 4 seconds;
