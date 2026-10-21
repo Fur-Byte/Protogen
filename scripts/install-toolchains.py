@@ -36,8 +36,11 @@ def main():
         raise RuntimeError('Use a supported Linux/macOS host or install the lock manually')
     version = lock['arduino_cli']
     name = f'arduino-cli_{version}_{system}_{arch}.tar.gz'
-    checksums = download(f'https://github.com/arduino/arduino-cli/releases/download/v{version}/{version}-checksums.txt',
-                         folder / 'downloads/cli-checksums.txt').read_text()
+    checksum_file = download(f'https://github.com/arduino/arduino-cli/releases/download/v{version}/{version}-checksums.txt',
+                             folder / 'downloads/cli-checksums.txt')
+    if hashlib.sha256(checksum_file.read_bytes()).hexdigest() != lock['arduino_cli_checksums_sha256']:
+        raise RuntimeError('Pinned Arduino CLI checksum manifest differs from toolchain.lock.json')
+    checksums = checksum_file.read_text()
     expected = {line.split()[1]: line.split()[0] for line in checksums.splitlines() if len(line.split()) == 2}
     if name not in expected:
         raise RuntimeError('Pinned CLI release does not support this host')
