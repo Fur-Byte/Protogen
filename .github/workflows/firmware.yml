@@ -158,5 +158,5 @@ jobs:
             build/runs/**/manifest.json
             build/runs/**/compile.log
             build/flight-evidence/
-            build/p4-evidence/teensy.json
+            build/p4-evidence/target.json
             build/toolchains/lock.json

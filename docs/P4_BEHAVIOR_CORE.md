@@ -26,3 +26,68 @@ then integrates the audio snapshot at the render boundary. The clock reads,
 GPIO/ADC and display calls stay at their existing service points. Host builds
 link the same C++ translation unit that Arduino builds under the sketch's
 `src` directory.
+
+## Interfaces and observations
+
+`Behavior::Core` owns expression and sleep intent, transient boop state,
+blink phase and the two-word cosmetic input, glitch state, transition
+anchors, and frame eligibility. Its progression methods receive explicit
+timestamps, validated configuration, and small logical inputs. `poseAt`
+returns an expression, closure, eye offset, boop/glitch state, and mouth
+selection. Its transition anchor comes from the last emitted pose. The
+standalone test compiles C++17 without Arduino or a sketch.
+
+The shell captures all four 16-byte FFT bitmaps on the render path when
+speaking in spectrum mode. The renderer, cache, and causal counterfactual
+consume that same immutable value. A wake uses the snapshot from the frame
+written before shutdown is released. The ADC ISR, FFT, acquisition cadence,
+brightness controls, display writes, and runtime configuration codec stay
+in their original locations. The snapshot is frame-local and adds no
+persistent FFT state. The cache still retains one previous spectrum when
+its existing compile-time flag is active.
+
+`ResponseTiming` stays in the shell, including ownership of observation IDs,
+timeouts, same-loop dispatch order, and P3 event emission. The shell
+continues to compare real eye pixels and sample timestamps after the display
+write. No milestone is inferred from the pose returned by the core. Preserving
+this boundary leaves the future animation core responsible for pose
+progression and the display adapter responsible for evidence of visible work.
+
+## Verification and resource evidence
+
+```sh
+make -C scripts/twin behavior-core-test
+python3 scripts/check-golden-frames.py
+python3 scripts/check-golden-frames.py --recorder-enabled
+python3 scripts/check-behavior-parity.py
+python3 scripts/check-behavior-parity.py --deep
+python3 scripts/test-flight-recorder.py --deep
+python3 scripts/check-behavior-build.py
+```
+
+The `behavior-p3.json.gz` oracle records full original traces, including
+SPI, UART, USB, and diagnostics. It was captured by running the unmodified
+sketch from the clean P3 worktree. Normal verification reads the compressed
+fixture and reports the first divergent record without normalizing any
+fields. The deep corpus includes all 23 P2 scenarios and five additional
+captures. The three-command collision checks the individual P3 events from
+USB, UART, and local release at the same virtual timestamp. The four
+animation profiles cover all early-reveal/cache settings. An explicit
+recapture requires a separate clean worktree at the pinned P3 SHA and a new
+output path for review.
+
+The local pinned Teensy build measured an 84-byte linked core instance in
+both profiles. Relative to P3, local flash occupancy decreased by 1,024 bytes
+and static RAM1 variables by 64 bytes. RAM2 usage stayed constant. Compiler
+stack estimates show 48 → 104 bytes in the default sketch loop and
+56 → 112 bytes with the recorder and all features enabled. The render frame
+estimate rose from 168 to 184 bytes by default and to 192 bytes with the
+recorder. The snapshot accounts for 64 bytes of automatic storage. Stack
+reports are per function and exclude callees and interrupts.
+
+An optimized Apple arm64 microbenchmark observed about 5 ns for
+`beginTransition` plus `poseAt` in a synthetic sequence. A 30-pair sanitized
+host replay comparison measured about 18.13 ms median for P3 and 18.16 ms for
+P4, including subprocess startup and capture. These are host measurements.
+Actual Teensy stage costs, interrupt stack high-water, and physical latency
+remain open qualification items. No C3 target sources changed.
