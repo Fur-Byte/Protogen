@@ -63,6 +63,9 @@ void microphoneSampleISR() {
     const uint16_t write = audioWrite;
     if (sample < 0 || sample > 1023 || static_cast<uint16_t>(write - audioRead) >= audioBufferSize) {
       ++audioDroppedSamples;
+#if PROTOGEN_FLIGHT_RECORDER
+      P3Teensy::notifyAudioDrop();
+#endif
     } else {
       audioBuffer[write & (audioBufferSize - 1)] = static_cast<uint16_t>(sample);
       audioWrite = static_cast<uint16_t>(write + 1);

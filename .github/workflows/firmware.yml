@@ -39,6 +39,18 @@ jobs:
         if: env.MATRIX_MODE == 'full'
         shell: bash
         run: python3 scripts/twin/test_replay.py --deep --evidence build/twin/deep 2>&1 | tee build/twin/deep.log
+      - name: Flight recorder host parity and export guards
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/test-flight-recorder.py
+          python3 scripts/check-golden-frames.py --recorder-enabled
+      - name: Extended recorder and replay faults
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/test-flight-recorder.py --deep
       - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
@@ -55,6 +67,11 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-build-matrix.py "$MATRIX_MODE" esp32
+      - name: C3 recorder linker budgets
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-flight-builds.py c3
       - name: Efficiency interactions and isolated research preflights
         if: env.MATRIX_MODE == 'full'
         shell: bash
@@ -73,6 +90,7 @@ jobs:
             build/*log
             build/baseline-host/
             build/mutation-evidence/
+            build/flight-evidence/
             build/matrix-*-esp32/
             build/twin/*.json
             build/twin/*.log
@@ -107,6 +125,12 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-build-matrix.py "$MATRIX_MODE" teensy --group "$TEENSY_GROUP"
+      - name: Teensy recorder RAM2 placement and sizes
+        if: matrix.group != 'auth'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-flight-builds.py teensy
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -114,4 +138,5 @@ jobs:
           path: |
             build/runs/**/manifest.json
             build/runs/**/compile.log
+            build/flight-evidence/teensy.json
             build/toolchains/lock.json

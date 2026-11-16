@@ -19,6 +19,29 @@
 #include <unistd.h>
 
 static_assert(configTICK_RATE_HZ==1000, "Production bounded poll requires pinned1000Hz RTOS tick");
+#if PROTOGEN_FLIGHT_RECORDER
+// app_main is the sole owner. Callback counts already use atomics. Wearer
+// metrics are published as a coherent copy through its existing portMUX.
+extern "C" {
+Flight::Record p3C3Records[128];
+Flight::Ring<128> p3C3Ring(p3C3Records);
+Flight::Timing p3C3Timings[Flight::StageCount];
+Flight::Rate p3C3Rate;
+}
+namespace P3C3 {
+uint32_t clockUs() { return static_cast<uint32_t>(esp_timer_get_time()); }
+void emit(uint32_t at, Flight::Event event, uint16_t detail, uint32_t value) {
+  Flight::Scope cost(p3C3Timings[Flight::Append], clockUs);
+  p3C3Ring.append(at, event, detail, value);
+}
+}
+#define P3_C3_SCOPE(variable, stage) Flight::Scope variable(p3C3Timings[Flight::stage], P3C3::clockUs)
+#define P3_C3_CALL(stage, expression) do { P3_C3_SCOPE(p3Call, stage); expression; } while (false)
+#else
+#define P3_C3_SCOPE(variable, stage)
+#define P3_C3_CALL(stage, expression) do { expression; } while (false)
+#endif
+
 namespace {
 uint32_t nowMs() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 Device::Config config;
@@ -108,6 +131,7 @@ bool queueUart(const HelmetLink::Packet &p) {
   return true;
 }
 void serviceUart(uint32_t now) {
+  P3_C3_SCOPE(p3Uart, UART);
   if(statusFence.poll(now))helmetStatus.available=false;
 #ifdef PROTOGEN_UART_AUTH
   if (!uartAuthStarted)
@@ -626,6 +650,7 @@ size_t consoleUsed = 0;
 bool consoleDiscard = false;
 uint32_t consoleAt = 0;
 void serviceConsole(uint32_t now) {
+  P3_C3_SCOPE(p3Console, USB);
   if (consoleUsed && now - consoleAt > 2000) {
     consoleUsed = 0;
     consoleDiscard = true;
@@ -655,9 +680,57 @@ void serviceConsole(uint32_t now) {
       consoleLine[consoleUsed++] = c;
   }
 }
+#if PROTOGEN_FLIGHT_RECORDER
+Flight::Flood p3Gap;
+
+void sampleP3(uint32_t nowMs) {
+  static Flight::Flood drops, queueFull, replay, aead, wearerFaults;
+  static bool wasConnected = false;
+  static uint32_t priorSample = 0, lastHeap = UINT32_MAX, lastStack = UINT32_MAX;
+  static uint32_t lastWorkerStack = UINT32_MAX, lastWorkerWork = 0, lastOled = 0;
+  static uint32_t lastEnergy = 0, lastEnvironment = 0, lastCase = 0;
+  const uint32_t now = P3C3::clockUs();
+  if (wasConnected != connected) {
+    P3C3::emit(now, Flight::RadioLink, connected ? 1 : 0, 0);
+    wasConnected = connected;
+  }
+  drops.count(now, transport.dropped());
+  queueFull.count(now, uartQueueFull);
+  drops.flush(now, Flight::RadioDrops, P3C3::emit);
+  queueFull.flush(now, Flight::UartQueueFull, P3C3::emit);
+  p3Gap.flush(now, Flight::MainGap, P3C3::emit);
+  p3C3Rate.sample(now, p3C3Ring.next());
+  if (nowMs - priorSample < 1000) return;
+  priorSample = nowMs;
+
+  const auto status = wirelessLink.securityStatus(nowMs);
+  replay.count(now, status.counters.replayRejects);
+  aead.count(now, status.counters.aeadFailures);
+  replay.flush(now, Flight::ReplayReject, P3C3::emit);
+  aead.flush(now, Flight::AeadReject, P3C3::emit);
+  const auto worker = WearerIO::snapshot();
+  wearerFaults.state(now, worker.faults);
+  wearerFaults.flush(now, Flight::SensorFault, P3C3::emit);
+  const auto update = [now](Flight::Event kind, uint32_t &previous, uint32_t value, uint16_t detail = 0) {
+    if (previous != value) P3C3::emit(now, kind, detail, value);
+    previous = value;
+  };
+  update(Flight::HeapMinimum, lastHeap, esp_get_minimum_free_heap_size());
+  update(Flight::MainStackMinimum, lastStack, uxTaskGetStackHighWaterMark(nullptr));
+  update(Flight::WearerStackMinimum, lastWorkerStack, worker.metrics.p3StackMinimum);
+  update(Flight::WearerWorkMaximum, lastWorkerWork, worker.metrics.p3WorkMaxUs);
+  update(Flight::OledPages, lastOled, worker.metrics.oledPages);
+  update(Flight::SensorReads, lastEnergy, worker.metrics.energyReads, 0);
+  update(Flight::SensorReads, lastEnvironment, worker.metrics.environmentReads, 1);
+  update(Flight::SensorReads, lastCase, worker.metrics.caseReads, 2);
+}
+#endif
 } // namespace
 extern "C" void app_main() {
   mainTask = xTaskGetCurrentTaskHandle();
+#if PROTOGEN_FLIGHT_RECORDER
+  P3C3::emit(P3C3::clockUs(), Flight::Boot, unsigned(esp_reset_reason()), Device::Role);
+#endif
   // Do not erase NVS on an error: that would silently lose the existing pair.
   if (!SecureStorage::begin(storage)) {
     puts("Storage unavailable; wireless disabled.");
@@ -720,6 +793,18 @@ extern "C" void app_main() {
          radioStarted ? "true" : "false");
   while (true) {
     const uint64_t workStarted=esp_timer_get_time();
+#if PROTOGEN_FLIGHT_RECORDER
+    static bool priorValid = false;
+    static uint32_t prior = 0;
+    const uint32_t started = static_cast<uint32_t>(workStarted);
+    if (priorValid) {
+      const uint32_t gap = started - prior;
+      p3C3Timings[Flight::LoopInterval].observe(gap);
+      if (gap > 50000) p3Gap.notify(started, 1, connected ? 1 : 0);
+    }
+    prior = started;
+    priorValid = true;
+#endif
     Efficiency::increment(mainExecutions);
     const uint32_t now = nowMs();
 #ifdef HELMET_RECEIVER
@@ -742,7 +827,7 @@ extern "C" void app_main() {
 #endif
     serviceUnlock(now);
     serviceConsole(now);
-    if (radioStarted)wirelessLink.tick(now);
+    if (radioStarted) P3_C3_CALL(Radio, wirelessLink.tick(now));
 #ifdef HELMET_RECEIVER
     // A command accepted during tick must not wait an extra polling period
     // before beginning UART transmission. This second pass remains bounded.
@@ -750,7 +835,7 @@ extern "C" void app_main() {
 #else
     const unsigned queuedBefore=wirelessLink.queued();
     serviceCommands(nowMs()); // A fresh status received in tick can unblock intent.
-    if(wirelessLink.queued()>queuedBefore)wirelessLink.tick(nowMs());
+    if(wirelessLink.queued()>queuedBefore) P3_C3_CALL(Radio, wirelessLink.tick(nowMs()));
 #endif
     uint32_t code = 0;
     const bool hasCode = wirelessLink.pairingCode(code);
@@ -759,6 +844,10 @@ extern "C" void app_main() {
         indicator.level(now, wirelessLink.pairingActive(), hasCode, code));
     const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
     mainWorkUs+=work;if(work>mainMaxUs)mainMaxUs=work;
+#if PROTOGEN_FLIGHT_RECORDER
+    sampleP3(now);
+    p3C3Timings[Flight::LoopWork].observe(P3C3::clockUs() - started);
+#endif
     if(PROTOGEN_MAIN_EVENTS) {
       const uint32_t end=nowMs();uint32_t wait=wirelessLink.serviceIn(end);
       if(transport.pending())Efficiency::sooner(wait,5);

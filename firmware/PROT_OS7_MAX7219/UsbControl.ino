@@ -1,3 +1,97 @@
+#if PROTOGEN_FLIGHT_RECORDER
+extern "C" {
+DMAMEM Flight::Record p3TeensyRecords[P3Teensy::Capacity];
+}
+static_assert(sizeof(p3TeensyRecords) <= 8192, "P3 RAM2 budget");
+
+namespace P3Teensy {
+Flight::Timing timing[Flight::StageCount];
+Flight::Ring<Capacity> ring(p3TeensyRecords);
+Flight::Flood sensorFault, microphoneFault, overrun, uartReject, mainGap, sensorState, microphoneState;
+Flight::Rate rate;
+uint32_t priorLoop = 0, audioPeak = 0;
+uint16_t priorBehavior = 0;
+bool started = false;
+
+uint32_t clockUs() { return micros(); }
+
+void emit(uint32_t at, Flight::Event event, uint16_t detail, uint32_t value) {
+  P3_TEENSY_SCOPE(cost, Append);
+  ring.append(at, event, detail, value);
+}
+
+void beginLoop() {
+  const uint32_t now = clockUs();
+  if (started) {
+    const uint32_t gap = now - priorLoop;
+    timing[Flight::LoopInterval].observe(gap);
+    if (gap > 20000) mainGap.notify(now, 1, displayBlanked ? 1 : 0);
+  } else {
+    emit(now, Flight::Boot, 0, 0);
+    started = true;
+  }
+  priorLoop = now;
+#ifdef Microphone
+  const uint16_t backlog = static_cast<uint16_t>(audioWrite - audioRead);
+  if (backlog > audioPeak) audioPeak = backlog;
+#endif
+}
+
+void finishLoop() {
+  const uint32_t now = clockUs();
+  const uint16_t behavior = (sleeping ? 1 : 0) | (visorVisible ? 2 : 0) |
+      (boopActive ? 4 : 0) | (displayBlanked ? 8 : 0) | (connectorReady ? 16 : 0);
+  if (behavior != priorBehavior) {
+    emit(now, Flight::Behavior, behavior, priorBehavior);
+    priorBehavior = behavior;
+  }
+  sensorFault.count(now, sensorFailureCount(), sensorLastFailure());
+  microphoneFault.count(now, microphoneFailureCount(), microphoneLastFailure());
+  // Track both failures and successful transitions. Each stream is admitted
+  // independently so a stuck sensor cannot crowd out link or control events.
+  sensorState.state(now, sensorRecoveryState());
+  microphoneState.state(now, microphoneRecoveryState());
+  sensorFault.flush(now, Flight::SensorFault, emit);
+  microphoneFault.flush(now, Flight::MicrophoneFault, emit);
+  const auto emitState = [](uint32_t at, Flight::Event event, uint16_t detail, uint32_t value) {
+    emit(at, event, detail | 0x8000, value);
+  };
+  sensorState.flush(now, Flight::SensorFault, emitState);
+  microphoneState.flush(now, Flight::MicrophoneFault, emitState);
+
+#ifdef Microphone
+  overrun.count(now, audioDrops.load(std::memory_order_relaxed));
+#endif
+  uartReject.count(now, pawRejectedPackets());
+  overrun.flush(now, Flight::AudioDrops, emit);
+  uartReject.flush(now, Flight::UartReject, emit);
+  mainGap.flush(now, Flight::MainGap, emit);
+  rate.sample(now, ring.next());
+}
+
+uint32_t mergedCount() {
+  uint32_t total = 0;
+  const Flight::Flood *sources[] = {&sensorFault, &microphoneFault, &overrun, &uartReject,
+                                    &mainGap, &sensorState, &microphoneState};
+  for (const auto *source : sources)
+    Flight::add(total, source->merged);
+  return total;
+}
+
+bool cursor(const char *text, uint32_t &value) {
+  if (!text || !*text) return false;
+  value = 0;
+  for (; *text; ++text) {
+    if (*text < '0' || *text > '9') return false;
+    const uint32_t digit = *text - '0';
+    if (value > (UINT32_MAX - digit) / 10) return false;
+    value = value * 10 + digit;
+  }
+  return true;
+}
+}
+#endif
+
 // Newline-delimited requests, one JSON response per request. Fixed buffers and
 // bounded reads/writes let disconnected or slow USB clients leave the face running.
 char usbLine[384] = {}, usbReply[1024] = {};
@@ -151,6 +245,56 @@ void handleUsbCommand(char *line, uint32_t now) {
     if (!fields || !validConfig(candidate)) { replyError("invalid_configuration"); return; }
     applyConfig(candidate, now); replyConfig(); return;
   }
+#if PROTOGEN_FLIGHT_RECORDER
+  if (strcmp(command, "RECINFO") == 0) {
+    if (strtok_r(nullptr, " \t", &save)) { replyError("invalid_argument"); return; }
+    using namespace P3Teensy;
+    BoundedReply out(usbReply, sizeof(usbReply));
+    out.append("{\"ok\":true,\"v\":%u,\"oldest\":%lu,\"next\":%lu,"
+               "\"count\":%u,\"capacity\":%u,\"overwritten\":%lu,\"audio_peak_at_sample\":%lu,"
+               "\"merged\":%lu,\"peak_events\":%lu,\"peak_window_us\":%lu}\n",
+               unsigned(Flight::Version), static_cast<unsigned long>(ring.oldest()),
+               static_cast<unsigned long>(ring.next()), unsigned(ring.size()), Capacity,
+               static_cast<unsigned long>(ring.lost()), static_cast<unsigned long>(audioPeak),
+               static_cast<unsigned long>(mergedCount()), static_cast<unsigned long>(rate.peakEvents),
+               static_cast<unsigned long>(rate.peakWindowUs));
+    if (!out.okay()) replyTooLarge();
+    return;
+  }
+  else if (strcmp(command, "REC") == 0 || strcmp(command, "RECSTAT") == 0) {
+    using namespace P3Teensy;
+    uint32_t requested = 0;
+    if (!cursor(strtok_r(nullptr, " \t", &save), requested) || strtok_r(nullptr, " \t", &save)) {
+      replyError("invalid_argument"); return;
+    }
+    BoundedReply out(usbReply, sizeof(usbReply));
+    if (strcmp(command, "RECSTAT") == 0) {
+      if (requested >= Flight::StageCount) { replyError("invalid_argument"); return; }
+      const auto &stat = timing[requested];
+      out.append("{\"ok\":true,\"v\":1,\"stage\":%lu,\"count\":%lu,\"total_us\":%llu,\"max_us\":%lu,\"bins\":[",
+                 static_cast<unsigned long>(requested), static_cast<unsigned long>(stat.count),
+                 static_cast<unsigned long long>(stat.totalUs), static_cast<unsigned long>(stat.maxUs));
+      for (unsigned i = 0; i < 6; ++i)
+        out.append("%s%lu", i ? "," : "", static_cast<unsigned long>(stat.buckets[i]));
+      out.append("]}\n");
+    } else {
+      Flight::Record entry{};
+      const bool found = ring.read(requested, entry);
+      out.append("{\"ok\":%s,\"v\":1,\"cursor\":%lu,\"oldest\":%lu,\"next\":%lu,\"overwritten\":%lu",
+                 found ? "true" : "false", static_cast<unsigned long>(requested),
+                 static_cast<unsigned long>(ring.oldest()), static_cast<unsigned long>(ring.next()),
+                 static_cast<unsigned long>(ring.lost()));
+      if (found)
+        out.append(",\"record\":[%lu,%lu,%u,%u,%lu]", static_cast<unsigned long>(entry.sequence),
+                   static_cast<unsigned long>(entry.timeUs), unsigned(entry.event), unsigned(entry.detail),
+                   static_cast<unsigned long>(entry.value));
+      else out.append(",\"error\":\"cursor_unavailable\"");
+      out.append("}\n");
+    }
+    if (!out.okay()) replyTooLarge();
+    return;
+  }
+#endif
   const char *argument = strtok_r(nullptr, " \t", &save);
   unsigned long number;
   if (strcmp(command, "EXPR") == 0 || strcmp(command, "SLEEP") == 0 || strcmp(command,"MIC")==0) {

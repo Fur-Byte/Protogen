@@ -15,7 +15,7 @@ HEADER = (f"# protogen-rendering-v1 baseline={BASELINE}\n"
           "# checkpoint\tshutdown\tdirty_digits\tshutdown_writes\twake_writes\tlogical_hex\tphysical_hex\n")
 
 
-def frames(source):
+def frames(source, recorder_enabled=False):
     sketch = source / "firmware/PROT_OS7_MAX7219"
     fft = Path(os.environ.get("ARDUINO_FFT_SRC", Path.home() / "Documents/Arduino/libraries/arduinoFFT/src"))
     with tempfile.TemporaryDirectory(prefix="protogen-golden-") as tmp:
@@ -25,6 +25,8 @@ def frames(source):
                  "-fno-sanitize-recover=all", "-DARDUINO=10819", "-DARDUINO_TEENSY40",
                  "-DMicrophone", "-DVisorSensor", f"-I{source / 'scripts/tests/stubs'}",
                  f"-I{sketch}", f"-I{fft}"]
+        if recorder_enabled:
+            flags.append("-DPROTOGEN_FLIGHT_RECORDER=1")
         subprocess.run(["bash", "-c",
                         'source "$1"; shift; fft="$1"; object="$2"; shift 2; FLAGS=("$@"); compile_host_fft "$fft" "$object"',
                         "compile", str(source / "scripts/host-fft.sh"), str(fft), str(fft_object), *flags],
@@ -40,8 +42,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capture-baseline", type=Path, help="clean isolated worktree at the original commit")
     parser.add_argument("--output", type=Path, help="new review file for explicit capture")
+    parser.add_argument("--recorder-enabled", action="store_true", help="verify the same frozen bytes with P3 enabled")
     args = parser.parse_args()
     if args.capture_baseline:
+        if args.recorder_enabled:
+            parser.error("baseline capture requires the original build profile")
         if not args.output or args.output.resolve() == FIXTURE.resolve() or args.output.exists():
             parser.error("capture requires a new review path separate from the committed fixture")
         source = args.capture_baseline.resolve()
@@ -56,7 +61,7 @@ def main():
     if args.output:
         parser.error("--output requires --capture-baseline")
     expected = FIXTURE.read_text()
-    actual = frames(ROOT)
+    actual = frames(ROOT, args.recorder_enabled)
     if expected != actual:
         sys.stderr.writelines(difflib.unified_diff(expected.splitlines(True), actual.splitlines(True),
                                                   fromfile=str(FIXTURE), tofile="current renderer"))

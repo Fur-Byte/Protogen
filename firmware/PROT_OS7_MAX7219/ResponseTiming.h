@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <limits.h>
+#include "FlightInstrumentation.h"
 // All clocks are Teensy-local. UART starts after validation, USB at dispatch,
 // local at selection (after debounce). Physical/RF/button clocks are NOT inferred.
 struct ResponseTiming {
@@ -19,22 +20,48 @@ struct ResponseTiming {
   bool pending=false, feedback=false, onset=false, wasDelayed=false, targetAlreadyVisible=false;
   static void add(uint32_t &n) {if(n!=UINT32_MAX)++n;}
   void start(uint32_t id,uint32_t now,Origin from,Action kind,uint8_t src,uint8_t dst) {
-    add(accepted);if(pending){add(superseded);supersededSequence=sequence;supersededOrigin=origin;supersededObservation=observation;}
+    add(accepted);
+    if (pending) {
+      add(superseded); supersededSequence=sequence; supersededOrigin=origin; supersededObservation=observation;
+#if PROTOGEN_FLIGHT_RECORDER
+      P3Teensy::emit(now, Flight::Superseded, action, observation);
+#endif
+    }
     sequence=id;observation=accepted;at=now;origin=from;action=kind;source=src;target=dst;
     pending=true;feedback=onset=wasDelayed=targetAlreadyVisible=false;status=Pending;
     feedbackUs=onsetUs=completionUs=0;
+#if PROTOGEN_FLIGHT_RECORDER
+    if (kind == Expression)
+      P3Teensy::emit(now, Flight::Expression, dst | (unsigned(from) << 8), observation);
+#endif
   }
   void skip(uint32_t id,Origin from) {add(accepted);add(skipped);skippedSequence=id;skippedOrigin=from;skippedObservation=accepted;}
-  void delay() {if(pending&&!wasDelayed){add(delayed);wasDelayed=true;}}
+  void delay() {
+    if (pending && !wasDelayed) {
+      add(delayed); wasDelayed = true;
+#if PROTOGEN_FLIGHT_RECORDER
+      P3Teensy::emit(P3Teensy::clockUs(), Flight::Delayed, action, observation);
+#endif
+    }
+  }
   void observe(uint32_t now,bool causalFeedback,bool targetPixels,bool complete) {
     if(!pending)return;
     if(causalFeedback&&!feedback) {feedback=true;feedbackUs=now-at;if(feedbackUs>maxFeedbackUs)maxFeedbackUs=feedbackUs;}
     if(targetPixels&&!onset) {onset=true;onsetUs=now-at;if(onsetUs>maxOnsetUs)maxOnsetUs=onsetUs;}
     if(complete) {completionUs=now-at;if(completionUs>maxCompletionUs)maxCompletionUs=completionUs;
-      add(completed);pending=false;status=Complete;}
+      add(completed);pending=false;status=Complete;
+#if PROTOGEN_FLIGHT_RECORDER
+      P3Teensy::emit(now, Flight::Completed, action, observation);
+#endif
+    }
   }
   void poll(uint32_t now) {
     // Long configured transitions and temporary safety blanking are legitimate.
-    if(pending&&now-at>=5000000UL){add(expired);pending=false;status=Timeout;}
+    if (pending && now-at >= 5000000UL) {
+      add(expired);pending=false;status=Timeout;
+#if PROTOGEN_FLIGHT_RECORDER
+      P3Teensy::emit(now, Flight::Expired, action, observation);
+#endif
+    }
   }
 };

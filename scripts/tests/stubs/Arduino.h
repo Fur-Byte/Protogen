@@ -9,6 +9,7 @@
 #include <cstdio>
 using byte = uint8_t;
 using boolean = bool;
+#define DMAMEM
 #define PROGMEM
 #define HIGH 1
 #define LOW 0
