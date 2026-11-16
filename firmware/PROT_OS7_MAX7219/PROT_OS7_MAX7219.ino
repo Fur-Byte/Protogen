@@ -13,6 +13,7 @@
 #include "Configuration.h"
 #include "ConfigStore.h"
 #include "FaceRenderer.h"
+#include "src/BehaviorCore/BehaviorCore.h"
 #include "VisualCache.h"
 #include "src/HelmetProtocol/Efficiency.h"
 #include "BlinkTiming.h"
@@ -55,26 +56,17 @@ constexpr RgbColor expressionColors[ExpressionCount] = {
   {0,8,0}, {0,0,8}, {8,0,0}, {4,0,4}, {0,4,6}, {4,6,0}
 };
 
-bool visorVisible = true, sleeping = false, displayBlanked = false, displayReady = false;
-bool boopState = false, boopArmed = false, boopActive = false, speakingActive = false;
-bool boopFromRemote = false;
+Behavior::Core behavior;
+bool visorVisible = true, displayBlanked = false, displayReady = false;
+bool speakingActive = false;
 #ifdef Microphone
 bool microphoneEnabled = true;
 #else
 bool microphoneEnabled = false;
 #endif
-uint16_t remoteBoopDuration = 1200;
 bool connectorReady = true;
 uint16_t sensorFaults = 0;
-bool rising = true, blinkState = false, transitionActive = false;
-uint8_t state = Settings::StartupExpression, Step = 0, counter = 0, transitionFrom = 0;
-uint32_t blinkTime = 0, blinkSpeed = 0, nextBlinkInterval = Settings::BlinkIntervalMs;
-uint32_t glitchDelay = 0, glitchSpeed = 0, boopTime = 0, speakingDelay = 0;
-uint32_t previousMillis = 0, transitionStarted = 0, lastFrameTime = 0;
-BlinkTiming::Timing blinkTiming;
-bool blinkRandomPending = false, blinkDoublePending = false;
-uint8_t blinkRandomCount = 0;
-uint32_t blinkRandomWords[2] = {};
+uint32_t speakingDelay = 0;
 int boopReading = 1023;
 Face::Frame displayedFrame;
 bool frameValid = false;
@@ -86,12 +78,10 @@ struct RenderMetrics {
 } renderMetrics;
 ControllerIdle controllerIdle;
 ResponseTiming responseTiming;
-bool transitionVisiblePending=false;
 Face::Pose displayedPose;
-uint8_t transitionStartClosure=0;
 uint32_t localCommandSequence=0, usbCommandSequence=0;
 Face::Frame responseBaseline;
-uint32_t blinkRandomStarted=0, blinkFallbacks=0;
+uint32_t blinkFallbacks=0;
 bool brightnessBoostActive = false;
 uint32_t brightnessBoostAt = 0, brightnessBoostMs = 0;
 void cancelBrightnessBoost() {
@@ -128,7 +118,7 @@ void setup() {
   Serial.begin(115200); // USB is optional; startup never waits for a computer.
   Entropy.Initialize(); // Starts hardware entropy collection without waiting for it.
   loadStoredConfig(config);
-  state = static_cast<uint8_t>(config.startupExpression);
+  behavior.expression = static_cast<uint8_t>(config.startupExpression);
   displayReady = matrix.begin(Settings::SpiFrequencyHz, true);
   matrix.shutdown(true);
   matrix.setIntensity(config.effectiveBrightness());
@@ -148,6 +138,9 @@ void setup() {
   displayBlanked = true; // Compose the first complete face before enabling panels.
 }
 
+void renderFrame(uint32_t now, Face::AudioSnapshot &spectrum);
+void observeExpressionResponse(const Face::Pose &pose, const Face::AudioSnapshot &spectrum);
+
 void loop() {
   P3_TEENSY_SCOPE(p3Loop, LoopWork);
 #if PROTOGEN_FLIGHT_RECORDER
@@ -163,14 +156,12 @@ void loop() {
   P3_TEENSY_CALL(Sensors, serviceSensorAcquisition(now));
   updateVisorConnector(now);
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
-  if (boopActive && now - boopTime >= (boopFromRemote ? remoteBoopDuration : config.boopDuration)) {
-    boopActive = false; boopFromRemote = false; boopArmed = false; rising = true;
-  }
-  if (sleeping || !visorVisible || !displayReady || !connectorReady) {
+  behavior.expireBoop(now, config.boopDuration);
+  if (behavior.sleeping || !visorVisible || !displayReady || !connectorReady) {
     if (!displayBlanked) {
       matrix.shutdown(true);
       if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&responseTiming.target&&
-          sleeping&&visorVisible&&displayReady&&connectorReady)
+          behavior.sleeping&&visorVisible&&displayReady&&connectorReady)
         responseTiming.observe(micros(),true,false,true);
       setColor(0,0,0); resetAnimations(now);
       displayBlanked = true;
@@ -190,33 +181,34 @@ void loop() {
     return;
   }
   const bool waking = displayBlanked;
-  if (waking) { resetAnimations(now); rising = true; frameValid = false; Efficiency::increment(renderMetrics.wakes); }
+  if (waking) { resetAnimations(now); behavior.rising = true; frameValid = false; Efficiency::increment(renderMetrics.wakes); }
   updateBoop(now, waking);
-  if (boopState && boopArmed && !boopActive) {
-    boopActive = true; boopTime = now; previousMillis = now;
-    boopFromRemote = false;
-    resetAnimations(now); setColor(16,4,0); rising = true;
+  if (behavior.wantsLocalBoop()) {
+    behavior.beginBoop(now);
+    resetAnimations(now); setColor(16,4,0); behavior.rising = true;
   }
-  if (boopActive && !boopFromRemote && config.boopMode == 0 && !boopState) {
-    boopActive = false; resetAnimations(now); rising = true;
+  if (behavior.releaseHeldBoop(config.boopMode)) {
+    resetAnimations(now); behavior.rising = true;
   }
-  if (rising && !boopActive) {
-    setColor(expressionColors[state].r, expressionColors[state].g, expressionColors[state].b);
-    previousMillis = now;
+  if (behavior.rising && !behavior.boopActive) {
+    setColor(expressionColors[behavior.expression].r, expressionColors[behavior.expression].g, expressionColors[behavior.expression].b);
+    behavior.previousMillis = now;
   }
-  if (boopActive) pauseMicrophone();
+  if (behavior.boopActive) pauseMicrophone();
   else { if (microphoneEnabled) P3_TEENSY_CALL(Audio, microphone()); else pauseMicrophone(); glitch(now); Blink(now); }
-  if (now - previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
+  if (now - behavior.previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
   // Routine frames use16ms; sample first transition feedback at2ms until a
   // visible frame changes. Unchanged rows produce no redundant SPI traffic.
-  if (waking || rising || now - lastFrameTime >= (transitionVisiblePending ? 2u : 16u)) {
-    renderFace(now); lastFrameTime = now; rising = false;
-  }
-  if (waking) {
-    matrix.shutdown(false); displayBlanked = false;
-    if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&!responseTiming.target)
-      responseTiming.observe(micros(),true,false,true);
-    else observeExpressionResponse(displayedPose);
+  if (behavior.frameDue(now, waking)) {
+    Face::AudioSnapshot spectrum;
+    renderFrame(now, spectrum);
+    behavior.commitFrameTime(now);
+    if (waking) {
+      matrix.shutdown(false); displayBlanked = false;
+      if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&!responseTiming.target)
+        responseTiming.observe(micros(),true,false,true);
+      else observeExpressionResponse(displayedPose, spectrum);
+    }
   }
 #if PROTOGEN_FLIGHT_RECORDER
   P3Teensy::finishLoop();
@@ -236,61 +228,49 @@ bool responseEyesPresent(const Face::Frame &frame) {
     if(Face::pixel(frame,x,y)||Face::pixel(frame,96+x,y))return true;
   return false;
 }
-void observeExpressionResponse(const Face::Pose &pose) {
+void observeExpressionResponse(const Face::Pose &pose, const Face::AudioSnapshot &spectrum) {
   if(!responseTiming.pending||displayBlanked)return;
   if(responseTiming.action==ResponseTiming::Visibility)return;
   const bool boop=responseTiming.action==ResponseTiming::Boop;
-  if(boop!=pose.boop||(!boop&&pose.expression!=responseTiming.target&& !transitionActive)) {
+  if(boop!=pose.boop||(!boop&&pose.expression!=responseTiming.target&& !behavior.transitionActive)) {
     responseTiming.delay();return;
   }
-  if(!boop&&state!=responseTiming.target)return;
+  if(!boop&&behavior.expression!=responseTiming.target)return;
   Face::Pose source=pose;source.boop=false;source.expression=responseTiming.source;
-  Face::Frame old;Face::compose(old,source);
+  Face::Frame old;Face::compose(old,source,spectrum);
   const bool target=boop||pose.expression==responseTiming.target;
   const bool onset=target&&(responseEyesDiffer(displayedFrame,old)||
     (responseTiming.source==responseTiming.target&&responseEyesPresent(displayedFrame)));
   const bool feedback=responseEyesDiffer(displayedFrame,responseBaseline);
-  responseTiming.observe(micros(),feedback,onset,target&&!transitionActive&&!blinkState);
+  responseTiming.observe(micros(),feedback,onset,target&&!behavior.transitionActive&&!behavior.blinkState);
 }
-void renderFace(uint32_t now) {
+void captureSpectrum(Face::AudioSnapshot &snapshot, bool speaking, uint8_t mode) {
+  // FFT and composition both run in the owner context. The ADC ISR only
+  // acquires samples, so these four copies represent one observation.
+  if (!speaking || mode == 1) return;
+  memcpy(snapshot.first, fftIcon1, sizeof(snapshot.first));
+  memcpy(snapshot.firstLeft, fftIcon1L, sizeof(snapshot.firstLeft));
+  memcpy(snapshot.second, fftIcon2, sizeof(snapshot.second));
+  memcpy(snapshot.secondLeft, fftIcon2L, sizeof(snapshot.secondLeft));
+}
+
+void renderFrame(uint32_t now, Face::AudioSnapshot &spectrum) {
   P3_TEENSY_SCOPE(p3Render, Render);
   Efficiency::increment(renderMetrics.attempts);
-  Face::Pose pose;
-  pose.expression = state; pose.boop = boopActive;
-  pose.speaking = speakingActive; pose.glitch = counter; pose.closure = Step;
-  pose.mouthMode = static_cast<uint8_t>(config.mouthMode);
 #ifdef Microphone
-  pose.aperture = mouthAperture;
+  const uint8_t aperture = mouthAperture;
+#else
+  const uint8_t aperture = 0;
 #endif
-  if (transitionActive) {
-    const uint32_t elapsed = now - transitionStarted;
-    if (!config.transitionMs || elapsed >= config.transitionMs) transitionActive = false;
-    else {
-      const uint32_t half = config.transitionMs / 2;
-      const uint32_t scaledRamp = config.transitionMs * 3UL / 8;
-      const uint32_t ramp = scaledRamp < Settings::TransitionFeedbackRampMs
-          ? scaledRamp : Settings::TransitionFeedbackRampMs;
-      if (!Settings::EarlyExpressionReveal && elapsed < half) pose.expression = transitionFrom;
-      // Retarget from the last emitted closure, never from the obsolete logical
-      // target. The unmodified first transition retains the original curve.
-      const uint32_t closeMs=(ramp*(8-transitionStartClosure)+7)/8;
-      if (elapsed < closeMs) pose.closure = static_cast<uint8_t>(transitionStartClosure+elapsed*(8-transitionStartClosure)/closeMs);
-      else if (elapsed < config.transitionMs - ramp) pose.closure = 8;
-      else pose.closure = static_cast<uint8_t>((config.transitionMs - elapsed) * 8 / (ramp ? ramp : 1));
-    }
-  }
-  if (config.idleMotion && !blinkState && !transitionActive && !boopActive) {
-    // Small, infrequent glances. Exact artwork at rest, no invented extra pixels.
-    const uint32_t phase = (now - blinkTime) % 6000;
-    pose.eyeOffset = phase >= 2200 && phase < 2500 ? 1 : phase >= 4400 && phase < 4700 ? -1 : 0;
-  }
-  if (PROTOGEN_CACHE_FACE && frameValid && visualCache.unchanged(pose)) {
-    Efficiency::increment(renderMetrics.skipped); observeExpressionResponse(pose); return;
+  const auto pose = behavior.poseAt(now, config, speakingActive, aperture, Settings::EarlyExpressionReveal);
+  captureSpectrum(spectrum, pose.speaking, pose.mouthMode);
+  if (PROTOGEN_CACHE_FACE && frameValid && visualCache.unchanged(pose, spectrum)) {
+    Efficiency::increment(renderMetrics.skipped); observeExpressionResponse(pose, spectrum); return;
   }
   const uint32_t started = micros();
   Efficiency::increment(renderMetrics.compositions);
   Face::Frame composed;
-  P3_TEENSY_CALL(Compose, Face::compose(composed, pose));
+  P3_TEENSY_CALL(Compose, Face::compose(composed, pose, spectrum));
   const bool changed = !frameValid || memcmp(composed.bytes, displayedFrame.bytes, sizeof(composed.bytes));
   if (changed) Efficiency::increment(renderMetrics.changed);
   for (int y = 0; y < Face::Height; ++y)
@@ -299,19 +279,24 @@ void renderFace(uint32_t now) {
       if (!frameValid || value != Face::pixel(displayedFrame, x, y)) matrix.drawPixel(x, y, value);
     }
   displayedFrame = composed; displayedPose=pose; frameValid = true; P3_TEENSY_CALL(DisplayWrite, matrix.write());
-  observeExpressionResponse(pose);
-  if(responseTiming.feedback||!responseTiming.pending) transitionVisiblePending=false;
-  if (PROTOGEN_CACHE_FACE) visualCache.remember(pose);
+  observeExpressionResponse(pose, spectrum);
+  if(responseTiming.feedback||!responseTiming.pending) behavior.transitionVisiblePending=false;
+  if (PROTOGEN_CACHE_FACE) visualCache.remember(pose, spectrum);
   const uint32_t elapsed = micros() - started;
   renderMetrics.totalUs += elapsed;
   if (elapsed > renderMetrics.maxUs) renderMetrics.maxUs = elapsed;
 }
 
+void renderFace(uint32_t now) {
+  Face::AudioSnapshot spectrum;
+  renderFrame(now, spectrum);
+}
+
 void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Origin origin,uint32_t id,uint32_t receivedUs) {
   if(expression>=ExpressionCount)return;
-  if(expression==state) {responseTiming.skip(id,origin);return;}
-  const uint8_t source=frameValid?displayedPose.expression:state;
-  const uint8_t closure=frameValid?displayedPose.closure:Step;
+  if(expression==behavior.expression) {responseTiming.skip(id,origin);return;}
+  const uint8_t source=frameValid?displayedPose.expression:behavior.expression;
+  const uint8_t closure=frameValid?displayedPose.closure:behavior.blinkClosure;
   responseBaseline=displayedFrame;
   responseTiming.start(id,receivedUs,origin,ResponseTiming::Expression,source,expression);
   if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)) {
@@ -319,21 +304,20 @@ void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Ori
     // the record explicitly distinguishes this from newly revealed pixels.
     responseTiming.targetAlreadyVisible=true;responseTiming.onset=true;
   }
-  state=expression;resetAnimations(now);rising=true;
-  if(!sleeping&&visorVisible&&!boopActive&&config.transitionMs) {
-    transitionActive=true;transitionVisiblePending=true;transitionFrom=source;
-    transitionStartClosure=closure;transitionStarted=now;
-  } else if(sleeping||!visorVisible||boopActive||!displayReady||!connectorReady) responseTiming.delay();
+  behavior.expression=expression;resetAnimations(now);behavior.rising=true;
+  if (behavior.canTransition(visorVisible, config.transitionMs)) {
+    behavior.beginTransition(now, source, closure);
+  } else if(behavior.sleeping||!visorVisible||behavior.boopActive||!displayReady||!connectorReady) responseTiming.delay();
 }
 void selectExpression(uint8_t expression, uint32_t now) {
   selectExpressionCommand(expression,now,ResponseTiming::Local,++localCommandSequence,micros());
 }
 
 void setSleepingCommand(bool value,ResponseTiming::Origin origin,uint32_t id,uint32_t receivedUs) {
-  if(sleeping==value){responseTiming.skip(id,origin);return;}
+  if(behavior.sleeping==value){responseTiming.skip(id,origin);return;}
   responseBaseline=displayedFrame;
-  responseTiming.start(id,receivedUs,origin,ResponseTiming::Visibility,state,value);
-  sleeping=value;
+  responseTiming.start(id,receivedUs,origin,ResponseTiming::Visibility,behavior.expression,value);
+  behavior.sleeping=value;
   if(!visorVisible||!displayReady||!connectorReady)responseTiming.delay();
 }
 void setSleepingLocal(bool value) {
@@ -341,31 +325,19 @@ void setSleepingLocal(bool value) {
 }
 
 void scheduleBlink() {
-  nextBlinkInterval = config.blinkInterval;
-  blinkTiming = BlinkTiming::Timing{};
-  blinkRandomCount = 0; blinkDoublePending = false;blinkRandomStarted=millis();
-  blinkRandomPending = config.naturalBlinks != 0;
+  behavior.scheduleBlink(config, millis());
 }
 void serviceBlinkRandomness() {
-  if (!blinkRandomPending) return;
-  // Entropy.random() can wait internally. Check availability first and perform
-  // at most two reads per loop; controls/audio keep running if entropy is late.
-  while (blinkRandomCount < 2 && Entropy.available())
-    blinkRandomWords[blinkRandomCount++] = Entropy.random();
-  if (blinkRandomCount < 2) {
-    if(millis()-blinkRandomStarted<100)return;
-    // Cosmetic fallback only: fixed bounded blink, no synthetic entropy and no
-    // coupling to the authentication/TRNG interfaces.
-    blinkRandomPending=false;ResponseTiming::add(blinkFallbacks);return;
-  }
-  blinkTiming = BlinkTiming::sample(config, blinkRandomWords[0], blinkRandomWords[1]);
-  nextBlinkInterval = blinkTiming.pauseMs;
-  blinkDoublePending = blinkTiming.doubleBlink;
-  blinkRandomPending = false;
+  if (!behavior.blinkRandomPending) return;
+  // Hardware entropy remains in the shell. It is read only when available,
+  // with the same two-word budget and no effect on the authentication path.
+  while (behavior.blinkRandomCount < 2 && Entropy.available())
+    behavior.acceptBlinkWord(Entropy.random());
+  if (behavior.blinkRandomCount < 2 && millis() - behavior.blinkRandomStarted < 100) return;
+  if (!behavior.finishBlinkEntropy(config)) ResponseTiming::add(blinkFallbacks);
 }
 void resetAnimations(uint32_t now) {
-  Step = 0; blinkState = false; counter = 0; transitionActive = false; transitionVisiblePending=false;
-  blinkTime = blinkSpeed = glitchDelay = glitchSpeed = now;
+  behavior.resetAnimationAt(now);
   scheduleBlink(); pauseMicrophone();
 }
 void setColor(int red, int green, int blue) {

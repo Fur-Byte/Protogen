@@ -31,9 +31,11 @@ def frames(source, recorder_enabled=False):
                         'source "$1"; shift; fft="$1"; object="$2"; shift 2; FLAGS=("$@"); compile_host_fft "$fft" "$object"',
                         "compile", str(source / "scripts/host-fft.sh"), str(fft), str(fft_object), *flags],
                        check=True)
+        core = sketch / "src/BehaviorCore/BehaviorCore.cpp"
+        sources = [str(core)] if core.is_file() else []
         subprocess.run([os.environ.get("CXX", "clang++"), *flags, "-I", str(source / "scripts/tests"),
                         str(ROOT / "scripts/tests/golden-rendering.cpp"),
-                        str(sketch / "src/Max72xxPanel/Max72xxPanel.cpp"), str(fft_object), "-o", str(program)],
+                        str(sketch / "src/Max72xxPanel/Max72xxPanel.cpp"), *sources, str(fft_object), "-o", str(program)],
                        check=True)
         return HEADER + subprocess.check_output([str(program)], text=True)
 

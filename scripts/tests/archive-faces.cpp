@@ -15,7 +15,7 @@ int main() {
   for (int tile = 0; tile < 14; ++tile) matrix.setRotation(tile, 3);
   for (uint8_t expression = 0; expression < 4; ++expression) {
     Face::Pose pose; pose.expression = expression;
-    Face::Frame frame; Face::compose(frame, pose);
+    Face::Frame frame; Face::compose(frame, pose, Face::AudioSnapshot{});
     matrix.fillScreen(0);
     for (int y = 0; y < Face::Height; ++y)
       for (int x = 0; x < Face::Width; ++x)

@@ -20,7 +20,7 @@ void fail(uint32_t now, uint8_t reason, bool isPermanent=false) {
   failed=true;permanent=isPermanent;recovering=true;lastFailure=reason;++failures;
   boop=voltage=pendingPin=-1;verified=0;nextVoltage=false;
   // An invalid IR value cannot retain a held reaction or rearm a new one.
-  boopState=false;boopArmed=false;
+  behavior.boopState=false;behavior.boopArmed=false;
   sensorFaults|=2;faultAt=now;
   retryDelay=retryDelay ? (retryDelay < Settings::SensorRetryMaxMs / 2 ?
     retryDelay * 2 : Settings::SensorRetryMaxMs) : Settings::SensorRetryInitialMs;
@@ -130,7 +130,7 @@ void serviceSensorAcquisition(uint32_t now) {
     ++retries;failed=false;
   }
 #ifdef BoopSensor
-  if(sleeping || !visorVisible) {
+  if(behavior.sleeping || !visorVisible) {
     // A boop conversion belongs to the visible/awake acquisition period that
     // started it. Cancel before pausing so wake cannot time out or accept it.
     // With a connector fitted, leave any rail conversion running for safety.
@@ -142,7 +142,7 @@ void serviceSensorAcquisition(uint32_t now) {
   }
 #endif
 #ifndef VisorConnector
-  if(sleeping || !visorVisible)return;
+  if(behavior.sleeping || !visorVisible)return;
 #endif
   if(pendingPin>=0) {
     // A latched completion can predate a stalled loop. Expire it before reading
@@ -171,7 +171,7 @@ void serviceSensorAcquisition(uint32_t now) {
   if(now-lastVoltage>=Settings::BoopPollMs && nextVoltage){pin=Settings::DockVoltagePin;lastVoltage=now;nextVoltage=false;}
 #endif
 #ifdef BoopSensor
-  if(pin<0 && !sleeping && visorVisible && connectorReady && now-lastBoop>=Settings::BoopPollMs){pin=irPin;lastBoop=now;nextVoltage=true;}
+  if(pin<0 && !behavior.sleeping && visorVisible && connectorReady && now-lastBoop>=Settings::BoopPollMs){pin=irPin;lastBoop=now;nextVoltage=true;}
 #endif
 #ifdef VisorConnector
   if(pin<0 && now-lastVoltage>=Settings::BoopPollMs){pin=Settings::DockVoltagePin;lastVoltage=now;}

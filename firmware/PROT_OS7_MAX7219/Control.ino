@@ -24,17 +24,17 @@ void updateControls(uint32_t now) {
       holdHandled = false;
     }
     else if (!holdHandled) {
-      if (sleeping) {
+      if (behavior.sleeping) {
         setSleepingLocal(false); // Wake to the same expression; don't also advance it.
       }
       else {
-        selectExpression((state + 1) % ExpressionCount, now);
+        selectExpression((behavior.expression + 1) % ExpressionCount, now);
       }
     }
   }
   if (buttonStable == LOW && buttonCandidate == LOW && !holdHandled &&
       now - pressedAt >= Settings::ButtonHoldMs) {
-    setSleepingLocal(!sleeping);
+    setSleepingLocal(!behavior.sleeping);
     holdHandled = true;
   }
 
@@ -60,16 +60,8 @@ void updateBoop(uint32_t now, bool forceSample) {
   }
   lastSample = now;
   const int reading = readBoopSensor();
-  if (reading < 0 || reading > 1023) { boopState=false;boopArmed=false;boopReading=-1;return; }
-  boopReading = reading;
-  if (reading >= config.boopRelease) {
-    boopState = false;
-    boopArmed = true;
-  }
-  else if (reading <= config.boopThreshold) {
-    boopState = true;
-  }
-  // Between the two thresholds, keep the current state to prevent chatter.
+  boopReading = reading >= 0 && reading <= 1023 ? reading : -1;
+  behavior.observeBoop(reading, config);
 #else
   (void)now;
   (void)forceSample;

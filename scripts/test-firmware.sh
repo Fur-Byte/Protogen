@@ -28,7 +28,7 @@ source "$ROOT/scripts/host-fft.sh"
 compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/firmware.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-firmware"
 "$TEST_TEMP/test-firmware"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/matrix.cpp" -o "$TEST_TEMP/test-matrix"
@@ -36,12 +36,12 @@ compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
 "$TEST_TEMP/test-blink-timing"
 "${CXX:-clang++}" "${FLAGS[@]}" \
   "$ROOT/scripts/tests/configuration.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-configuration"
 "$TEST_TEMP/test-configuration"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/configuration.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-configuration-sensors"
 "$TEST_TEMP/test-matrix"
@@ -59,31 +59,31 @@ compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
 "$TEST_TEMP/test-retry-delay"
 "${CXX:-clang++}" "${FLAGS[@]}" -DWirelessPaw \
   "$ROOT/scripts/tests/controller-idle.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   -o "$TEST_TEMP/test-controller-idle"
 "$TEST_TEMP/test-controller-idle"
 "${CXX:-clang++}" "${FLAGS[@]}" -DVisorConnector \
   "$ROOT/scripts/tests/connector-timing.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   -o "$TEST_TEMP/test-connector-timing"
 "$TEST_TEMP/test-connector-timing"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw -DVisorConnector \
   "$ROOT/scripts/tests/extensions.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-extensions"
 "$TEST_TEMP/test-extensions"
 # Exercise bounded ADC recovery, stale rail rejection, MISO/pilot restoration,
 # real buffer-gated initialization and microphone recovery with modeled timing.
 "${CXX:-clang++}" "${FLAGS[@]}" -DBoopSensor -DVisorConnector \
   "$ROOT/scripts/tests/sensor-recovery.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   -o "$TEST_TEMP/test-sensor-recovery"
 for scenario in initialization initdetach pilot timeout invalid start stale stalecompletion boopstale cycle bounded permanent wrap; do
   "$TEST_TEMP/test-sensor-recovery" "$scenario"
 done
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor \
   "$ROOT/scripts/tests/microphone-recovery.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/test-microphone-recovery"
 for scenario in rail invalid start stall bounded disable permanent wrap isolation; do
   "$TEST_TEMP/test-microphone-recovery" "$scenario"
@@ -98,7 +98,7 @@ for unit in md sha256 platform_util; do
 done
 "${CXX:-clang++}" "${FLAGS[@]}" -DWirelessPaw -DPROTOGEN_UART_AUTH=1 \
   -I"$ROOT/scripts/tests/uart-fixture" "$ROOT/scripts/tests/uart-rendering.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "$TEST_TEMP/uart-md.o" "$TEST_TEMP/uart-sha256.o" "$TEST_TEMP/uart-platform_util.o" \
   -o "$TEST_TEMP/test-uart-rendering"
 "$TEST_TEMP/test-uart-rendering"
@@ -110,7 +110,7 @@ for mask in {0..7}; do
   # Bash 3.2's nounset treats an empty array as unset; use conditional expansion.
   "${CXX:-clang++}" "${FLAGS[@]}" ${FEATURES[@]+"${FEATURES[@]}"} \
     "$ROOT/scripts/tests/feature-smoke.cpp" \
-    "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+    "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
     "${TEST_TEMP}/arduinoFFT.o" -o "$TEST_TEMP/features-$mask"
   printf 'Sensor mask %s: ' "$mask"
   "$TEST_TEMP/features-$mask"

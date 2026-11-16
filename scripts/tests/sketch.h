@@ -11,8 +11,6 @@ void scheduleBlink();
 void serviceBlinkRandomness();
 void selectExpression(uint8_t, uint32_t);
 void setSleepingLocal(bool);
-namespace Face { struct Pose; }
-void observeExpressionResponse(const Face::Pose &);
 void renderFace(uint32_t);
 void Blink(uint32_t);
 void glitch(uint32_t);
@@ -55,3 +53,25 @@ bool pawHasPendingWork();
 #include "UsbControl.ino"
 #include "PawLink.ino"
 #include "VisorConnector.ino"
+
+// Legacy host probes read or seed the same live state, without shadow copies.
+inline auto &sleeping = behavior.sleeping;
+inline auto &boopState = behavior.boopState;
+inline auto &boopArmed = behavior.boopArmed;
+inline auto &boopActive = behavior.boopActive;
+inline auto &boopFromRemote = behavior.boopFromRemote;
+inline auto &remoteBoopDuration = behavior.remoteBoopDuration;
+inline auto &rising = behavior.rising;
+inline auto &blinkState = behavior.blinkState;
+inline auto &transitionActive = behavior.transitionActive;
+inline auto &blinkTime = behavior.blinkTime;
+inline auto &blinkSpeed = behavior.blinkSpeed;
+inline auto &nextBlinkInterval = behavior.nextBlinkInterval;
+inline auto &boopTime = behavior.boopTime;
+inline auto &blinkTiming = behavior.blinkTiming;
+inline auto &blinkRandomPending = behavior.blinkRandomPending;
+inline auto &blinkDoublePending = behavior.blinkDoublePending;
+inline auto &blinkRandomCount = behavior.blinkRandomCount;
+inline auto &state = behavior.expression;
+inline auto &Step = behavior.blinkClosure;
+inline auto &counter = behavior.glitchFrame;

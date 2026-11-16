@@ -44,9 +44,9 @@ void status(uint32_t now) {
   p.sequence = ++statusSequence; p.epoch = gate.epoch; p.ticket = ++ticket;
   if (!p.ticket) p.ticket = ++ticket;
   HelmetLink::put32(p.payload, gate.bridge);
-  p.payload[4] = state;
-  p.payload[5] = (sleeping ? HelmetLink::Sleeping : 0) | (visorVisible ? HelmetLink::Visible : 0) |
-    (boopActive ? HelmetLink::Booping : 0) | (speakingActive ? HelmetLink::Speaking : 0) |
+  p.payload[4] = behavior.expression;
+  p.payload[5] = (behavior.sleeping ? HelmetLink::Sleeping : 0) | (visorVisible ? HelmetLink::Visible : 0) |
+    (behavior.boopActive ? HelmetLink::Booping : 0) | (speakingActive ? HelmetLink::Speaking : 0) |
     (microphoneEnabled ? HelmetLink::MicEnabled : 0) | (displayReady && connectorReady ? HelmetLink::DisplayReady : 0) |
     (haveHeartbeat && now-heartbeatAt < HelmetLink::LinkTimeoutMs ? HelmetLink::PawOnline : 0);
   p.payload[6] = 8;
@@ -66,9 +66,9 @@ void status(uint32_t now) {
   p.payload[7] = static_cast<uint8_t>(config.boopMode);
   HelmetLink::put16(p.payload+8, static_cast<uint16_t>(boopReading));
   HelmetLink::put16(p.payload+10, sensorFaults);
-  const uint32_t duration = boopFromRemote ? remoteBoopDuration : config.boopDuration;
-  const uint32_t elapsed = now-boopTime;
-  HelmetLink::put16(p.payload+16, boopActive && elapsed<duration ? static_cast<uint16_t>(duration-elapsed) : 0);
+  const uint32_t duration = behavior.boopFromRemote ? behavior.remoteBoopDuration : config.boopDuration;
+  const uint32_t elapsed = now-behavior.boopTime;
+  HelmetLink::put16(p.payload+16, behavior.boopActive && elapsed<duration ? static_cast<uint16_t>(duration-elapsed) : 0);
   p.payload[18] = static_cast<uint8_t>(configSchemaVersion);
   if (enqueue(p)) {gate.issue(p.ticket, now);lastStatus=now;statusPending=false;}
 }
@@ -105,10 +105,10 @@ void receive(const HelmetLink::Packet &p, uint32_t now) {
         result=HelmetLink::Unavailable;break;
 #endif
       case HelmetLink::Boop:
-        if(sleeping || !visorVisible || !connectorReady || !displayReady || boopActive) result=HelmetLink::Unavailable;
-        else {expectedChange=state!=ExpressionVwv || speakingActive || Step || transitionActive;
-          boopActive=true;boopFromRemote=true;remoteBoopDuration=HelmetLink::u16(p.payload+6);
-          boopTime=previousMillis=now;resetAnimations(now);setColor(16,4,0);rising=true;}
+        if(behavior.sleeping || !visorVisible || !connectorReady || !displayReady || behavior.boopActive) result=HelmetLink::Unavailable;
+        else {expectedChange=behavior.expression!=ExpressionVwv || speakingActive || behavior.blinkClosure || behavior.transitionActive;
+          behavior.beginRemoteBoop(now, HelmetLink::u16(p.payload+6));
+          resetAnimations(now);setColor(16,4,0);behavior.rising=true;}
         break;
     }
     if(result==HelmetLink::Accepted) {

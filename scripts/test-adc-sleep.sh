@@ -26,7 +26,7 @@ for connector in 0 1; do
     if (( connector )); then FEATURES+=(-DVisorConnector); fi
     if (( microphone )); then FEATURES+=(-DMicrophone); fi
     "${CXX:-clang++}" "${FLAGS[@]}" "${FEATURES[@]}" "$ROOT/scripts/tests/adc-sleep.cpp" \
-      "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+      "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
       "$TEST_TEMP/arduinoFFT.o" -o "$TEST_TEMP/adc-sleep"
     for scenario in ${ADC_SLEEP_SCENARIOS:-cancel timeout rapid wrap}; do
       printf 'connector=%s microphone=%s: ' "$connector" "$microphone"

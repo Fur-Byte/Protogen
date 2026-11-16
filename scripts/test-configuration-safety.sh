@@ -20,9 +20,9 @@ PY
   FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="${PROTOGEN_HOST_SANITIZERS:-address,undefined}" -fno-sanitize-recover=all
     -DARDUINO=10819 -DARDUINO_TEENSY40 -I"$ROOT/scripts/tests/stubs" -I"$CONFIG_TEMP/PROT_OS7_MAX7219")
   "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/configuration-safety.cpp" \
-    "$CONFIG_TEMP/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" -o "$CONFIG_TEMP/config-safety"
+    "$CONFIG_TEMP/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$CONFIG_TEMP/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" -o "$CONFIG_TEMP/config-safety"
   "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/brightness-upgrade.cpp" \
-    "$CONFIG_TEMP/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" -o "$CONFIG_TEMP/brightness-upgrade"
+    "$CONFIG_TEMP/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$CONFIG_TEMP/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" -o "$CONFIG_TEMP/brightness-upgrade"
   "$CONFIG_TEMP/brightness-upgrade"
   if [[ "$maximum" == 1 ]]; then
     "$CONFIG_TEMP/brightness-upgrade" write "$CONFIG_TEMP/brightness-format3.bin"
@@ -30,7 +30,7 @@ PY
     "$CONFIG_TEMP/brightness-upgrade" read "$CONFIG_TEMP/brightness-format3.bin"
     "${CXX:-clang++}" "${FLAGS[@]}" -DVisorConnector \
       "$ROOT/scripts/tests/brightness-reconnect.cpp" \
-      "$CONFIG_TEMP/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" -o "$CONFIG_TEMP/brightness-reconnect"
+      "$CONFIG_TEMP/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$CONFIG_TEMP/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" -o "$CONFIG_TEMP/brightness-reconnect"
     "$CONFIG_TEMP/brightness-reconnect"
     printf 'PASS: same EEPROM image booted under ceiling1 then ceiling15, saved approval stays1 until explicit SET\n'
   fi

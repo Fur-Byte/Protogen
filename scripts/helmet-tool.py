@@ -52,6 +52,7 @@ class PreviewTransport:
         if run.returncode == 0:
             run = subprocess.run([compiler, *flags, str(ROOT / "scripts/preview.cpp"),
                                   str(sketch / "src/Max72xxPanel/Max72xxPanel.cpp"),
+                                  str(sketch / "src/BehaviorCore/BehaviorCore.cpp"),
                                   str(fft_object), "-o", str(executable)], capture_output=True, text=True)
         if run.returncode:
             self.temporary.cleanup()

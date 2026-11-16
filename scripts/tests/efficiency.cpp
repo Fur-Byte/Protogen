@@ -21,24 +21,39 @@ int main() {
               Face::Pose p;p.expression=expression;p.closure=closure;p.mouthMode=mode;
               p.glitch=glitchFrame;p.aperture=aperture;p.eyeOffset=offset;
               Face::VisualCache cache;
-              assert(!cache.unchanged(p));cache.remember(p);assert(cache.unchanged(p));
+              Face::AudioSnapshot audio{};
+              assert(!cache.unchanged(p,audio));cache.remember(p,audio);assert(cache.unchanged(p,audio));
               for(bool speaking:{false,true})for(bool boop:{false,true}) {
                 p.speaking=speaking;p.boop=boop;
                 for(unsigned byte=0;byte<16;++byte) {
                   fftIcon1[byte]^=0x80;
-                  const bool same=cache.unchanged(p);
-                  Face::Frame expected;Face::compose(expected,p);
+                  captureSpectrum(audio,p.speaking,p.mouthMode);
+                  const bool same=cache.unchanged(p,audio);
+                  Face::Frame expected;Face::compose(expected,p,audio);
                   if(same) {
-                    Face::Frame previous;Face::compose(previous,cache.previous);
+                    Face::Frame previous;Face::compose(previous,cache.previous,cache.spectrum);
                     assert(!memcmp(expected.bytes,previous.bytes,sizeof(expected.bytes)));
                   }
-                  cache.remember(p);assert(cache.unchanged(p));
+                  cache.remember(p,audio);assert(cache.unchanged(p,audio));
                   fftIcon2L[byte]^=0x01;
-                  if(speaking && !boop && !mode)assert(!cache.unchanged(p));
-                  cache.remember(p);
+                  captureSpectrum(audio,p.speaking,p.mouthMode);
+                  if(speaking && !boop && !mode)assert(!cache.unchanged(p,audio));
+                  cache.remember(p,audio);
                 }
               }
             }
+  Face::Pose speech;
+  speech.speaking = true;
+  Face::AudioSnapshot captured{}, updated{};
+  captureSpectrum(captured, true, 0);
+  Face::Frame first, repeated, fresh;
+  Face::compose(first, speech, captured);
+  fftIcon1[0] ^= 0xff;
+  Face::compose(repeated, speech, captured);
+  captureSpectrum(updated, true, 0);
+  Face::compose(fresh, speech, updated);
+  assert(!memcmp(first.bytes, repeated.bytes, sizeof(first.bytes)));
+  assert(memcmp(first.bytes, fresh.bytes, sizeof(first.bytes)));
   state=ExpressionAngry;Step=3;counter=2;speakingActive=true;config.mouthMode=0;
   renderFace(millis());const auto beforeFFT=renderMetrics.compositions;
   fftIcon1[0]^=0xff;renderFace(millis());assert(renderMetrics.compositions==beforeFFT+1);
