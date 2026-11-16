@@ -1,0 +1,139 @@
+{
+  "schema": 2,
+  "fields": [
+    {
+      "name": "brightness",
+      "minimum": 0,
+      "maximum": 15,
+      "default": 1,
+      "eeprom_offset": 12
+    },
+    {
+      "name": "startup_expression",
+      "minimum": 0,
+      "maximum": 5,
+      "default": 0,
+      "eeprom_offset": 14
+    },
+    {
+      "name": "mouth_mode",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "eeprom_offset": 16
+    },
+    {
+      "name": "sensitivity",
+      "minimum": 0,
+      "maximum": 1023,
+      "default": 65,
+      "eeprom_offset": 18
+    },
+    {
+      "name": "noise_margin",
+      "minimum": 1,
+      "maximum": 1023,
+      "default": 12,
+      "eeprom_offset": 20
+    },
+    {
+      "name": "noise_floor",
+      "minimum": 0,
+      "maximum": 1023,
+      "default": 0,
+      "eeprom_offset": 22
+    },
+    {
+      "name": "boop_trigger",
+      "minimum": 0,
+      "maximum": 1022,
+      "default": 500,
+      "eeprom_offset": 24
+    },
+    {
+      "name": "boop_release",
+      "minimum": 1,
+      "maximum": 1023,
+      "default": 550,
+      "eeprom_offset": 26
+    },
+    {
+      "name": "blink_interval_ms",
+      "minimum": 1000,
+      "maximum": 60000,
+      "default": 4000,
+      "eeprom_offset": 28
+    },
+    {
+      "name": "blink_jitter_ms",
+      "minimum": 0,
+      "maximum": 5000,
+      "default": 2000,
+      "eeprom_offset": 30
+    },
+    {
+      "name": "transition_ms",
+      "minimum": 0,
+      "maximum": 1000,
+      "default": 160,
+      "eeprom_offset": 32
+    },
+    {
+      "name": "attack_ms",
+      "minimum": 1,
+      "maximum": 2000,
+      "default": 20,
+      "eeprom_offset": 34
+    },
+    {
+      "name": "release_ms",
+      "minimum": 1,
+      "maximum": 2000,
+      "default": 120,
+      "eeprom_offset": 36
+    },
+    {
+      "name": "natural_blinks",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 1,
+      "eeprom_offset": 38
+    },
+    {
+      "name": "idle_motion",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "eeprom_offset": 40
+    },
+    {
+      "name": "boop_mode",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "eeprom_offset": 42
+    },
+    {
+      "name": "boop_duration_ms",
+      "minimum": 100,
+      "maximum": 6000,
+      "default": 6000,
+      "eeprom_offset": 44
+    }
+  ],
+  "storage": {
+    "version": 3,
+    "slot_bytes": 64,
+    "header_bytes": 12,
+    "payload_bytes": 36,
+    "approval_offset": 46,
+    "crc_offset": 48,
+    "commit_offset": 52,
+    "record_bytes": 53
+  },
+  "brightness": {
+    "compiled_maximum": 1,
+    "default_approval": 1,
+    "legacy_approval": 1
+  }
+}

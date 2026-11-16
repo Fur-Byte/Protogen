@@ -15,6 +15,17 @@ function element(id) {
 const context=vm.createContext({document:{getElementById:element,createElement:()=>element(Symbol()),querySelectorAll:()=>[]},
   fetch:()=>new Promise(()=>{}),setTimeout(){},console});
 vm.runInContext(html.split('<script>')[1].split('</script>')[0],context);
+const metadata=JSON.parse(fs.readFileSync(path.join(__dirname,'../../tools/helmet/config-metadata.json'),'utf8'));
+assert.deepEqual(Array.from(vm.runInContext('keys',context)),metadata.fields.map(field=>field.name));
+for(const field of metadata.fields){
+  const input=html.match(new RegExp('<input id="'+field.name+'"[^>]*>'));
+  if(input&&input[0].includes('type="number"')){
+    assert.equal(Number(input[0].match(/min="(\d+)"/)[1]),field.minimum,field.name);
+    assert.equal(Number(input[0].match(/max="(\d+)"/)[1]),field.maximum,field.name);
+  }else{
+    assert.match(html,new RegExp('id="'+field.name+'"'),field.name);
+  }
+}
 vm.runInContext(`state={config:Object.fromEntries(keys.map(key=>[key,1]))};
   state.config.brightness=15;fill(state.config);
   action=payload=>{globalThis.captured=payload};
