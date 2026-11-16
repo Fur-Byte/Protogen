@@ -32,6 +32,9 @@ class FeatureChecks(unittest.TestCase):
             log.parent.mkdir(parents=True)
             log.write_text('Generated diagnostic output')
             self.assertEqual(source_identity(root), before)
+            database = root / 'firmware/esp32/compile_commands.json'
+            database.write_text('[]')
+            self.assertEqual(source_identity(root), before)
             source.write_text('int value = 2;')
             self.assertNotEqual(source_identity(root), before)
 

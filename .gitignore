@@ -6,5 +6,6 @@ __pycache__/
 
 # Generated local PlatformIO MCP state and private per-helmet UART material.
 .pio-mcp-workspace/
+/firmware/esp32/compile_commands.json
 ProtogenUartKey.h
 !scripts/tests/uart-fixture/ProtogenUartKey.h

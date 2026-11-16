@@ -9,7 +9,7 @@ import subprocess
 import re
 import configparser
 import struct
-from build_support import source_identity,write_json
+from build_support import git_identity,source_identity,write_json
 from uart_key import validate_uart_key_directory
 
 def main():
@@ -18,7 +18,8 @@ def main():
     env=dict(os.environ,PLATFORMIO_CORE_DIR=str(build/"platformio"),IDF_COMPONENT_MANAGER="0")
     locked=json.loads((root/"toolchain.lock.json").read_text())["esp32"]
     record={"state":"running","started_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "source":source_identity(root),"platform":locked["platform"],"esp_idf":locked["esp_idf"],"mbedtls":locked["mbedtls"]}
+            "source":source_identity(root),**git_identity(root),"platform":locked["platform"],
+            "esp_idf":locked["esp_idf"],"mbedtls":locked["mbedtls"]}
     target=build/"esp32-build.json";write_json(target,record)
     try:
         uart_include=os.environ.get("PROTOGEN_UART_KEY_DIR")
@@ -35,6 +36,14 @@ def main():
             env=env,capture_output=True,text=True)
         output=run.stdout+run.stderr;(build/"esp32-build.log").write_text(output)
         record["exit_code"]=run.returncode;record["warnings"]=output.lower().count("warning:")
+        if run.returncode:
+            raise RuntimeError("PlatformIO compilation failed; see esp32-build.log")
+        # PlatformIO runs these environments in command order. Record linker
+        # occupancy separately from the generated binary's file size.
+        sizes = {name: re.findall(rf"^{name}: .*\(used (\d+) bytes from (\d+) bytes\)", output, re.M)
+                 for name in ("RAM", "Flash")}
+        if any(len(values) != 2 for values in sizes.values()):
+            raise RuntimeError("PlatformIO did not report memory occupancy for both roles")
         framework=build/"platformio/packages/framework-espidf"
         idf=(framework/"components/esp_common/include/esp_idf_version.h").read_text()
         resolved_idf=".".join(re.search(r"ESP_IDF_VERSION_"+part+r"\s+(\d+)",idf)[1] for part in ("MAJOR","MINOR","PATCH"))
@@ -44,7 +53,7 @@ def main():
         if resolved_idf!=locked["esp_idf"] or resolved_mbed!=locked["mbedtls"]:raise RuntimeError("Resolved ESP-IDF/Mbed TLS differs from the lock")
         record["artifacts"]={}
         record["targets"]={}
-        for role in ("helmet","paw"):
+        for index, role in enumerate(("helmet","paw")):
             sdk=json.loads((build/"esp32"/role/"config/sdkconfig.json").read_text())
             required={"FREERTOS_HZ":1000,"ESPTOOLPY_FLASHSIZE":"4MB","PARTITION_TABLE_SINGLE_APP_LARGE":True,
                       "MBEDTLS_PSK_MODES":True,"MBEDTLS_KEY_EXCHANGE_PSK":True,
@@ -65,7 +74,9 @@ def main():
                 if magic!=0x50aa:break
                 if kind==0 and subtype==0:app_size=size
             if app_size!=1536000:raise RuntimeError(f"{role}: generated factory partition differs from the 1500 KiB configuration")
-            record["targets"][role]={"application_partition_bytes":app_size,
+            record["targets"][role]={"board":ini["env:"+role]["board"],"application_partition_bytes":app_size,
+                "memory": {name.lower()+"_bytes":dict(zip(("used","capacity"), map(int, values[index])))
+                           for name, values in sizes.items()},
                 "binary_bytes":(build/"esp32"/role/"firmware.bin").stat().st_size,"sdk_settings":required}
             for name in ("firmware.bin","firmware.elf","bootloader.bin","partitions.bin"):
                 path=build/"esp32"/role/name
