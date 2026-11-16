@@ -1,9 +1,18 @@
 name: Firmware regression and builds
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '32 9 * * 1'
 permissions:
   contents: read
+env:
+  MATRIX_MODE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && 'full' || 'fast' }}
 jobs:
-  verify:
+  host-and-c3:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -18,58 +27,41 @@ jobs:
           { clang --version; cmake --version; ninja --version; python3 --version; node --version; } > build/toolchains/host-versions.txt
       - name: Pinned toolchains
         run: python3 scripts/install-toolchains.py
-      - name: Regressions, optimized Python, features and both wireless roles
+      - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
           source build/toolchains/environment.sh
-          scripts/test-firmware.sh
-          scripts/test-efficiency.sh
-          scripts/test-latency.sh
-          scripts/test-postmerge-rendering.sh
-          scripts/test-adc-sleep.sh
-          scripts/test-uart-admission.sh
-          scripts/test-ingress-peer.sh
-          CMAKE=cmake CC=clang CXX=clang++ scripts/test-postmerge-wireless.sh
-          scripts/test-s31-platform.sh
-          python3 scripts/tests/test-host-support.py
-          python3 scripts/tests/test-runner-portability.py
-          python3 scripts/tests/test-board-targets.py
-          python3 scripts/tests/test-scheduler-config.py
-          python3 -O scripts/tests/test-toolchain-integrity.py
-          python3 -O scripts/tests/test-tools.py
-          python3 -O scripts/tests/test-security-builds.py
-          python3 -O scripts/tests/test-helmet-tool.py
-          python3 -O scripts/tests/test-pair-paw.py
-          python3 -O scripts/tests/test-efficiency.py
-          python3 -O scripts/tests/test-host-build.py
-          CMAKE=cmake CC=clang CXX=clang++ scripts/test-wireless.sh
-          CMAKE=cmake CC=clang CXX=clang++ scripts/test-v4.sh
-          CMAKE=cmake CC=clang CXX=clang++ scripts/test-dtls.sh
-          python3 scripts/tests/v4/make_vectors.py --check
-          python3 scripts/check-features.py
-          python3 scripts/check-extensions.py
-          python3 scripts/check-uart-auth.py
-          python3 scripts/build.py
-          python3 scripts/build-esp32.py
+          export CMAKE=cmake CC=clang CXX=clang++
+          python3 scripts/check-baseline.py
+          python3 scripts/check-golden-frames.py
+          python3 scripts/generate-config-metadata.py --check
+          bash scripts/test-config-compatibility.sh
+          python3 scripts/check-invalid-configurations.py
+          python3 scripts/check-invariant-mutations.py --group full
+      - name: Both C3 roles with UART auth on and off
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-build-matrix.py "$MATRIX_MODE" esp32
+      - name: Efficiency interactions and isolated research preflights
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          export CMAKE=cmake CC=clang CXX=clang++ PROTOGEN_PIO_JOBS=4
+          python3 scripts/build-efficiency.py case_2hz --with oled_1hz --with oled_pages --with oled_protection --with checkpoint_5min --with wearer_deadlines --with main_events
           python3 scripts/check-mlkem-preflight.py
           python3 scripts/check-v4.py
-          for candidate in cache_face case_2hz oled_1hz oled_pages checkpoint_5min wearer_deadlines main_events oled_protection; do
-            python3 scripts/build-efficiency.py "$candidate"
-          done
-          # Auth uses temporary fixture keys; restore the unauthenticated default
-          # export afterwards. No device provisioning or uploads occur.
-          key_dir="$(mktemp -d)"
-          trap 'rm -rf "$key_dir"' EXIT
-          python3 scripts/provision-uart-auth.py --output "$key_dir/private"
-          PROTOGEN_UART_KEY_DIR="$key_dir/private" python3 scripts/build-esp32.py
-          python3 scripts/build-esp32.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: build-evidence
+          name: host-and-c3-evidence
           path: |
             build/*json
             build/*log
+            build/baseline-host/
+            build/mutation-evidence/
+            build/matrix-*-esp32/
             build/runs/**/manifest.json
             build/runs/**/compile.log
             build/runs/**/esp32.log
@@ -78,3 +70,31 @@ jobs:
             build/toolchains/idf-python-dependencies.txt
             build/toolchains/host-packages.txt
             build/toolchains/host-versions.txt
+  teensy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && '["plain","auth"]' || '["all"]') }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Pinned Teensy toolchain
+        run: python3 scripts/install-toolchains.py --teensy-only
+      - name: Teensy feature combinations
+        shell: bash
+        env:
+          TEENSY_GROUP: ${{ matrix.group }}
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-build-matrix.py "$MATRIX_MODE" teensy --group "$TEENSY_GROUP"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: teensy-evidence-${{ matrix.group }}
+          path: |
+            build/runs/**/manifest.json
+            build/runs/**/compile.log
+            build/toolchains/lock.json

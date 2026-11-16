@@ -22,10 +22,26 @@ Slot readFixture(std::istream &input) {
 
 RuntimeConfig highRequest() {
   RuntimeConfig result;
-  // Deliberately distinguish adjacent fields so swaps cannot hide behind defaults.
-  const uint16_t values[] = {15, 4, 1, 740, 81, 310, 455, 690, 12200, 4200, 235, 40, 340, 0, 1, 1, 3400};
-  for (size_t i = 0; i < configFieldCount; ++i)
-    assert(setConfigField(result, configFields[i].name, values[i]));
+  // Assign named members independently of the serialization table. Reordering
+  // fields or changing the name-to-member mapping must change the frozen bytes.
+  result.brightness = 15;
+  result.brightnessApproval = 1;
+  result.startupExpression = 4;
+  result.mouthMode = 1;
+  result.sensitivity = 740;
+  result.noiseMargin = 81;
+  result.noiseFloor = 310;
+  result.boopThreshold = 455;
+  result.boopRelease = 690;
+  result.blinkInterval = 12200;
+  result.blinkJitter = 4200;
+  result.transitionMs = 235;
+  result.attackMs = 40;
+  result.releaseMs = 340;
+  result.naturalBlinks = 0;
+  result.idleMotion = 1;
+  result.boopMode = 1;
+  result.boopDuration = 3400;
   return result;
 }
 
@@ -86,6 +102,8 @@ int main(int argc, char **argv) {
   assert(unapproved.effectiveBrightness() == 0);
   assert(setConfigField(unapproved, "transition_ms", 321));
   assert(unapproved.brightnessApproval == 0);
+  assert(setConfigField(unapproved, "brightness", 15));
+  assert(unapproved.brightnessApproval == 1 && unapproved.effectiveBrightness() == 1);
   auto oversized = high;
   oversized.brightnessApproval = 15;
   assert(oversized.effectiveBrightness() == 1);

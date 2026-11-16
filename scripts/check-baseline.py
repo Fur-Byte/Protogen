@@ -15,8 +15,8 @@ SHELL_SUITES = (
     "uart-admission", "ingress-peer", "postmerge-wireless", "s31-platform",
     "wireless", "v4", "dtls",
 )
-PYTHON_SUITES = (
-    "host-support", "runner-portability", "board-targets", "scheduler-config",
+STANDARD_PYTHON_SUITES = ("host-support", "runner-portability", "board-targets", "scheduler-config")
+OPTIMIZED_PYTHON_SUITES = (
     "toolchain-integrity", "tools", "security-builds", "helmet-tool", "pair-paw",
     "efficiency", "host-build",
 )
@@ -42,8 +42,10 @@ def main():
             record["versions"][command[0]] = None
 
     tests = [(name, [f"scripts/test-{name}.sh"]) for name in SHELL_SUITES]
+    tests += [(f"python-{name}", [sys.executable, f"scripts/tests/test-{name}.py"])
+              for name in STANDARD_PYTHON_SUITES]
     tests += [(f"python-{name}", [sys.executable, "-O", f"scripts/tests/test-{name}.py"])
-              for name in PYTHON_SUITES]
+              for name in OPTIMIZED_PYTHON_SUITES]
     tests += [("face-studio", ["node", "scripts/tests/test-face-studio.js"]),
               ("v4-vectors", [sys.executable, "scripts/tests/v4/make_vectors.py", "--check"])]
     manifest = output / "manifest.json"

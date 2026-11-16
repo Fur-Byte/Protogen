@@ -32,8 +32,11 @@ def main():
         if not version.endswith(" "+locked["platformio"]):raise RuntimeError("PlatformIO version differs from toolchain.lock.json")
         ini=configparser.ConfigParser(interpolation=None);ini.read(root/"firmware/esp32/platformio.ini")
         if ini["env"]["platform"]!=locked["platform"]:raise RuntimeError("ESP32 platform differs from the lock")
-        run=subprocess.run([pio,"run","--project-dir",str(root/"firmware/esp32"),"-e","helmet","-e","paw"],
-            env=env,capture_output=True,text=True)
+        command = [pio, "run", "--project-dir", str(root / "firmware/esp32"), "-e", "helmet", "-e", "paw"]
+        if jobs := os.environ.get("PROTOGEN_PIO_JOBS"):
+            command += ["-j", jobs]
+        record["command"] = command
+        run = subprocess.run(command, env=env, capture_output=True, text=True)
         output=run.stdout+run.stderr;(build/"esp32-build.log").write_text(output)
         record["exit_code"]=run.returncode;record["warnings"]=output.lower().count("warning:")
         if run.returncode:
@@ -54,6 +57,12 @@ def main():
         record["artifacts"]={}
         record["targets"]={}
         for index, role in enumerate(("helmet","paw")):
+            elf = build / "esp32" / role / "firmware.elf"
+            nm = build / "platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-nm"
+            symbols = subprocess.check_output([str(nm), "--defined-only", "-C", str(elf)], text=True)
+            uart_linked = any("::uartMac(" in symbol for symbol in symbols.splitlines())
+            if uart_linked != (role == "helmet" and record["uart_auth"]):
+                raise RuntimeError(f"{role}: linked UART authentication differs from the requested build")
             sdk=json.loads((build/"esp32"/role/"config/sdkconfig.json").read_text())
             required={"FREERTOS_HZ":1000,"ESPTOOLPY_FLASHSIZE":"4MB","PARTITION_TABLE_SINGLE_APP_LARGE":True,
                       "MBEDTLS_PSK_MODES":True,"MBEDTLS_KEY_EXCHANGE_PSK":True,
@@ -75,6 +84,7 @@ def main():
                 if kind==0 and subtype==0:app_size=size
             if app_size!=1536000:raise RuntimeError(f"{role}: generated factory partition differs from the 1500 KiB configuration")
             record["targets"][role]={"board":ini["env:"+role]["board"],"application_partition_bytes":app_size,
+                "uart_auth_linked":uart_linked,
                 "memory": {name.lower()+"_bytes":dict(zip(("used","capacity"), map(int, values[index])))
                            for name, values in sizes.items()},
                 "binary_bytes":(build/"esp32"/role/"firmware.bin").stat().st_size,"sdk_settings":required}
