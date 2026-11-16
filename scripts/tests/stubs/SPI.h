@@ -17,6 +17,8 @@ struct FakeSPI {
   unsigned shutdownCommands = 0, wakeCommands = 0, hiddenDigitWrites = 0;
   bool begun = false, active = false, requireEnabledBuffer = false;
   void (*beginHook)() = nullptr;
+  void (*latchHook)(const std::vector<byte> &) = nullptr;
+  bool retainWakeFrames = true;
   unsigned clock = 0;
   bool shutdown = true;
   std::vector<byte> packet;
@@ -46,9 +48,10 @@ struct FakeSPI {
       assert(packet[1] <= 1);
       shutdown = packet[1] == 0;
       if (shutdown) ++shutdownCommands;
-      else { ++wakeCommands; wakeFrames.push_back(display); }
+      else { ++wakeCommands; if (retainWakeFrames) wakeFrames.push_back(display); }
     }
     active = false; ++transactions;
+    if (latchHook) latchHook(packet);
   }
 };
 inline FakeSPI SPI;
