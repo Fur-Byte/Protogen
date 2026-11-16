@@ -29,13 +29,28 @@ def source_identity(root):
     files = {}
     for directory in ("firmware", "scripts", "tools", "profiles"):
         for path in sorted((root / directory).rglob("*")):
-            if path.is_file() and not {"__pycache__", ".pio-mcp-workspace"}.intersection(path.parts):
-                files[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+            relative = path.relative_to(root).as_posix()
+            if (path.is_file() and relative != "firmware/esp32/compile_commands.json"
+                    and not {"__pycache__", ".pio-mcp-workspace"}.intersection(path.parts)):
+                files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
     lock = root / "toolchain.lock.json"
     if lock.is_file():
         files[lock.name] = hashlib.sha256(lock.read_bytes()).hexdigest()
     digest = hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return {"sha256": digest, "files": files}
+
+
+def git_identity(root):
+    def read(*args):
+        result = subprocess.run(["git", *args], cwd=root, capture_output=True, check=True)
+        return result.stdout.decode(errors="backslashreplace")
+
+    try:
+        head = read("rev-parse", "HEAD").strip()
+        status = read("status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0")[:-1]
+    except (OSError, subprocess.CalledProcessError):
+        return {"git_head": None, "working_tree_dirty": None, "git_status_porcelain": None}
+    return {"git_head": head, "working_tree_dirty": bool(status), "git_status_porcelain": status}
 
 
 def write_json(path, value):
@@ -83,10 +98,13 @@ def memory_metrics(output):
     result = {}
     flash = re.search(r"FLASH: code:(\d+), data:(\d+), headers:(\d+)", output)
     ram = re.search(r"RAM1: variables:(\d+).*free for local variables:(\d+)", output)
+    ram2 = re.search(r"RAM2: variables:(\d+).*free for malloc/new:(\d+)", output)
     if flash:
         result["flash_bytes"] = sum(map(int, flash.groups()))
     if ram:
         result["ram1_variables_bytes"], result["ram1_available_bytes"] = map(int, ram.groups())
+    if ram2:
+        result["ram2_variables_bytes"], result["ram2_available_bytes"] = map(int, ram2.groups())
     return result
 
 
@@ -113,13 +131,7 @@ class BuildRun:
 
     def snapshot(self):
         self.record["source"] = source_identity(self.root)
-        try:
-            self.record["git_head"] = subprocess.run(
-                ["git", "rev-parse", "HEAD"], cwd=self.root, capture_output=True, text=True).stdout.strip() or None
-            self.record["working_tree_dirty"] = bool(subprocess.run(
-                ["git", "status", "--porcelain"], cwd=self.root, capture_output=True, text=True).stdout.strip())
-        except OSError:
-            self.record["git_head"] = None
+        self.record.update(git_identity(self.root))
         sketch = self.path / "snapshot" / "PROT_OS7_MAX7219"
         shutil.copytree(self.root / "firmware/PROT_OS7_MAX7219", sketch)
         # Detect an edit during copying, before any source-bound claim is made.
@@ -131,10 +143,15 @@ class BuildRun:
         self.publish()
         return sketch
 
-    def compile(self, cli, sketch, features, output_directory=None, extra_flags=None, fqbn=FQBN):
+    def compile(self, cli, sketch, features, output_directory=None, extra_flags=None, fqbn=FQBN,
+                reuse_cache=False, jobs=None):
         output_directory = output_directory or self.path / ("artifacts-" + str(len(self.record["results"])))
-        command = [cli, "compile", "--fqbn", fqbn, "--warnings", "all", "--clean",
+        command = [cli, "compile", "--fqbn", fqbn, "--warnings", "all",
                    "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
+        if not reuse_cache:
+            command.insert(2, "--clean")
+        if jobs is not None:
+            command[2:2] = ["--jobs", str(jobs)]
         extra_flags=extra_flags or "-Werror"
         auth_enabled = "PROTOGEN_UART_AUTH" in features
         if extra_flags:

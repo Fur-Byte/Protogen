@@ -372,6 +372,11 @@ void testSession() {
   f.bytes[PacketBytes - 1] ^= 1;
   f.bytes[30] ^= 1;
   assert(!h.open(f.bytes, PacketBytes, decoded));
+  f.bytes[30] ^= 1;
+  // Authentication failure must leave the authentic record eligible.
+  const bool authenticatedAfterReject = h.open(f.bytes, PacketBytes, decoded);
+  assert(authenticatedAfterReject);
+  assert(!h.open(f.bytes, PacketBytes, decoded));
   hn[0]++;
   Material next;
   assert(deriveMaterial(key, hn, next));
@@ -922,6 +927,10 @@ int main(int argc,char **argv) {
   assert(Crypto::init());
   if(argc==2 && !strcmp(argv[1],"--service-regressions")) {
     testStatusRefreshLatency();testQueuedReceivePacing();return 0;
+  }
+  if (argc == 2 && !strcmp(argv[1], "--session-only")) {
+    testSession();
+    return 0;
   }
   assert(argc==1);
   testVectors();
