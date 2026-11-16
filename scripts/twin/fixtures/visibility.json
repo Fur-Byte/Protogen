@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "origin_us": 4294967096000,
+  "duration_us": 950000,
+  "loop_us": 1000,
+  "cosmetic_seed": 19,
+  "epoch": 1,
+  "events": [
+    [1000, "usb", "SET natural_blinks=0 boop_mode=1 boop_duration_ms=400"],
+    [110000, "boop", 100],
+    [140000, "visor", 1],
+    [140000, "visor", 0],
+    [145000, "visor", 1],
+    [560000, "boop", 1023],
+    [600000, "visor", 0],
+    [820000, "usb", "SLEEP 1"],
+    [860000, "usb", "SLEEP 0"]
+  ]
+}

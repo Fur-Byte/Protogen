@@ -10,6 +10,7 @@ public:
   uint64_t next = 0;
   bool enabled = false;
   bool stuck = false, rejectStart = false, validPin = true;
+  bool timerStalled = false;
   unsigned starts = 0, stops = 0, resets = 0;
   void (*callback)() = nullptr;
   void setResolution(int value) { assert(value == 10); }
@@ -43,7 +44,7 @@ class ADC {
     if (module.next < fakeUs) module.next = fakeUs + period;
     while (module.frequency && module.next <= target) {
       fakeUs = module.next; module.next += period;
-      if (module.enabled && interruptsEnabled) module.callback();
+      if (module.enabled && interruptsEnabled && !module.timerStalled) module.callback();
     }
   }
 public:

@@ -29,6 +29,7 @@ inline std::array<int, 32> pinModes{}, digitalValues{};
 inline unsigned adcReadDurationUs = 0, spiByteDurationUs = 0;
 inline int syntheticAmplitude = 200;
 inline bool syntheticMicrophone = false, recordMicrophoneTimes = false;
+inline int (*microphoneSampleHook)() = nullptr;
 inline std::vector<uint64_t> microphoneTimes;
 inline bool interruptsEnabled = true;
 inline void (*timeAdvanceHook)(uint64_t) = nullptr;
@@ -43,6 +44,7 @@ inline int readADCValue(int pin) {
   ++adcReads; ++adcReadsByPin.at(pin);
   if (pin == A0 && recordMicrophoneTimes) microphoneTimes.push_back(fakeUs);
   int result = pin == A7 ? boopInput : pin == 15 ? voltageInput : micInput;
+  if (pin == A0 && microphoneSampleHook) return microphoneSampleHook();
   if (pin == A0 && syntheticMicrophone)
     result = static_cast<int>(510 + syntheticAmplitude * std::sin(6.28318530718 * 1000 * fakeUs / 1000000.0));
   return result;
@@ -66,13 +68,18 @@ struct FakeSerial {
   bool connected = true;
   int capacity = 4096;
   std::string input, output;
+  int (*spaceHook)() = nullptr;
+  size_t (*writeHook)(const uint8_t *, size_t) = nullptr;
   void begin(unsigned) {}
   void addMemoryForRead(void*, size_t) {}
   explicit operator bool() const { return connected; }
   int available() const { return static_cast<int>(input.size()); }
-  int availableForWrite() const { return capacity; }
+  int availableForWrite() const { return spaceHook ? spaceHook() : capacity; }
   int read() { if (input.empty()) return -1; const unsigned char c = input[0]; input.erase(0,1); return c; }
-  size_t write(const uint8_t *bytes, size_t count) { output.append(reinterpret_cast<const char*>(bytes), count); return count; }
+  size_t write(const uint8_t *bytes, size_t count) {
+    if (writeHook) return writeHook(bytes, count);
+    output.append(reinterpret_cast<const char*>(bytes), count); return count;
+  }
 };
 inline FakeSerial Serial;
 inline FakeSerial Serial1;
