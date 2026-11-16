@@ -77,7 +77,7 @@ void transition() {
   config.transitionMs = 160;
   // Call the sketch renderer at explicit boundary stamps. No target optical
   // timing or wall-clock assumptions are embedded in the fixture.
-  const uint32_t start = millis();
+  const uint32_t start = UINT32_MAX - 75;
   selectExpression(ExpressionAngry, start);
   for (const auto &point : {std::pair{0u, "transition.0"}, {1u, "transition.1"},
                             {30u, "transition.30"}, {59u, "transition.59"},

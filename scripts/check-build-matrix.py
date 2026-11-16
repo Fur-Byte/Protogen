@@ -27,9 +27,6 @@ ALL = (1 << len(FEATURES.ALL_FEATURES)) - 1
 PAW = 1 << FEATURES.ALL_FEATURES.index("WirelessPaw")
 # All sensors, each extension alone, plus the feature interactions at full mask.
 FAST = {False: (0, 7, PAW, 16, ALL), True: (PAW, ALL)}
-BENCH = {"render-service": ("CACHE_FACE", "MAIN_EVENTS"),
-         "oled-checkpoint": ("OLED_1HZ", "OLED_PAGES", "OLED_PROTECTION", "CHECKPOINT_5MIN"),
-         "wearer-service": ("CASE_2HZ", "WEARER_DEADLINES", "MAIN_EVENTS")}
 
 
 def temporary_key(directory):
@@ -54,8 +51,7 @@ def teensy(mode, group, jobs):
         masks = FAST[auth] if mode == "fast" else range(ALL + 1)
         cases.extend((mask, auth, "production", ()) for mask in masks if not auth or mask & PAW)
     if group in ("all", "auth"):
-        selected = BENCH.items() if mode == "full" else [("render-service", BENCH["render-service"])]
-        cases.extend((ALL, True, name, flags) for name, flags in selected)
+        cases.append((ALL, True, "face-cache", ("CACHE_FACE",)))
     run = BuildRun(ROOT, f"matrix-{mode}-{group}")
     run.record["planned_cases"] = [{"mask": m, "uart_auth": a, "profile": p,
                                     "efficiency_flags": f} for m, a, p, f in cases]
@@ -63,6 +59,8 @@ def teensy(mode, group, jobs):
         sketch = run.snapshot()
         main = sketch / "PROT_OS7_MAX7219.ino"
         original = main.read_text()
+        if FEATURES.enabled_features(original):
+            raise RuntimeError("The pinned production sketch must have all five optional features off")
         cli = find_cli()
         run.record["toolchain"] = check_toolchain(ROOT, cli)
         with tempfile.TemporaryDirectory(prefix="protogen-matrix-") as tmp:
@@ -71,7 +69,10 @@ def teensy(mode, group, jobs):
                 temporary_key(key)
             for mask, auth, profile, flags in cases:
                 enabled = [name for bit, name in enumerate(FEATURES.ALL_FEATURES) if mask & (1 << bit)]
-                main.write_text(FEATURES.configure_features(original, enabled, FEATURES.ALL_FEATURES))
+                if mask:
+                    main.write_text(FEATURES.configure_features(original, enabled, FEATURES.ALL_FEATURES))
+                elif main.read_text() != original:
+                    raise RuntimeError("Compile the untouched default before configuring any feature mask")
                 definitions = ["-Werror", *("-DPROTOGEN_" + flag + "=1" for flag in flags)]
                 if auth:
                     enabled.append("PROTOGEN_UART_AUTH")

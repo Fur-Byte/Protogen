@@ -23,7 +23,8 @@ digit 2 `0x06`. The fully closed transition leaves the eye tiles blank.
 The saved coupled cases include continuity when the latest expression
 supersedes an in-flight choice, the fixed and sampled follow-up blink,
 retained registers during shutdown, a visibility debounce boundary, and the
-hidden boop expiry across millis rollover. The mouth checkpoints use controlled
+hidden boop expiry. Transition, blink, and boop checks cross millis rollover.
+The mouth checkpoints use controlled
 audio state and FFT bitmap bytes. The existing firmware suite separately
 exercises microphone and physical-sensor simulations and the existing
 post-merge suite checks 5,832 expression sequences in each reveal mode.
@@ -71,10 +72,11 @@ node scripts/tests/test-face-studio.js
 
 ## Review build and mutation coverage
 
-Fast CI uses five plain Teensy masks, two UART-auth masks, one render efficiency
-interaction, and both auth settings for each C3 role. Full CI runs on the
-weekly schedule, version tags, and manual dispatch. It adds both Teensy
-production partitions and the broader bench combinations. C3 helmet builds
+Fast CI uses five plain Teensy masks, including the untouched default sketch,
+two UART-auth masks, the face cache with all five features and auth, and both
+auth settings for each C3 role. Full CI runs on the weekly schedule, version
+tags, and manual dispatch. It adds both Teensy production partitions and the
+combined C3 bench profile. C3 helmet builds
 verify presence or absence of the linked UART routine. The paw uses radio
 in both configurations and does not contain the helmet-only UART bridge.
 C3 roles share installed packages, Arduino cases reuse the core cache with
@@ -94,8 +96,8 @@ python3 scripts/check-invariant-mutations.py --group full
 ```
 
 The full local production matrix passed 32 plain and 16 authenticated Teensy
-cases plus four C3 role/auth cases. The three Teensy efficiency cases and
-the combined C3 bench build passed. Each compile-rejection probe requires its
+cases plus four C3 role/auth cases. Bench checks cover the Teensy face cache and
+the combined C3 profile. Each compile-rejection probe requires its
 specific guard diagnostic and runs alongside working controls. The mutation
 runner verifies a passing clean control, edits temporary host sources, and
 requires the intended regression assertion or rejection. Eight detected
