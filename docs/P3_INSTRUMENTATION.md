@@ -139,7 +139,9 @@ reports host runtime separately.
 
 The target checker builds matched feature profiles on and off, reads linked
 symbols and static resource figures, enforces the RAM budgets, and restores
-the standard C3 build. Teensy records are declared DMAMEM and verified in
+the standard C3 build. The report keeps any cold-to-incremental flash size
+variation separately, since ESP-IDF link order can vary as recorded in P1.
+Teensy records are declared DMAMEM and verified in
 the 512 KiB OCRAM range. The code uses ordinary CPU loads and stores and
 does not introduce DMA or require a cache-maintenance contract. Metadata and
 histograms occupy ordinary static storage, with a four-byte ISR atomic and
