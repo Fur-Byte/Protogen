@@ -10,7 +10,6 @@ Flight::Ring<Capacity> ring(p3TeensyRecords);
 Flight::Flood sensorFault, microphoneFault, overrun, uartReject, mainGap, sensorState, microphoneState;
 Flight::Rate rate;
 uint32_t priorLoop = 0, audioPeak = 0;
-uint32_t completed = 0, superseded = 0, delayed = 0, expired = 0;
 uint16_t priorBehavior = 0;
 bool started = false;
 
@@ -32,6 +31,10 @@ void beginLoop() {
     started = true;
   }
   priorLoop = now;
+#ifdef Microphone
+  const uint16_t backlog = static_cast<uint16_t>(audioWrite - audioRead);
+  if (backlog > audioPeak) audioPeak = backlog;
+#endif
 }
 
 void finishLoop() {
@@ -42,19 +45,6 @@ void finishLoop() {
     emit(now, Flight::Behavior, behavior, priorBehavior);
     priorBehavior = behavior;
   }
-  if (completed != responseTiming.completed)
-    emit(now, Flight::Completed, responseTiming.action, responseTiming.observation);
-  if (superseded != responseTiming.superseded)
-    emit(now, Flight::Superseded, 0, responseTiming.supersededObservation);
-  if (delayed != responseTiming.delayed)
-    emit(now, Flight::Delayed, responseTiming.action, responseTiming.observation);
-  if (expired != responseTiming.expired)
-    emit(now, Flight::Expired, responseTiming.action, responseTiming.observation);
-  completed = responseTiming.completed;
-  superseded = responseTiming.superseded;
-  delayed = responseTiming.delayed;
-  expired = responseTiming.expired;
-
   sensorFault.count(now, sensorFailureCount(), sensorLastFailure());
   microphoneFault.count(now, microphoneFailureCount(), microphoneLastFailure());
   // Track both failures and successful transitions. Each stream is admitted
@@ -70,8 +60,6 @@ void finishLoop() {
   microphoneState.flush(now, Flight::MicrophoneFault, emitState);
 
 #ifdef Microphone
-  const uint16_t backlog = static_cast<uint16_t>(audioWrite - audioRead);
-  if (backlog > audioPeak) audioPeak = backlog;
   overrun.count(now, audioDrops.load(std::memory_order_relaxed));
 #endif
   uartReject.count(now, pawRejectedPackets());

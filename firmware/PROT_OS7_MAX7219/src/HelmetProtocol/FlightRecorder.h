@@ -144,7 +144,8 @@ struct Flood {
     previous = current;
   }
   template <class Emit> void flush(uint32_t now, Event event, Emit emit) {
-    if (!pending || (reported && now - lastReport < ReportIntervalUs)) return;
+    if (reported && now - lastReport >= ReportIntervalUs) reported = false;
+    if (!pending || reported) return;
     emit(lastAt, event, lastDetail, pending);
     add(merged, pending - 1);
     pending = 0;

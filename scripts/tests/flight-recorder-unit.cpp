@@ -52,6 +52,15 @@ void checkFlood(unsigned repetitions) {
   flood.notify(start + 10, UINT32_MAX, 1);
   flood.notify(start + 11, 10, 2);
   assert(flood.pending == UINT32_MAX);
+
+  Flight::Flood quiet;
+  quiet.notify(10, 1, 1);
+  quiet.flush(10, Flight::MainGap, emit);
+  quiet.flush(1000010, Flight::MainGap, emit);
+  const auto before = owner.next();
+  quiet.notify(15, 1, 0); // Full turnover during a serviced quiet interval.
+  quiet.flush(15, Flight::MainGap, emit);
+  assert(owner.next() == before + 1);
 }
 
 void checkIsrCounter(unsigned count) {

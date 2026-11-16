@@ -66,42 +66,46 @@ def teensy(evidence):
 
 
 def c3(evidence):
-    results = []
     build = ROOT / "build"
     tool = build / "platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-nm"
-    # The last pass restores the standard unauthenticated output.
-    for index, enabled in enumerate((False, True, False)):
+
+    def compile_case(label, enabled):
         env = dict(os.environ, PROTOGEN_PIO_JOBS=os.getenv("PROTOGEN_PIO_JOBS", "4"))
         env.pop("PROTOGEN_UART_KEY_DIR", None)
         env["PLATFORMIO_BUILD_SRC_FLAGS"] = FLAG if enabled else ""
         result = subprocess.run([sys.executable, str(ROOT / "scripts/build-esp32.py")], env=env)
-        label = ("c3-disabled", "c3-enabled", "c3-restored")[index]
         report = json.loads((build / "esp32-build.json").read_text())
+        report["recorder_enabled"] = enabled
         if "exit_code" in report and (build / "esp32-build.log").exists():
             shutil.copy2(build / "esp32-build.log", evidence / f"{label}.log")
+        write_json(evidence / f"{label}.json", report)
         if result.returncode:
-            write_json(evidence / f"{label}.json", report)
             raise RuntimeError(f"{label} failed")
         for role, target in report["targets"].items():
             symbols = recorder_symbols(tool, build / "esp32" / role / "firmware.elf")
             if enabled:
                 if symbols["p3C3Records"]["bytes"] != 2048 or symbols["p3C3Records"]["type"] not in ("b", "B"):
                     raise RuntimeError(f"{role} ring missing from C3 .bss")
-                increment = target["memory"]["ram_bytes"]["used"] - results[0]["targets"][role]["memory"]["ram_bytes"]["used"]
-                if not 0 <= increment <= 4096:
-                    raise RuntimeError(f"{role} C3 static RAM increment is {increment} bytes (limit 4096)")
             elif symbols:
                 raise RuntimeError(f"{role} disabled image contains recorder symbols")
             target["recorder_symbols"] = symbols
-        report["recorder_enabled"] = enabled
-        results.append(report)
         write_json(evidence / f"{label}.json", report)
+        return {role: target["memory"] for role, target in report["targets"].items()}
+
+    first = compile_case("c3-disabled", False)
     sizes = {}
-    for role in results[0]["targets"]:
-        first, second, restored = [r["targets"][role]["memory"] for r in results]
+    try:
+        second = compile_case("c3-enabled", True)
+        for role in first:
+            sizes[role] = {name: second[role][name]["used"] - first[role][name]["used"] for name in first[role]}
+            increment = sizes[role]["ram_bytes"]
+            if not 0 <= increment <= 4096:
+                raise RuntimeError(f"{role} C3 static RAM increment is {increment} bytes (limit 4096)")
+    finally:
+        # Restore the standard image even if the opt-in build or guard fails.
+        restored = compile_case("c3-restored", False)
         if first != restored:
-            raise RuntimeError(f"{role} restored resource totals differ from disabled")
-        sizes[role] = {name: second[name]["used"] - first[name]["used"] for name in first}
+            raise RuntimeError("restored C3 resource totals differ from disabled")
     write_json(evidence / "c3-deltas.json", sizes)
     print(json.dumps(sizes))
 

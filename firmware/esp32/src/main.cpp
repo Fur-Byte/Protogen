@@ -687,7 +687,8 @@ void sampleP3(uint32_t nowMs) {
   static Flight::Flood drops, queueFull, replay, aead, wearerFaults;
   static bool wasConnected = false;
   static uint32_t priorSample = 0, lastHeap = UINT32_MAX, lastStack = UINT32_MAX;
-  static uint32_t lastWorkerStack = UINT32_MAX, lastWorkerWork = 0, lastOled = 0, lastReads = 0;
+  static uint32_t lastWorkerStack = UINT32_MAX, lastWorkerWork = 0, lastOled = 0;
+  static uint32_t lastEnergy = 0, lastEnvironment = 0, lastCase = 0;
   const uint32_t now = P3C3::clockUs();
   if (wasConnected != connected) {
     P3C3::emit(now, Flight::RadioLink, connected ? 1 : 0, 0);
@@ -710,8 +711,8 @@ void sampleP3(uint32_t nowMs) {
   const auto worker = WearerIO::snapshot();
   wearerFaults.state(now, worker.faults);
   wearerFaults.flush(now, Flight::SensorFault, P3C3::emit);
-  const auto update = [now](Flight::Event kind, uint32_t &previous, uint32_t value) {
-    if (previous != value) P3C3::emit(now, kind, 0, value);
+  const auto update = [now](Flight::Event kind, uint32_t &previous, uint32_t value, uint16_t detail = 0) {
+    if (previous != value) P3C3::emit(now, kind, detail, value);
     previous = value;
   };
   update(Flight::HeapMinimum, lastHeap, esp_get_minimum_free_heap_size());
@@ -719,7 +720,9 @@ void sampleP3(uint32_t nowMs) {
   update(Flight::WearerStackMinimum, lastWorkerStack, worker.metrics.p3StackMinimum);
   update(Flight::WearerWorkMaximum, lastWorkerWork, worker.metrics.p3WorkMaxUs);
   update(Flight::OledPages, lastOled, worker.metrics.oledPages);
-  update(Flight::SensorReads, lastReads, worker.metrics.energyReads);
+  update(Flight::SensorReads, lastEnergy, worker.metrics.energyReads, 0);
+  update(Flight::SensorReads, lastEnvironment, worker.metrics.environmentReads, 1);
+  update(Flight::SensorReads, lastCase, worker.metrics.caseReads, 2);
 }
 #endif
 } // namespace
@@ -842,8 +845,8 @@ extern "C" void app_main() {
     const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
     mainWorkUs+=work;if(work>mainMaxUs)mainMaxUs=work;
 #if PROTOGEN_FLIGHT_RECORDER
-    p3C3Timings[Flight::LoopWork].observe(work);
     sampleP3(now);
+    p3C3Timings[Flight::LoopWork].observe(P3C3::clockUs() - started);
 #endif
     if(PROTOGEN_MAIN_EVENTS) {
       const uint32_t end=nowMs();uint32_t wait=wirelessLink.serviceIn(end);

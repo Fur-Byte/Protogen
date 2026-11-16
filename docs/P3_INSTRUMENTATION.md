@@ -64,12 +64,14 @@ overwrites within the finite retention window.
 The versioned IDs are in
 [FlightRecorder.h](../firmware/PROT_OS7_MAX7219/src/HelmetProtocol/FlightRecorder.h).
 Payloads are selected numeric values. Expression details use the low byte for
-expression ID and the high byte for origin, with a local observation as value.
+expression ID and the high byte for origin, with a local observation as value. Response lifecycle events are emitted
+at the transition that updates the causal observation.
 Behavior details are bits for sleeping, visible, booped, blanked, and dock ready
 in that order. Sensor state records set detail bit 15 on Teensy to distinguish
 state from failure reason. Audio and UART loss records count events. C3 records
 boot reason, link state, aggregate drops, replay and AEAD rejection counts,
-queue saturation, heap and stack minima, and worker activity. No pointer,
+queue saturation, heap and stack minima, and worker activity. Sensor read
+records use detail 0 for energy/battery, 1 for environment, and 2 for case. No pointer,
 MAC address, keys, nonces, tags, packets, decrypted payloads, or audio samples
 are recorded. Recorder storage is volatile. It has no EEPROM, flash, or NVS
 write path.
@@ -85,7 +87,7 @@ Main-loop audio, sensor, rendering, and UART calls continue. There is no
 streaming snapshot, extra export queue, or production UART export.
 
 - `RECINFO` reports version, oldest/next cursors, occupancy, overwrite and
-  coalesced counts, sampled audio backlog peak, and the count and duration of
+  coalesced counts, sampled pre-drain audio backlog peak, and the count and duration of
   the busiest sampled recording window.
 - `REC <uint32>` requests a single record. Version, requested cursor, and
   the retained cursor range identify that response independently. A record
@@ -122,7 +124,8 @@ Teensy remain empty. On C3, the USB slot measures the existing board-local
 console service, which may be UART0 rather than USB. Existing C3 PERF already
 reports main work, heap minimum, radio activity, and worker/OLED counts.
 P3 adds loop intervals, stage distributions, worker work maximum and stack
-minimum, and main stack minimum. Paw production code has a battery sensor.
+minimum, and main stack minimum. The P3 main-work distribution includes its
+periodic samples while the pre-existing PERF work boundary stays in place. Paw production code has a battery sensor.
 The OLED exists on the helmet role.
 
 Times are local elapsed durations from unsigned clock differences. They

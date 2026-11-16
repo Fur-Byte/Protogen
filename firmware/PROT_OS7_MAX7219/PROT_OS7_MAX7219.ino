@@ -18,7 +18,6 @@
 #include "BlinkTiming.h"
 #include "ControllerIdle.h"
 #include "ResponseTiming.h"
-#include "FlightInstrumentation.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
@@ -315,9 +314,6 @@ void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Ori
   const uint8_t closure=frameValid?displayedPose.closure:Step;
   responseBaseline=displayedFrame;
   responseTiming.start(id,receivedUs,origin,ResponseTiming::Expression,source,expression);
-#if PROTOGEN_FLIGHT_RECORDER
-  P3Teensy::emit(receivedUs, Flight::Expression, expression | (unsigned(origin) << 8), responseTiming.observation);
-#endif
   if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)) {
     // Reversing to artwork that is still on screen has zero target-onset delay;
     // the record explicitly distinguishes this from newly revealed pixels.

@@ -12,6 +12,23 @@ static void step(unsigned count) {
 int main(int argc, char **) {
   setup();
   step(20);
+  // Multiple response mutations within one scheduling opportunity retain
+  // their own action and observation rather than the last request's identity.
+  ResponseTiming response;
+  const auto first = P3Teensy::ring.next();
+  response.start(0x1020, 10, ResponseTiming::Usb, ResponseTiming::Visibility, 0, 1);
+  response.delay();
+  response.poll(5000010);
+  response.start(0x2030, 5000010, ResponseTiming::Uart, ResponseTiming::Expression, 0, 2);
+  response.observe(5001010, true, true, true);
+  Flight::Record recorded{};
+  assert(P3Teensy::ring.read(first, recorded) && recorded.event == Flight::Delayed && recorded.value == 1);
+  assert(recorded.detail == ResponseTiming::Visibility);
+  assert(P3Teensy::ring.read(first + 1, recorded) && recorded.event == Flight::Expired && recorded.value == 1);
+  assert(recorded.detail == ResponseTiming::Visibility && recorded.timeUs == 5000010);
+  assert(P3Teensy::ring.read(first + 2, recorded) && recorded.event == Flight::Expression && recorded.value == 2);
+  assert(P3Teensy::ring.read(first + 3, recorded) && recorded.event == Flight::Completed && recorded.value == 2);
+
   Serial.input = "RECINFO\n";
   Serial.capacity = 0; // Accepted input, blocked output.
   const auto oldAttempts = renderMetrics.attempts;
@@ -53,9 +70,22 @@ int main(int argc, char **) {
   assert(errors == 3);
 
   Serial.output.clear();
-  Serial.input = "REC " + std::to_string(P3Teensy::ring.oldest()) + "\n";
+  const auto cursor = P3Teensy::ring.oldest();
+  assert(P3Teensy::ring.read(cursor, recorded));
+  Serial.input = "REC " + std::to_string(cursor) + "\n";
+  Serial.capacity = 0;
+  step(1);
+  assert(usbReplyLength && !usbReplySent);
+  for (unsigned i = 0; i < P3Teensy::Capacity + 16; ++i)
+    selectExpression((state + 1) % ExpressionCount, millis());
+  Flight::Record lost{};
+  assert(!P3Teensy::ring.read(cursor, lost));
+  Serial.capacity = 64;
   step(20);
-  assert(Serial.output.find("\"record\":[") != std::string::npos);
+  const auto expected = "\"record\":[" + std::to_string(recorded.sequence) + "," +
+      std::to_string(recorded.timeUs) + "," + std::to_string(recorded.event) + "," +
+      std::to_string(recorded.detail) + "," + std::to_string(recorded.value) + "]";
+  assert(Serial.output.find(expected) != std::string::npos);
   assert(Serial.output.find("payload") == std::string::npos);
 
   Serial.output.clear();
