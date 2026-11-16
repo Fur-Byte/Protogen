@@ -114,7 +114,12 @@ flash and 35,980 bytes static RAM. The paw stayed at 685,268 / 33,380 in both
 auth build modes. The isolated combined C3 bench profile used 764,782 / 36,420
 for the helmet and 688,314 / 33,380 for the paw.
 
-The default Teensy HEX matched the pinned build byte for byte. Across both
-C3 default builds, the allocated ELF sections matched apart from the project
-version and compile time fields in `.flash.appdesc`. Compilation and host
-checks leave the physical qualification items identified in P0 open.
+The default Teensy HEX matched the pinned build byte for byte. All eleven
+application object files matched per C3 role after stripping debug sections.
+The paw's allocated ELF contents matched except for the project version and
+build timestamp. A helmet rebuild after generating the PlatformIO compilation
+database also changed the SDK driver link order. The map placed SPI and I²C
+driver archives in a different order, with identical linker occupancy and
+resolved SDK configuration. Full-image bit reproducibility therefore remains
+unverified for the C3 helmet. The physical qualification items identified in P0
+remain open.
