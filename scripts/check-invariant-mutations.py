@@ -28,7 +28,7 @@ MUTATIONS = (
     ("brightness-ceiling", "config", TEENSY / "Settings.h",
      "return requested > static_cast<unsigned>(MaxBrightness)\n"
      "      ? static_cast<uint8_t>(MaxBrightness) : static_cast<uint8_t>(requested);",
-     "return static_cast<uint8_t>(requested);", "high.effectiveBrightness() == 1"),
+     "return static_cast<uint8_t>(requested);", "oversized.effectiveBrightness() == 1"),
     ("eeprom-crc", "config", STORE,
      "readNumber(data + crcAt, 4) != crc(data, crcAt)", "false", "sameConfig(actual, expected)"),
     ("eeprom-marker", "config", STORE, "data[markerAt] != 0xa5", "(static_cast<void>(data[markerAt]), false)",

@@ -97,6 +97,9 @@ int main(int argc, char **argv) {
 
   const auto high = highRequest();
   assert(high.brightness == 15 && high.brightnessApproval == 1 && high.effectiveBrightness() == 1);
+  auto oversized = high;
+  oversized.brightnessApproval = 15;
+  assert(oversized.effectiveBrightness() == 1);
   auto unapproved = high;
   unapproved.brightnessApproval = 0;
   assert(unapproved.effectiveBrightness() == 0);
@@ -104,9 +107,6 @@ int main(int argc, char **argv) {
   assert(unapproved.brightnessApproval == 0);
   assert(setConfigField(unapproved, "brightness", 15));
   assert(unapproved.brightnessApproval == 1 && unapproved.effectiveBrightness() == 1);
-  auto oversized = high;
-  oversized.brightnessApproval = 15;
-  assert(oversized.effectiveBrightness() == 1);
 
   auto invalid = high;
   assert(setConfigField(invalid, "boop_trigger", high.boopRelease) && !validConfig(invalid));
