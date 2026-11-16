@@ -128,16 +128,21 @@ def main():
     try:
         replay = json.loads(args.input.read_text())
         trace, metrics = execute(replay, args.reference)
+        originals = {path.resolve() for path in (args.input, args.expect) if path}
+        outputs = [path.resolve() for path in (args.trace, args.report) if path]
+        for index, output in enumerate(outputs):
+            protected = [*originals, *outputs[:index]]
+            if any(output == path or (output.exists() and path.exists() and output.samefile(path))
+                   for path in protected):
+                raise ValueError("input, expected trace, actual trace, and report paths must be distinct")
         if args.trace:
-            if args.expect and args.trace.resolve() == args.expect.resolve():
-                raise ValueError("the actual trace path must differ from the expected file")
             args.trace.write_text(trace)
         elif not args.expect:
             sys.stdout.write(trace)
         if args.expect:
-            expected = args.expect.read_text()
-            if expected != trace:
-                raise ValueError(first_difference(expected, trace))
+            expected = args.expect.read_bytes()
+            if expected != trace.encode():
+                raise ValueError(first_difference(expected.decode(errors="replace"), trace))
         if args.report:
             firmware = ROOT / "firmware/PROT_OS7_MAX7219"
             identity = {

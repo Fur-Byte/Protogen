@@ -32,9 +32,9 @@ def state(trace):
 
 
 def run(replay, evidence, name, reference=True):
-    trace, metrics = execute(replay)
     path = evidence / f"{name}.json"
     path.write_text(json.dumps(replay, indent=2) + "\n")
+    trace, metrics = execute(replay)
     (evidence / f"{name}.tsv").write_text(trace)
     if reference:
         other, _ = execute(replay, reference=True)
@@ -47,6 +47,8 @@ def check_cases(evidence):
     results = {}
     visibility = json.loads((HERE / "fixtures/visibility.json").read_text())
     trace, results["visibility"] = run(visibility, evidence, "visibility")
+    colliding = [r[2:] for r in rows(trace, "input") if r[0] == "140000"]
+    require(colliding == [["3", "visor", "1"], ["4", "visor", "0"]], "simultaneous inputs lost file order")
     states = rows(trace, "state")
     require(any(int(row[0]) < 295000 and row[6] == "1" for row in states), "boop never became active")
     require(any(int(row[0]) >= 295000 and row[5:7] == ["0", "1"] for row in states), "visor hid no active boop")
@@ -65,6 +67,13 @@ def check_cases(evidence):
         [320000, "usb", "EXPR 1"], [520000, "usb", "EXPR 2"], [720000, "usb", "EXPR 3"],
         [920000, "usb", "EXPR 4"], [1120000, "usb", "EXPR 5"],
     ], 1320000), evidence, "expressions")
+    intermediate = [bytes.fromhex(row[-1]) for row in rows(trace, "state")
+                    if 100000 <= int(row[0]) < 300000]
+    happy = bytes.fromhex(golden["rest.happy"][-2])
+    eye_indices = [row * 14 + col for row in range(8) for col in (0, 1, 12, 13)]
+    require(any(frame != happy for frame in intermediate) and
+            all((frame[i] & ~happy[i]) == 0 for frame in intermediate for i in eye_indices),
+            "retarget/reversal introduced target eye pixels before settling on Happy")
     names = ["happy", "surprised", "angry", "vwv", "sleepy", "wink"]
     physical = bytearray(112)
     for index, name in enumerate(names):
@@ -95,12 +104,29 @@ def check_cases(evidence):
     acks = [bytes.fromhex(r[-1])[-1] for r in rows(trace, "uart-packet") if r[3] == "3"]
     require(all(code in acks for code in (0, 1, 3)), f"missing accepted, duplicate or expired ACK: {acks}")
     m = results["queues"]
-    require(m["audio_ring_peak"] == 511 and m["audio_dropped"] > 0, "audio overflow was not visible")
-    require(m["uart_rx_peak"] == 256 and m["uart_wire_in_peak"] == 512 and
+    require(m["audio_ring_peak"] == 512 and m["audio_dropped"] > 0, "audio overflow was not visible")
+    require(m["uart_rx_peak"] == 319 and m["uart_wire_in_peak"] == 512 and
+            0 < m["uart_wire_out_peak"] <= 63 and
             m["uart_rx_dropped"] > 0 and m["uart_wire_dropped"] > 0, "UART overflow was not visible")
     require(m["skipped_loop_opportunities"] >= 500, "acceleration was not exercised")
-    require(any(int(r[8]) for r in rows(trace, "state")), "sensor fault was not observable")
+    sensor_faults = [int(r[8]) for r in rows(trace, "state") if 1110000 <= int(r[0]) < 1550000]
+    require(2 in sensor_faults and 6 in sensor_faults and sensor_faults[-1] == 0,
+            "ADC1 and microphone stall faults did not assert and recover")
     require(state(trace)[3] == "5", "reconnected generation did not accept a command")
+
+    trace, results["max_origin"] = run(scenario([], 200000, origin=2**48), evidence, "max-origin")
+    delivered = [int(row[0]) for row in rows(trace, "uart-packet")]
+    require(delivered and delivered == sorted(delivered) and all(0 < at <= 200000 for at in delivered),
+            "UART serialization lost monotonic time at the maximum origin")
+
+    trace, results["micros_wrap"] = run(scenario([
+        [1000, "usb", "SET natural_blinks=0"], [100000, "usb", "EXPR 2"], [290000, "usb", "LATENCY"],
+    ], 350000, origin=2**32 - 100500), evidence, "micros-wrap")
+    replies = [json.loads(line) for line in b"".join(bytes.fromhex(r[-1]) for r in rows(trace, "usb")).splitlines()]
+    latency = next(reply for reply in replies if "feedback_valid" in reply)
+    require(latency["feedback_valid"] and latency["onset_valid"] and latency["completed"] == 1 and
+            500 < latency["feedback_us"] < latency["target_onset_us"] < latency["completion_us"] < 180000,
+            "causal response interval did not survive micros rollover")
 
     slot = (ROOT / "scripts/tests/fixtures/eeprom-v1.hex").read_text().splitlines()[2]
     initial = slot + "ff" * 64

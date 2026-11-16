@@ -9,19 +9,25 @@
 
 namespace {
 constexpr uint64_t Never = std::numeric_limits<uint64_t>::max();
-constexpr unsigned WireCapacity = 512, TeensyRxCapacity = 256, UsbCapacity = 512;
+constexpr unsigned PeerBacklogCapacity = 512, UsbCapacity = 512;
+// Teensy core 1.62.0 Serial1 adds 256 RX bytes to its default 64.
+// The serial implementation reserves one entry in each ring.
+constexpr unsigned TeensyRxCapacity = 319, TeensyTxCapacity = 63;
 constexpr uint64_t Baud = 115200, ByteBitsUs = 10000000;
+uint64_t origin = 0;
 
 struct Wire {
   struct Byte { uint64_t at; uint8_t data; };
+  const unsigned capacity;
+  explicit Wire(unsigned capacity) : capacity(capacity) {}
   std::deque<Byte> pending;
   uint64_t nextBitNumerator = 0;
   unsigned dropped = 0, peak = 0;
-  unsigned space() const { return WireCapacity - pending.size(); }
+  unsigned space() const { return capacity - pending.size(); }
   void push(uint8_t byte) {
     if (!space()) { ++dropped; return; }
-    nextBitNumerator = std::max(nextBitNumerator, fakeUs * Baud) + ByteBitsUs;
-    pending.push_back({(nextBitNumerator + Baud - 1) / Baud, byte});
+    nextBitNumerator = std::max(nextBitNumerator, (fakeUs - origin) * Baud) + ByteBitsUs;
+    pending.push_back({origin + (nextBitNumerator + Baud - 1) / Baud, byte});
     peak = std::max(peak, static_cast<unsigned>(pending.size()));
   }
   uint64_t next() const { return pending.empty() ? Never : pending.front().at; }
@@ -32,13 +38,13 @@ struct Event { uint64_t time; unsigned sequence; std::string operation, argument
 std::vector<Event> events;
 std::vector<uint16_t> audioTape;
 size_t cursor = 0;
-uint64_t origin = 0, heldUntil = 0, horizon = 0;
+uint64_t heldUntil = 0, horizon = 0;
 unsigned usbLost = 0, serialLost = 0, peerLost = 0, rxPeak = 0, usbPeak = 0, audioPeak = 0;
 unsigned loops = 0, sampleCount = 0, skipped = 0, shortWrite = 32, lastInput = 0;
 unsigned traceRecords = 0;
 bool peerConnected = true;
 int audioAmplitude = 0;
-Wire toTeensy, fromTeensy;
+Wire toTeensy(PeerBacklogCapacity), fromTeensy(TeensyTxCapacity);
 void (*adcAdvance)(uint64_t) = nullptr;
 HelmetLink::Decoder peerDecoder;
 HelmetLink::Packet lastStatus, lastCommand;
@@ -80,8 +86,6 @@ size_t usbWrite(const uint8_t *data, size_t count) {
 int sample() {
   constexpr int wave[] = {0, 1, 0, -1};
   const unsigned index = sampleCount++;
-  const auto used = unsigned((audioWrite - audioRead) & (audioBufferSize - 1));
-  audioPeak = std::max(audioPeak, std::min<unsigned>(audioBufferSize - 1, used + 1));
   if (index < audioTape.size()) return audioTape[index];
   return std::clamp(micInput + audioAmplitude * wave[index % 4], 0, 1023);
 }
@@ -180,7 +184,14 @@ void advanceModel(uint64_t target) {
     const auto nextInput = cursor == events.size() ? Never : events[cursor].time;
     const auto due = std::min({nextInput, toTeensy.next(), fromTeensy.next()});
     const uint64_t stop = std::min(due, target);
-    if (adcAdvance) adcAdvance(stop);
+    if (adcAdvance) {
+      adcAdvance(stop);
+      // No main-loop reads occur during this interval. The ISR uses uint16_t
+      // distance and can occupy every physical slot.
+      const auto occupied = static_cast<uint16_t>(audioWrite - audioRead);
+      assert(occupied <= audioBufferSize);
+      audioPeak = std::max(audioPeak, unsigned(occupied));
+    }
     fakeUs = stop;
     deliver();
     while (cursor < events.size() && events[cursor].time == stop) apply(events[cursor++]);
