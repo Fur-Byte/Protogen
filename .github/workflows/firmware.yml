@@ -27,6 +27,18 @@ jobs:
           { clang --version; cmake --version; ninja --version; python3 --version; node --version; } > build/toolchains/host-versions.txt
       - name: Pinned toolchains
         run: python3 scripts/install-toolchains.py
+      - name: Fast deterministic twin
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          mkdir -p build/twin
+          make -C scripts/twin 2>&1 | tee build/twin/build.log
+          python3 scripts/twin/test_replay.py --evidence build/twin/fast 2>&1 | tee build/twin/fast.log
+          python3 scripts/twin/replay.py scripts/twin/fixtures/visibility.json --report build/twin/identity.json --trace build/twin/visibility.tsv
+      - name: Deep deterministic twin
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: python3 scripts/twin/test_replay.py --deep --evidence build/twin/deep 2>&1 | tee build/twin/deep.log
       - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
@@ -62,6 +74,11 @@ jobs:
             build/baseline-host/
             build/mutation-evidence/
             build/matrix-*-esp32/
+            build/twin/*.json
+            build/twin/*.log
+            build/twin/*.tsv
+            build/twin/fast/
+            build/twin/deep/
             build/runs/**/manifest.json
             build/runs/**/compile.log
             build/runs/**/esp32.log
