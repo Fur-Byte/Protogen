@@ -1,5 +1,6 @@
 #pragma once
 #include "DeviceConfig.h"
+#include "FlightRecorder.h"
 namespace WearerIO {
 enum class EnergyFault : uint8_t {
   None=0, Bus=1, Identity=2, NotReady=3, Trim=4, Overflow=5,
@@ -9,6 +10,9 @@ struct Metrics {
   uint32_t executions=0,caseReads=0,environmentReads=0,energyReads=0;
   uint32_t oledPages=0,oledBytes=0,commitAttempts=0,commits=0,commitFailures=0,maxWorkUs=0;
   uint64_t workUs=0;
+#if PROTOGEN_FLIGHT_RECORDER
+  uint32_t p3StackMinimum=UINT32_MAX, p3WorkMaxUs=0;
+#endif
 };
 struct Status {
   Metrics metrics;

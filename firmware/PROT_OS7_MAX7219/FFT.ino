@@ -1,6 +1,7 @@
 #ifdef Microphone
 // Frequency analyzer
 void fft() {
+  P3_TEENSY_SCOPE(p3Fft, FFT);
   // Sampling is serviced incrementally by microphone(); this only processes a full frame.
   // Remove the frame's DC bias before windowing; replacing two bins afterward
   // cannot remove bias that the window has spread into neighboring bins.

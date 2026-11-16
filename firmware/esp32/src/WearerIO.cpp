@@ -230,6 +230,16 @@ bool showScreen(Status &s,uint32_t now) {
   return true;
 }
 #endif
+#if PROTOGEN_FLIGHT_RECORDER
+void sampleWorker(Metrics &metrics, uint32_t now, uint32_t elapsed) {
+  if (metrics.p3WorkMaxUs < elapsed) metrics.p3WorkMaxUs = elapsed;
+  static uint32_t sampledAt = 0;
+  if (metrics.p3StackMinimum == UINT32_MAX || now - sampledAt >= 1000) {
+    sampledAt = now;
+    metrics.p3StackMinimum = uxTaskGetStackHighWaterMark(nullptr);
+  }
+}
+#endif
 void task(void*) {
   worker.store(xTaskGetCurrentTaskHandle());
   Status s;
@@ -359,6 +369,9 @@ void task(void*) {
     }
     const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
     s.metrics.workUs+=work;if(work>s.metrics.maxWorkUs)s.metrics.maxWorkUs=work;
+#if PROTOGEN_FLIGHT_RECORDER
+    sampleWorker(s.metrics, now, work);
+#endif
     portENTER_CRITICAL(&mux);published=s;portEXIT_CRITICAL(&mux);
     if(PROTOGEN_WEARER_DEADLINES) {
       const uint32_t end=nowMs();uint32_t wait=1000;
@@ -384,8 +397,14 @@ void task(void*) {
 #else
   if((settings.features&Device::EnergyMonitor) && !initAdc())s.faults|=2;
   while(true) {
+#if PROTOGEN_FLIGHT_RECORDER
+    const uint64_t p3Started = esp_timer_get_time();
+#endif
     Efficiency::increment(s.metrics.executions);
     if(settings.features&Device::EnergyMonitor){Efficiency::increment(s.metrics.energyReads);int mv;if(readMv(mv) && mv>=1400 && mv<=2200){s.pawBatteryVolts=mv/500.0f;s.faults&=static_cast<uint16_t>(~2u);}else{s.pawBatteryVolts=0;s.faults|=2;}}
+#if PROTOGEN_FLIGHT_RECORDER
+    sampleWorker(s.metrics, nowMs(), static_cast<uint32_t>(esp_timer_get_time() - p3Started));
+#endif
     portENTER_CRITICAL(&mux);published=s;portEXIT_CRITICAL(&mux);vTaskDelay(pdMS_TO_TICKS(1000));
   }
 #endif

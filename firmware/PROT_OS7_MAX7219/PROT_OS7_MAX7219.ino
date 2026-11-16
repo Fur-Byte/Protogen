@@ -18,6 +18,7 @@
 #include "BlinkTiming.h"
 #include "ControllerIdle.h"
 #include "ResponseTiming.h"
+#include "FlightInstrumentation.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
@@ -149,14 +150,18 @@ void setup() {
 }
 
 void loop() {
+  P3_TEENSY_SCOPE(p3Loop, LoopWork);
+#if PROTOGEN_FLIGHT_RECORDER
+  P3Teensy::beginLoop();
+#endif
   const uint32_t now = millis();
   responseTiming.poll(micros());
   if (brightnessBoostActive && now - brightnessBoostAt >= brightnessBoostMs) cancelBrightnessBoost();
   serviceBlinkRandomness();
-  serviceSerial(now);
-  servicePawLink(now);
+  P3_TEENSY_CALL(USB, serviceSerial(now));
+  P3_TEENSY_CALL(UART, servicePawLink(now));
   updateControls(now);
-  serviceSensorAcquisition(now);
+  P3_TEENSY_CALL(Sensors, serviceSensorAcquisition(now));
   updateVisorConnector(now);
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
   if (boopActive && now - boopTime >= (boopFromRemote ? remoteBoopDuration : config.boopDuration)) {
@@ -178,6 +183,10 @@ void loop() {
 #ifdef WirelessPaw
     pending = pending || pawHasPendingWork();
 #endif
+#if PROTOGEN_FLIGHT_RECORDER
+    P3Teensy::finishLoop();
+    p3Loop.stop();
+#endif
     if (!pending) controllerIdle.wait();
     return;
   }
@@ -197,7 +206,7 @@ void loop() {
     previousMillis = now;
   }
   if (boopActive) pauseMicrophone();
-  else { if (microphoneEnabled) microphone(); else pauseMicrophone(); glitch(now); Blink(now); }
+  else { if (microphoneEnabled) P3_TEENSY_CALL(Audio, microphone()); else pauseMicrophone(); glitch(now); Blink(now); }
   if (now - previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
   // Routine frames use16ms; sample first transition feedback at2ms until a
   // visible frame changes. Unchanged rows produce no redundant SPI traffic.
@@ -210,6 +219,9 @@ void loop() {
       responseTiming.observe(micros(),true,false,true);
     else observeExpressionResponse(displayedPose);
   }
+#if PROTOGEN_FLIGHT_RECORDER
+  P3Teensy::finishLoop();
+#endif
 }
 
 // Eye-only comparison excludes spectrum/glitch mouth changes. The counterfactual
@@ -242,6 +254,7 @@ void observeExpressionResponse(const Face::Pose &pose) {
   responseTiming.observe(micros(),feedback,onset,target&&!transitionActive&&!blinkState);
 }
 void renderFace(uint32_t now) {
+  P3_TEENSY_SCOPE(p3Render, Render);
   Efficiency::increment(renderMetrics.attempts);
   Face::Pose pose;
   pose.expression = state; pose.boop = boopActive;
@@ -278,7 +291,7 @@ void renderFace(uint32_t now) {
   const uint32_t started = micros();
   Efficiency::increment(renderMetrics.compositions);
   Face::Frame composed;
-  Face::compose(composed, pose);
+  P3_TEENSY_CALL(Compose, Face::compose(composed, pose));
   const bool changed = !frameValid || memcmp(composed.bytes, displayedFrame.bytes, sizeof(composed.bytes));
   if (changed) Efficiency::increment(renderMetrics.changed);
   for (int y = 0; y < Face::Height; ++y)
@@ -286,7 +299,7 @@ void renderFace(uint32_t now) {
       const bool value = Face::pixel(composed, x, y);
       if (!frameValid || value != Face::pixel(displayedFrame, x, y)) matrix.drawPixel(x, y, value);
     }
-  displayedFrame = composed; displayedPose=pose; frameValid = true; matrix.write();
+  displayedFrame = composed; displayedPose=pose; frameValid = true; P3_TEENSY_CALL(DisplayWrite, matrix.write());
   observeExpressionResponse(pose);
   if(responseTiming.feedback||!responseTiming.pending) transitionVisiblePending=false;
   if (PROTOGEN_CACHE_FACE) visualCache.remember(pose);
@@ -302,6 +315,9 @@ void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Ori
   const uint8_t closure=frameValid?displayedPose.closure:Step;
   responseBaseline=displayedFrame;
   responseTiming.start(id,receivedUs,origin,ResponseTiming::Expression,source,expression);
+#if PROTOGEN_FLIGHT_RECORDER
+  P3Teensy::emit(receivedUs, Flight::Expression, expression | (unsigned(origin) << 8), responseTiming.observation);
+#endif
   if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)) {
     // Reversing to artwork that is still on screen has zero target-onset delay;
     // the record explicitly distinguishes this from newly revealed pixels.
