@@ -107,7 +107,8 @@ void clipping() {
       Face::compose(actual, pose, silence);
       const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
       if (uint64_t(ns) > worstComposeNs) worstComposeNs = ns;
-      compare(actual, transformed(id, id, left ? 96 : 0, x, y, closure));
+      const int readableY = !left && id == ExpressionWink && y > 0 ? 0 : y;
+      compare(actual, transformed(id, id, left ? 96 : 0, x, readableY, closure));
     }
   }
 }
@@ -176,6 +177,7 @@ void cacheAndSpi() {
   }
   trackCase("mouth aperture", Region::FullFace, Motion::MouthAperture, 3, mouth(0,3));
   trackCase("clipped eyelid, same pixels", Region::RightEye, Motion::Lid, 2, rest[ExpressionWink], false);
+  trackCase("right wink stays readable", Region::RightEye, Motion::Vertical, 1, rest[ExpressionWink], false);
 
   testName = "FFT snapshot and eye motion";
   behavior = Behavior::Core{};

@@ -69,7 +69,12 @@ inline void renderEye(Frame &frame, const Pose &pose, bool left, Behavior::EyeMo
   uint8_t closure = pose.boop ? 0 : pose.closure;
   if (motion.closure > closure) closure = motion.closure;
   if (expression == ExpressionSleepy && closure < 4) closure = 4;
-  if (expression == ExpressionWink && !left && closure < 7) closure = 7;
+  if (expression == ExpressionWink && !left) {
+    if (closure < 7) closure = 7;
+    // The frozen right wink has one lit row at Y=7. A downward shift
+    // would erase its entire identity, so retain its original Y position.
+    if (motion.y > 0) motion.y = 0;
+  }
   eyes(frame, left ? EyeLeft : EyeRight, data, closure, motion.x, motion.y);
 }
 #endif

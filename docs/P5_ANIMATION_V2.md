@@ -67,7 +67,7 @@ art is observed as a visible change.
 | Primitive | Bounds and output |
 | --- | --- |
 | Horizontal gaze | −2 to +2 pixels, independently per eye |
-| Experimental vertical shift | −1 to +1 pixel, only on explicit tracks |
+| Experimental vertical shift | −1 to +1 pixel, only on explicit tracks. The one-row right Wink suppresses its downward shift to retain the sprite. |
 | Lid | Additional closure floor 0–8 |
 | Squint and settling | Additional closure floor 0–4 |
 | Expression override | One of six unmodified expression IDs |
