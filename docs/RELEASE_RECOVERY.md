@@ -42,7 +42,8 @@ Teensy image has optional wireless control disabled; bundling radio images does
 not enable it. Authenticated images still require the correctly provisioned
 per-helmet key and a hardware handshake check. Treat authenticated firmware as
 per-helmet material and keep its bundle private. Store the provisioning key
-separately from the firmware and configuration backups.
+separately from the firmware and configuration backups. Keep the UART provisioning
+header outside the checkout and point the existing build tooling at that directory.
 Previous recovery ZIPs must contain the Teensy HEX, both radio roles' firmware,
 bootloaders and partition tables, toolchain pins, wiring and recovery
 references, and matching successful build evidence. The packager verifies the

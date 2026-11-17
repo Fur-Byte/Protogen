@@ -189,6 +189,14 @@ class PackagingTests(unittest.TestCase):
         self.create_builds()
         self.rejected(r"(?i)ignored.*source")
 
+    def test_tracked_uart_provisioning_header(self):
+        name = "firmware/PROT_OS7_MAX7219/src/UartCrypto/ProtogenUartKey.h"
+        self.write(name, b"// Synthetic placeholder, no key")
+        self.git("add", "-f", name)
+        self.commit("Fixture with a misplaced provisioning header")
+        self.create_builds()
+        self.rejected(r"(?i)provisioning.*header")
+
     def test_unidentified_source(self):
         shutil.rmtree(self.root / ".git")
         self.rejected(r"(?i)identify.*git|git.*identif")

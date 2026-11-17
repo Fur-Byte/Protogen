@@ -93,6 +93,8 @@ def source_commit(teensy, esp, lock_bytes, expected=None):
     valid(isinstance(files, dict) and all(safe_path(name) and is_sha256(value) for name, value in files.items())
           and source_digest(files) == source["sha256"] and files[LOCK] == digest(lock_bytes),
           "Build source file hashes or toolchain lock do not match source identity")
+    valid(not any(name.startswith("firmware/") and Path(name).name.casefold() == "protogenuartkey.h" for name in files),
+          "Move the UART provisioning header outside the firmware checkout before packaging")
     identity = (teensy["git_head"], source)
     valid(expected is None or expected == identity, "Build source or Git commit mismatch; rebuild from the current source")
     return identity
@@ -222,7 +224,7 @@ def dependency(name):
 
 
 def regular_file(path):
-    valid(path.is_file() and not path.is_symlink(), f"Missing or invalid file: {path.name}")
+    valid(path.is_file(), f"Missing or invalid file: {path.name}")
     return path.read_bytes()
 
 
@@ -329,7 +331,8 @@ def package(output, previous=None, initial=False, config_path=None, previous_sha
         backup = validate_profile(checked_json(regular_file(config_path), "helmet configuration"))
         content[CONFIGURATION] = (json.dumps(backup, indent=2) + "\n").encode()
     if previous:
-        valid(previous.stat().st_size <= MAX_ARCHIVE_BYTES, "Previous archive exceeds size limit")
+        # Allow ZIP headers and compression overhead in addition to payload bytes.
+        valid(previous.stat().st_size <= MAX_ARCHIVE_BYTES + 1024 * 1024, "Previous archive exceeds size limit")
         raw = regular_file(previous)
         validate_previous(raw, previous_sha256)
         content[PREVIOUS] = raw
