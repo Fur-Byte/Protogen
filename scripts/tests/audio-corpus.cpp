@@ -19,8 +19,10 @@ static void cost() {
     processMicrophoneSample(510 + (i % 11), i / 4);
   });
   const double fftWindow = hostNanoseconds(iterations / 64, [](unsigned i) {
-    for (unsigned j = 0; j < samples; ++j)
+    for (unsigned j = 0; j < samples; ++j) {
       vReal[j] = 510 + ((i * 3 + j * 61) % 300);
+      vImag[j] = 0;
+    }
     fft();
   });
   Face::Frame frame;
