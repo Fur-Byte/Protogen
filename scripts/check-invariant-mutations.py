@@ -43,6 +43,15 @@ MUTATIONS = (
     ("replay-before-validation", "wireless", SESSION,
      "  replay.accept(seq);\n  p = decoded;", "  p = decoded;",
      "authenticatedAfterReject"),
+    ("stale-animation-generation", "animation", TEENSY / "src/BehaviorCore/AnimationV2.cpp",
+     " || tracks[handle.slot].generation != handle.generation", "", "!table.cancel(first.handle)"),
+    ("animation-capacity", "animation", TEENSY / "src/BehaviorCore/AnimationV2.cpp",
+     "if (active(slot) || track.generation == UINT32_MAX)", "if (track.generation == UINT32_MAX)",
+     "second.handle.slot == 1"),
+    ("timeline-reserved-field", "timeline", TEENSY / "src/BehaviorCore/Timeline.h",
+     " || data[14] || data[15]", " || data[15]", "!validAsset(asset, sizeof(asset))"),
+    ("supervisor-inactivity", "supervision", TEENSY / "Supervision.h",
+     "if (!needed) {", "if (!needed && !required) {", "!s.foreground.required"),
 )
 
 
@@ -74,6 +83,10 @@ def exercise(directory, test, env):
             run([env["CMAKE"], "-S", str(scripts / "wireless"), "-B", str(build),
                  "-DMBEDTLS_SOURCE=" + mbed, "-DHOST_SANITIZERS=" + env["PROTOGEN_HOST_SANITIZERS"],
                  "-DCMAKE_BUILD_TYPE=Debug"], env)
+        # Same-second edits can otherwise reuse the control object on make-based
+        # hosts. Recompile the sole mutated translation unit in the fixture.
+        for object_file in (build / "CMakeFiles/test-wireless.dir").rglob("WirelessSession.cpp.o"):
+            object_file.unlink()
         run([env["CMAKE"], "--build", str(build), "--target", "test-wireless", "-j", "4"], env)
         return run([str(build / "test-wireless"), "--session-only"], env, check=False)
     flags = [env["CXX"], "-std=c++17", "-O1", "-g", "-Wall", "-Wextra", "-Werror",
@@ -83,13 +96,25 @@ def exercise(directory, test, env):
     if test == "config":
         run([*flags, str(scripts / "config-compatibility.cpp"), "-o", str(program)], env)
         return run([str(program), str(scripts / "fixtures/eeprom-v1.hex")], env, check=False)
+    if test in ("animation", "timeline", "supervision"):
+        core = source / "src/BehaviorCore"
+        if test == "animation":
+            extra = ["-DPROTOGEN_ANIMATION_V2=1", "-I" + str(core),
+                     str(scripts / "animation-v2.cpp"), str(core / "AnimationV2.cpp"), str(core / "BehaviorCore.cpp")]
+        elif test == "timeline":
+            extra = ["-DPROTOGEN_ANIMATION_V2=1", "-DPROTOGEN_ANIMATION_TIMELINES=1",
+                     "-I" + str(core), str(scripts / "p8-timeline-format.cpp")]
+        else:
+            extra = [str(scripts / "supervision-unit.cpp")]
+        run([*flags, *extra, "-o", str(program)], env)
+        return run([str(program)], env, check=False)
     run([*flags, "-DHELMET_RECEIVER", str(scripts / "helmet-protocol.cpp"), "-o", str(program)], env)
     return run([str(program)], env, check=False)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--group", choices=("fast", "full", "wireless"), default="full")
+    parser.add_argument("--group", choices=("fast", "full", "wireless", "p8", "extended"), default="full")
     args = parser.parse_args()
     env = dict(os.environ)
     for key, value in (("CMAKE", "cmake"), ("CC", "clang"), ("CXX", "clang++"),
@@ -98,10 +123,13 @@ def main():
     output = ROOT / "build/mutation-evidence"
     output.mkdir(parents=True, exist_ok=True)
     manifest = output / (args.group + ".json")
-    selected = [entry for entry in MUTATIONS if args.group == "full" or
-                (entry[1] == "wireless") == (args.group == "wireless")]
+    new_domains = {"animation", "timeline", "supervision"}
+    domains = {"fast": {"config", "protocol", "invalid"}, "wireless": {"wireless"},
+               "p8": new_domains, "extended": new_domains | {"wireless"}}
+    selected = [entry for entry in MUTATIONS if args.group == "full" or entry[1] in domains[args.group]]
     record = {"schema": 1, **git_identity(ROOT), "source": source_identity(ROOT),
-              "group": args.group, "results": []}
+              "group": args.group, "results": [], "equivalent": [],
+              "excluded": [name for name, *_ in MUTATIONS if name not in {row[0] for row in selected}]}
     write_json(manifest, record)
     with tempfile.TemporaryDirectory(prefix="protogen-mutations-") as tmp:
         directory = isolated_source(Path(tmp))
@@ -131,7 +159,8 @@ def main():
             (output / f"{name}.log").write_text(outcome.stdout)
             killed = outcome.returncode != 0 and expected in outcome.stdout
             record["results"].append({"mutation": name, "test": test, "exit_code": outcome.returncode,
-                                      "expected_failure": expected, "detected": killed})
+                                      "expected_failure": expected, "detected": killed,
+                                      "classification": "killed" if killed else "survived"})
             write_json(manifest, record)
             print(f"{'PASS' if killed else 'FAIL'}: {name}", flush=True)
     record["inputs_unchanged"] = source_identity(ROOT) == record["source"]
