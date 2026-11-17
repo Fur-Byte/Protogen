@@ -19,6 +19,10 @@ NUMERIC_BOUNDS = {
     "short-write": (0, 32), "power-cut-after": (0, 1080), "hello": (1, 2**32 - 1),
     "expression": (0, 5), "duplicate": (0, 0), "timeline-cancel": (0, 0),
 }
+SOAK_DURATION_US = 86_400_000_000
+SOAK_EVENT_LIMIT = 8192
+SOAK_INPUTS = {"drop-ack": (0, 1), "reorder": (0, 0), "dock-pilot": (0, 1),
+               "dock-voltage": (0, 1023), "audio-invalid-pin": (0, 1)}
 METRICS = (
     "inputs_processed", "loops", "adc_samples", "uart_wire_in_peak", "uart_wire_out_peak",
     "uart_rx_peak", "usb_rx_peak", "audio_ring_peak", "uart_wire_dropped",
@@ -32,14 +36,14 @@ def integer(value, low, high, name):
     return value
 
 
-def encode(replay, reference=False):
+def encode(replay, reference=False, *, soak=False):
     required = {"version", "origin_us", "duration_us", "loop_us", "cosmetic_seed", "epoch", "events"}
     if (not isinstance(replay, dict) or not required <= replay.keys()
             or set(replay) - required - {"eeprom", "cosmetic_tape", "audio_tape"}):
         raise ValueError("invalid replay fields")
     integer(replay["version"], 1, 1, "version")
     origin = integer(replay["origin_us"], 0, 2**48, "origin_us")
-    duration = integer(replay["duration_us"], 1000, 120_000_000, "duration_us")
+    duration = integer(replay["duration_us"], 1000, SOAK_DURATION_US if soak else 120_000_000, "duration_us")
     tick = integer(replay["loop_us"], 100, 20_000, "loop_us")
     seed = integer(replay["cosmetic_seed"], 0, 2**32 - 1, "cosmetic_seed")
     epoch = integer(replay["epoch"], 1, 2**32 - 1, "epoch")
@@ -55,8 +59,9 @@ def encode(replay, reference=False):
     lines += [str(integer(word, 0, 2**32 - 1, "cosmetic word")) for word in tape]
     lines += [str(integer(sample, 0, 1023, "audio sample")) for sample in audio]
     events = replay["events"]
-    if not isinstance(events, list) or len(events) > 4096:
-        raise ValueError("events must contain at most 4096 entries")
+    event_limit = SOAK_EVENT_LIMIT if soak else 4096
+    if not isinstance(events, list) or len(events) > event_limit:
+        raise ValueError(f"events must contain at most {event_limit} entries")
     previous = 1000
     for sequence, event in enumerate(events, 1):
         if not isinstance(event, list) or len(event) != 3:
@@ -79,6 +84,13 @@ def encode(replay, reference=False):
                                 for index, (number, limits) in enumerate(zip(value, bounds)))
         elif isinstance(operation, str) and operation in NUMERIC_BOUNDS:
             argument = integer(value, *NUMERIC_BOUNDS[operation], f"event {sequence} argument")
+        elif soak and isinstance(operation, str) and operation in SOAK_INPUTS:
+            argument = integer(value, *SOAK_INPUTS[operation], f"event {sequence} argument")
+        elif soak and operation == "expect":
+            if (not isinstance(value, list) or len(value) != 2 or not isinstance(value[0], str)
+                    or not re.fullmatch(r"[a-z][a-z-]{0,40}", value[0])):
+                raise ValueError(f"event {sequence}: expect requires [checkpoint, numeric value]")
+            argument = f"{value[0]},{integer(value[1], 0, 2**32 - 1, 'checkpoint value')}"
         else:
             raise ValueError(f"event {sequence}: unknown operation {operation!r}")
         lines.append(f"{at} {sequence} {operation} {argument}")
