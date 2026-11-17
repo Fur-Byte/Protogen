@@ -39,11 +39,11 @@ void beginLoop() {
 
 void finishLoop() {
   const uint32_t now = clockUs();
-  const uint16_t behavior = (sleeping ? 1 : 0) | (visorVisible ? 2 : 0) |
-      (boopActive ? 4 : 0) | (displayBlanked ? 8 : 0) | (connectorReady ? 16 : 0);
-  if (behavior != priorBehavior) {
-    emit(now, Flight::Behavior, behavior, priorBehavior);
-    priorBehavior = behavior;
+  const uint16_t flags = (behavior.sleeping ? 1 : 0) | (visorVisible ? 2 : 0) |
+      (behavior.boopActive ? 4 : 0) | (displayBlanked ? 8 : 0) | (connectorReady ? 16 : 0);
+  if (flags != priorBehavior) {
+    emit(now, Flight::Behavior, flags, priorBehavior);
+    priorBehavior = flags;
   }
   sensorFault.count(now, sensorFailureCount(), sensorLastFailure());
   microphoneFault.count(now, microphoneFailureCount(), microphoneLastFailure());
@@ -158,21 +158,21 @@ void replyStatus() {
     "\"paw_connected\":%s,\"paw_rejected\":%lu,\"microphone_enabled\":%s,"
     "\"sensor_faults\":%u,\"connector_ready\":%s,\"boop_mode\":%u,"
     "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",
-    configSchemaVersion, features, state, sleeping ? "true" : "false",
+    configSchemaVersion, features, behavior.expression, behavior.sleeping ? "true" : "false",
     visorVisible ? "true" : "false", displayReady ? "true" : "false",
-    boopActive ? "true" : "false", boopReading, speakingActive ? "true" : "false",
+    behavior.boopActive ? "true" : "false", boopReading, speakingActive ? "true" : "false",
     envelope, floor, gate, calibration ? "true" : "false",
     static_cast<unsigned long>(drops), static_cast<unsigned long>(frames),
     static_cast<unsigned long>(frequency), static_cast<unsigned long>(Settings::SpiFrequencyHz),
-    blinkRandomPending ? "false" : "true", static_cast<unsigned long>(blinkFallbacks),static_cast<unsigned long>(nextBlinkInterval),
-    static_cast<unsigned long>(blinkTiming.duration()),pawIsOnline(millis())?"true":"false",
+    behavior.blinkRandomPending ? "false" : "true", static_cast<unsigned long>(blinkFallbacks),static_cast<unsigned long>(behavior.nextBlinkInterval),
+    static_cast<unsigned long>(behavior.blinkTiming.duration()),pawIsOnline(millis())?"true":"false",
     static_cast<unsigned long>(pawRejectedPackets()),microphoneEnabled?"true":"false",
     sensorFaults,connectorReady?"true":"false",config.boopMode,
     config.brightness,matrix.getIntensity(),Settings::MaxBrightness,config.brightnessApproval);
   if (!out.okay()) replyTooLarge();
 }
 void replyFrame() {
-  const bool hidden = sleeping || !visorVisible || !displayReady || !connectorReady;
+  const bool hidden = behavior.sleeping || !visorVisible || !displayReady || !connectorReady;
   BoundedReply out(usbReply, sizeof(usbReply));
   out.append("{\"ok\":true,\"width\":%u,\"height\":%u,\"hidden\":%s,\"frame\":\"",
              static_cast<unsigned>(Face::Width), static_cast<unsigned>(Face::Height), hidden ? "true" : "false");
@@ -188,13 +188,13 @@ void applyConfig(const RuntimeConfig &value, uint32_t now) {
   if (!changed) return;
   if (config.brightness != value.brightness || config.brightnessApproval != value.brightnessApproval) matrix.setIntensity(value.effectiveBrightness());
   config = value;
-  resetAnimations(now); rising = true;
+  resetAnimations(now); behavior.rising = true;
 #ifdef Microphone
   updateAudioCoefficients();
   noiseFloor = config.noiseFloor;
 #endif
   // Re-evaluate a sensor under its new calibration without inventing a boop.
-  boopArmed = false; boopState = false; boopActive = false; boopFromRemote = false;
+  behavior.boopArmed = false; behavior.boopState = false; behavior.boopActive = false; behavior.boopFromRemote = false;
 }
 bool parseNumber(const char *text, unsigned long &value) {
   if (!text || !*text) return false;

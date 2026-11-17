@@ -57,7 +57,7 @@ void updateVisorConnector(uint32_t now) {
     if(digitalRead(Pilot)!=LOW || !visorVisible || readDisplayVoltage()<595 || readDisplayVoltage()>684) {disable(millis(),true);return;}
     digitalWrite(BufferEnable,HIGH);
     sensorFaults&=static_cast<uint16_t>(~1u);
-    connectorReady=true;displayBlanked=true;frameValid=false;rising=true;stage=2;
+    connectorReady=true;displayBlanked=true;frameValid=false;behavior.rising=true;stage=2;
   }
 #else
   (void)now;

@@ -194,7 +194,7 @@ void pauseMicrophone() {
 
 bool calibrateMicrophone() {
 #ifdef Microphone
-  if (sleeping || !visorVisible || !connectorReady || !microphoneEnabled || boopActive || !sensorAdc || (sensorFaults&4)) return false;
+  if (behavior.sleeping || !visorVisible || !connectorReady || !microphoneEnabled || behavior.boopActive || !sensorAdc || (sensorFaults&4)) return false;
   pauseMicrophone(); calibratingAudio = true;
   calibrationTotal = 0; calibrationSamples = 0;
   return true;

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <string.h>
-#include "Configuration.h"
+#include "src/BehaviorCore/BehaviorCore.h"
 
 // Logical canvas, before the existing physical tile rotations. No hardware I/O.
 // Icons.h is included by the caller, keeping the original artwork byte-for-byte.
@@ -10,12 +10,12 @@ constexpr int Width = 112, Height = 8, RowBytes = Width / 8;
 constexpr int EyeLeft = 96, MouthLeft = 64, NoseLeft = 56;
 constexpr int NoseRight = 48, MouthRight = 16, EyeRight = 0;
 struct Frame { uint8_t bytes[RowBytes * Height] = {}; };
-struct Pose {
-  uint8_t expression = ExpressionHappy;
-  bool boop = false, speaking = false;
-  uint8_t closure = 0, glitch = 0, mouthMode = 0, aperture = 0;
-  int8_t eyeOffset = 0;
+using Pose = Behavior::Pose;
+// Four mutable FFT bitmaps are captured by the shell at frame observation.
+struct AudioSnapshot {
+  uint8_t first[16], firstLeft[16], second[16], secondLeft[16];
 };
+static_assert(sizeof(AudioSnapshot) == 64, "The four legacy spectrum bitmaps are 16 bytes each.");
 inline bool pixel(const Frame &frame, int x, int y) {
   return (frame.bytes[y * RowBytes + x / 8] & (0x80 >> (x & 7))) != 0;
 }
@@ -46,7 +46,7 @@ inline void amplitudeMouth(Frame &frame, int x, uint8_t aperture, bool mirror) {
     put(frame, x + column, 4 + inner);
   }
 }
-inline void compose(Frame &frame, const Pose &pose) {
+inline void compose(Frame &frame, const Pose &pose, const AudioSnapshot &audio) {
   memset(frame.bytes, 0, sizeof(frame.bytes));
   bitmap(frame, NoseLeft, 8, noseL);
   bitmap(frame, NoseRight, 8, nose);
@@ -55,10 +55,10 @@ inline void compose(Frame &frame, const Pose &pose) {
       amplitudeMouth(frame, MouthLeft, pose.aperture, true);
       amplitudeMouth(frame, MouthRight, pose.aperture, false);
     } else {
-      bitmap(frame, MouthLeft + 16, 16, fftIcon2L);
-      bitmap(frame, MouthLeft, 16, fftIcon1L);
-      bitmap(frame, MouthRight + 16, 16, fftIcon1);
-      bitmap(frame, MouthRight, 16, fftIcon2);
+      bitmap(frame, MouthLeft + 16, 16, audio.secondLeft);
+      bitmap(frame, MouthLeft, 16, audio.firstLeft);
+      bitmap(frame, MouthRight + 16, 16, audio.first);
+      bitmap(frame, MouthRight, 16, audio.second);
     }
   } else {
     const uint8_t *left = pose.glitch == 1 ? Glitch1L : pose.glitch == 2 ? Glitch2L : mawL;

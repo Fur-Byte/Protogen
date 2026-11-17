@@ -21,17 +21,17 @@ FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="${PROTOGEN_HOST_SANITIZER
 source "$ROOT/scripts/host-fft.sh"
 compile_host_fft "$FFT_SRC" "${EFF_TEMP}/arduinoFFT.o"
 "${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/efficiency.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" -o "$EFF_TEMP/cache"
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" -o "$EFF_TEMP/cache"
 "$EFF_TEMP/cache"
 # Existing animation/audio stress suite also runs with the cache enabled.
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor \
   "$ROOT/scripts/tests/firmware.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "${EFF_TEMP}/arduinoFFT.o" -o "$EFF_TEMP/full"
 "$EFF_TEMP/full"
 "${CXX:-clang++}" "${FLAGS[@]}" -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw -DVisorConnector \
   "$ROOT/scripts/tests/extensions.cpp" \
-  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" \
+  "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   "$EFF_TEMP/arduinoFFT.o" -o "$EFF_TEMP/extensions"
 "$EFF_TEMP/extensions"
 "${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER \
