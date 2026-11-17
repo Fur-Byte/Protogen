@@ -90,6 +90,19 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-timelines.py --deep
+      - name: Audio V2 held-out activity, mouth pixels and feature interactions
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          mkdir -p build/p7-evidence
+          python3 scripts/check-audio.py --held-out 2>&1 | tee build/p7-evidence/held-out.log
+          python3 scripts/check-audio-profiles.py 2>&1 | tee build/p7-evidence/profiles.log
+      - name: Extended Audio V2 synthetic replay
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-audio.py 2>&1 | tee build/p7-evidence/development.log
       - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
@@ -133,6 +146,7 @@ jobs:
             build/p4-evidence/
             build/p5-evidence/
             build/p6-evidence/
+            build/p7-evidence/
             build/matrix-*-esp32/
             build/twin/*.json
             build/twin/*.log
@@ -185,6 +199,12 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-timeline-build.py
+      - name: Audio V2 Teensy dependency matrix and footprint
+        if: matrix.group != 'auth'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-audio-profiles.py --target
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -195,4 +215,5 @@ jobs:
             build/flight-evidence/
             build/p5-evidence/target.json
             build/p6-evidence/target.json
+            build/p7-evidence/target.json
             build/toolchains/lock.json
