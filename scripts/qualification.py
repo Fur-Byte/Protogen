@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-from build_support import git_identity, write_json
+from build_support import release_source, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / "docs/validation/qualification-v1.schema.json").read_text())
@@ -147,14 +147,20 @@ def validate(document, artifact_root, expected_source):
         artifact, hardware = record["artifact"], record["hardware"]
         if executed and (not artifact or not record["command"]):
             raise ValueError(f"{name}: command and artifact required for an executed result")
+        environment = record["environment"]["kind"]
         physical = record["evidence_level"] == "F3"
-        if physical and record["environment"]["kind"] != "physical":
+        if record["evidence_level"] in {"F1", "F2"} and environment != "host":
+            raise ValueError(f"{name}: executable and integrated tests require a host environment")
+        if physical and environment != "physical":
             raise ValueError(f"{name}: F3 requires a physical environment")
-        if not physical and (record["environment"]["kind"] == "physical" or hardware):
+        if not physical and (environment == "physical" or hardware):
             raise ValueError(f"{name}: physical hardware claims require F3")
         if physical and executed:
             if not hardware:
                 raise ValueError(f"{name}: F3 executed evidence requires identified hardware")
+            identity_fields = hardware["boards"] + hardware["instruments"] + [hardware["operator"]]
+            if any(value.strip().lower() in {"", "unknown", "n/a", "unassigned"} for value in identity_fields):
+                raise ValueError(f"{name}: F3 executed evidence requires identified hardware and operator")
             datetime.date.fromisoformat(hardware["date"])
             if name == "hardware.one-hour" and record["result"] == "PASS" and hardware["duration_seconds"] < 3600:
                 raise ValueError(f"{name}: successful stress run requires a continuous hour")
@@ -187,10 +193,8 @@ def pairs(items, convert=lambda x: x):
 
 
 def record(args):
-    identity = git_identity(ROOT)
-    if not identity["git_head"] or identity["working_tree_dirty"]:
-        raise ValueError("executed evidence requires an exact clean Git checkout")
-    sha = identity["git_head"]
+    identity = release_source(ROOT, required_files=("docs/validation/qualification-v1.schema.json",))
+    sha, _ = identity
     args.output.parent.mkdir(parents=True, exist_ok=True)
     log = artifact_path(args.artifact_root, args.log)
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -204,7 +208,7 @@ def record(args):
         stream.write(command_line.encode())
         stream.flush()
         result = subprocess.run(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, check=False)
-    if git_identity(ROOT) != identity:
+    if release_source(ROOT, required_files=("docs/validation/qualification-v1.schema.json",)) != identity:
         raise ValueError("Git identity changed while collecting evidence")
     entry = {"requirement_id": args.requirement, "source_sha": sha, "feature_flags": flags, "toolchain": toolchain,
              "command": command, "result": "PASS" if result.returncode == 0 else "FAIL",

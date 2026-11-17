@@ -50,6 +50,10 @@ class Qualification(unittest.TestCase):
                 record[name] = value
                 with self.assertRaises(ValueError):
                     validate(self.manifest(record), self.root, SOURCE)
+        wrong_environment = self.record()
+        wrong_environment["environment"]["kind"] = "static"
+        with self.assertRaisesRegex(ValueError, "host environment"):
+            validate(self.manifest(wrong_environment), self.root, SOURCE)
         with self.assertRaisesRegex(ValueError, "duplicate requirement"):
             validate(self.manifest(self.record(), self.record()), self.root, SOURCE)
         with self.assertRaisesRegex(ValueError, "artifact required"):
