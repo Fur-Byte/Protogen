@@ -211,6 +211,18 @@ def main():
         raise RuntimeError("visibility transition did not survive rollover")
     if frames[1200]["state"][4] != "1" or extra["metrics"]["audio_dropped"]:
         raise RuntimeError("speaking or audio service missing during timeline playback")
+    boop, _ = compare_seek(asset, [250, 336, 250], 0, environment[:2])
+    same_frame(boop["frames"][1], independent_eye(f["happy"], f["angry"], -2, 0, 3),
+               "all eye channels resume after boop")
+    uart, _ = compare_seek(asset, [250, 700, 250], 0,
+                            [[120000, "hello", 1], [240000, "expression", 4],
+                             [300000, "duplicate", 0], [320000, "audio", 300]])
+    if uart["frames"][1]["state"][0] != "4" or uart["metrics"]["audio_dropped"]:
+        raise RuntimeError("timeline playback changed admitted UART expression or modeled audio acquisition")
+    acknowledgements = [bytes.fromhex(row[-1])[-1] for row in
+        (line.split("\t") for line in uart["trace"].splitlines()) if row[1] == "uart-packet" and row[3] == "3"]
+    if acknowledgements != [0, 1]:
+        raise RuntimeError(f"timeline changed modeled UART ACK handling: {acknowledgements}")
     compare_seek(asset, [0, 16, 0], 500, [[10, "visor", 1], [11000, "visor", 0]])
     interrupted, _ = compare_seek(asset, [160, 260, 160], 0, [[200000, "timeline-cancel", 0]])
     same_frame(interrupted["frames"][0], independent_eye(f["happy"], f["angry"], -2, 0, 3), "before cancellation")

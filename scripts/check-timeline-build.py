@@ -55,9 +55,9 @@ def main():
             if not match:
                 raise RuntimeError("linked behavior state missing")
             result["behavior_state_bytes"] = int(match[1], 16)
-            present = "protogenStartLinkedTimeline" in symbols and "ProtogenAsset::clip" in symbols
-            if enabled != present:
-                raise RuntimeError("unexpected asset or entry-point linkage")
+            for symbol in ("protogenStartLinkedTimeline", "ProtogenAsset::clip", "Timeline::Player::advance"):
+                if enabled != (symbol in symbols):
+                    raise RuntimeError(f"unexpected linkage for {symbol}, enabled={enabled}")
             if enabled:
                 objcopy = tools / "arm-none-eabi-objcopy"
                 binary = run.path / "linked-image.bin"
