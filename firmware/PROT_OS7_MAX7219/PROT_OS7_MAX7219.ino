@@ -19,6 +19,7 @@
 #include "BlinkTiming.h"
 #include "ControllerIdle.h"
 #include "ResponseTiming.h"
+#include "src/AudioV2/AudioV2.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
 // Optional hardware features. Uncomment only those connected to your helmet:
@@ -121,6 +122,15 @@ float filterDCComponent = 0;
 float vReal[samples], vImag[samples], hammingWindow[samples / 2];
 ArduinoFFT<float> FFT(vReal, vImag, samples, static_cast<float>(samplingFrequencyHz));
 uint8_t mouthAperture = 0;
+#if PROTOGEN_AUDIO_V2
+static_assert(samplingFrequencyHz == AudioV2::SampleRate && samples == AudioV2::WindowSamples,
+              "Audio V2 and FFT must share the acquisition cadence.");
+AudioV2::Detector audioDetector;
+AudioV2::Settings audioSettings() {
+  return {config.sensitivity, config.noiseMargin, config.noiseFloor,
+          config.attackMs, config.releaseMs, static_cast<uint16_t>(Settings::SpeakingHoldMs)};
+}
+#endif
 #endif
 
 void setup() {

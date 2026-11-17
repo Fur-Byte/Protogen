@@ -39,6 +39,8 @@ def main():
              ("PROTOGEN_ANIMATION_TIMELINES=1",), "Animation timelines require Animation V2"),
             ("timeline-invalid", "src/BehaviorCore/Timeline.h",
              ("PROTOGEN_ANIMATION_V2=1", "PROTOGEN_ANIMATION_TIMELINES=2"), "Animation timelines must be 0 or 1"),
+            ("audio-v2-valid", "src/AudioV2/AudioV2.h", ("PROTOGEN_AUDIO_V2=1",), None),
+            ("audio-v2-invalid", "src/AudioV2/AudioV2.h", ("PROTOGEN_AUDIO_V2=2",), "Audio V2 must be 0 or 1"),
             ("brightness-invalid", "bad-ceiling.h", (), "MaxBrightness must be 0..15"),
             ("board-valid", "DeviceConfig.h", ("ESP_PLATFORM", "CONFIG_IDF_TARGET_ESP32C3=1"), None),
             ("board-invalid", "DeviceConfig.h", ("ESP_PLATFORM", "CONFIG_IDF_TARGET_ESP32S31=1"),

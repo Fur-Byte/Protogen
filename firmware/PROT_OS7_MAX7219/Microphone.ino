@@ -81,11 +81,26 @@ void updateAudioCoefficients() {
   releaseCoefficient = 1.0f / (samplingFrequencyHz * config.releaseMs / 1000.0f);
 }
 
+#if PROTOGEN_AUDIO_V2
+void resetMicrophoneDetector() {
+  audioDetector.reset(audioSettings());
+  const auto features = audioDetector.snapshot();
+  speakingActive = false;
+  mouthAperture = 0;
+  noiseFloor = features.noise;
+  audioGate = features.gate;
+  smoothedEnvelope = features.envelope;
+}
+#endif
+
 void startMicrophone() {
   if(microphoneSampling)return;
   if(!sensorAdc){AudioRecovery::fail(millis(),1,true);return;}
   if(!sensorAdc->adc0->checkPin(micPin)){AudioRecovery::fail(millis(),5,true);return;}
   audioRead = audioWrite = 0; microphoneSampleCount = 0; frameActivity = false;
+#if PROTOGEN_AUDIO_V2
+  resetMicrophoneDetector();
+#endif
   audioBiasReady = false; handledAudioDrops = audioDroppedSamples;
   audioPriming = true; AudioRecovery::healthyRun=0;
   audioRailRun=0;lastAudioWrite=audioWrite;audioProgressAt=millis();
@@ -96,26 +111,51 @@ void startMicrophone() {
 }
 
 void processMicrophoneSample(float sample, uint32_t now) {
+#if PROTOGEN_AUDIO_V2
+  if (!calibratingAudio) {
+    vReal[microphoneSampleCount] = sample;
+    vImag[microphoneSampleCount] = 0;
+    ++microphoneSampleCount;
+    if (audioDetector.sample(static_cast<uint16_t>(sample), audioSettings())) {
+      microphoneSampleCount = 0;
+      ++audioFrames;
+      const auto features = audioDetector.snapshot();
+      speakingActive = features.speech;
+      if (speakingActive && config.mouthMode == 0) fft();
+      noiseFloor = features.noise;
+      audioGate = features.gate;
+      smoothedEnvelope = features.envelope;
+      mouthAperture = features.aperture;
+    }
+    return;
+  }
+#endif
   if (!audioBiasReady) { filterDCComponent = sample; audioBiasReady = true; }
   filterDCComponent = sample * 0.01f + filterDCComponent * 0.99f;
   const int amplitude = static_cast<int>(fabsf(sample - filterDCComponent));
   total -= readings[readIndex]; readings[readIndex] = amplitude; total += amplitude;
   if (++readIndex >= numReadings) readIndex = 0;
   average = total / numReadings;
+#if !PROTOGEN_AUDIO_V2
   const float coefficient = average > smoothedEnvelope ? attackCoefficient : releaseCoefficient;
   smoothedEnvelope += (average - smoothedEnvelope) * coefficient;
   const float adaptiveGate = noiseFloor * 2.0f + config.noiseMargin;
   audioGate = adaptiveGate > config.sensitivity ? adaptiveGate : config.sensitivity;
   // Latch every threshold crossing, including bursts early in the FFT frame.
   if (!calibratingAudio && average > audioGate) frameActivity = true;
+#endif
   if (calibratingAudio) {
     calibrationTotal += average;
     if (++calibrationSamples >= samplingFrequencyHz / 2) {
       noiseFloor = calibrationTotal / calibrationSamples;
       config.noiseFloor = static_cast<uint16_t>(noiseFloor);
       calibratingAudio = false; frameActivity = false;
+#if PROTOGEN_AUDIO_V2
+      resetMicrophoneDetector();
+#endif
     }
   }
+#if !PROTOGEN_AUDIO_V2
   vReal[microphoneSampleCount] = sample; vImag[microphoneSampleCount] = 0;
   if (++microphoneSampleCount == samples) {
     microphoneSampleCount = 0; ++audioFrames;
@@ -128,6 +168,9 @@ void processMicrophoneSample(float sample, uint32_t now) {
     }
     frameActivity = false;
   }
+#else
+  (void)now;
+#endif
 }
 #endif
 
@@ -158,6 +201,9 @@ void microphone() {
     // Queued data straddles a gap: discard it rather than FFT unevenly spaced samples.
     noInterrupts(); audioRead = audioWrite; handledAudioDrops = audioDroppedSamples; interrupts();
     microphoneSampleCount = 0; frameActivity = false; audioBiasReady = false;
+#if PROTOGEN_AUDIO_V2
+    resetMicrophoneDetector();
+#endif
     memset(readings, 0, sizeof(readings)); readIndex = total = average = 0;
     if (calibratingAudio) { calibrationSamples = 0; calibrationTotal = 0; }
   }
@@ -168,6 +214,7 @@ void microphone() {
     audioRead = static_cast<uint16_t>(read + 1);
     processMicrophoneSample(sample, now);
   }
+#if !PROTOGEN_AUDIO_V2
   if (speakingActive && now - speakingDelay >= Settings::SpeakingHoldMs && average <= audioGate) {
     speakingActive = false;
   }
@@ -175,6 +222,7 @@ void microphone() {
   if (level < 0) level = 0;
   if (level > 1) level = 1;
   mouthAperture = speakingActive ? static_cast<uint8_t>(1 + level * 2) : 0;
+#endif
 #endif
 }
 
@@ -188,6 +236,9 @@ void pauseMicrophone() {
   frameActivity = false; audioBiasReady = false; speakingActive = false;
   memset(readings, 0, sizeof(readings)); readIndex = total = average = 0;
   smoothedEnvelope = 0; mouthAperture = 0;
+#if PROTOGEN_AUDIO_V2
+  resetMicrophoneDetector();
+#endif
   calibratingAudio = false; calibrationSamples = 0; calibrationTotal = 0;
 #endif
 }

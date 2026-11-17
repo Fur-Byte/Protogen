@@ -4,10 +4,11 @@ ROOT := ../..
 SKETCH := $(ROOT)/firmware/PROT_OS7_MAX7219
 ARDUINO_FFT_SRC ?= $(HOME)/Documents/Arduino/libraries/arduinoFFT/src
 BUILD := $(ROOT)/build/twin
-CORE := $(SKETCH)/src/BehaviorCore/BehaviorCore.cpp $(SKETCH)/src/BehaviorCore/AnimationV2.cpp $(SKETCH)/src/BehaviorCore/Timeline.cpp
+CORE := $(SKETCH)/src/BehaviorCore/BehaviorCore.cpp $(SKETCH)/src/BehaviorCore/AnimationV2.cpp $(SKETCH)/src/BehaviorCore/Timeline.cpp $(SKETCH)/src/AudioV2/AudioV2.cpp
 PROTOGEN_HOST_SANITIZERS ?= address,undefined
+MICROPHONE ?= -DMicrophone
 FLAGS := $(EXTRA_FLAGS) -std=c++17 -g -O1 -Wall -Wextra -Werror -fsanitize=$(PROTOGEN_HOST_SANITIZERS) -fno-sanitize-recover=all \
-  -DARDUINO=10819 -DARDUINO_TEENSY40 -DMicrophone -DBoopSensor -DVisorSensor -DWirelessPaw \
+  -DARDUINO=10819 -DARDUINO_TEENSY40 $(MICROPHONE) -DBoopSensor -DVisorSensor -DWirelessPaw \
   -I"$(ROOT)/scripts/tests/stubs" -I"$(SKETCH)" -I"$(ARDUINO_FFT_SRC)"
 .PHONY: all
 all: $(BUILD)/twin
@@ -39,4 +40,24 @@ $(BUILD)/animation-v2-unit: ../tests/animation-v2.cpp $(CORE) $(wildcard $(SKETC
 	  -fsanitize=$(PROTOGEN_HOST_SANITIZERS) -fno-sanitize-recover=all \
 	  -I"$(SKETCH)/src/BehaviorCore" "$<" $(CORE) -o "$@"
 $(BUILD)/animation-v2-visual: ../tests/animation-v2-visual.cpp $(BUILD)/fft.o $(wildcard $(SKETCH)/*.ino $(SKETCH)/*.h $(SKETCH)/src/*/*.h $(ROOT)/scripts/tests/stubs/*.h) ../tests/sketch.h $(CORE) Makefile
+	$(CXX) $(FLAGS) "$<" "$(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp" $(CORE) "$(BUILD)/fft.o" -o "$@"
+
+.PHONY: audio-corpus
+audio-corpus: $(BUILD)/audio-corpus
+$(BUILD)/audio-corpus: ../tests/audio-corpus.cpp $(BUILD)/fft.o $(wildcard $(SKETCH)/*.ino $(SKETCH)/*.h $(SKETCH)/src/*/*.h) ../tests/sketch.h $(CORE) Makefile
+	$(CXX) $(FLAGS) "$<" "$(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp" $(CORE) "$(BUILD)/fft.o" -o "$@"
+
+.PHONY: audio-v2-unit
+audio-v2-unit: $(BUILD)/audio-v2-unit
+	"$<"
+$(BUILD)/audio-v2-unit: ../tests/audio-v2-unit.cpp $(SKETCH)/src/AudioV2/AudioV2.cpp $(SKETCH)/src/AudioV2/AudioV2.h Makefile | $(BUILD)
+	$(CXX) $(FLAGS) -I"$(SKETCH)/src/AudioV2" "$<" "$(SKETCH)/src/AudioV2/AudioV2.cpp" -o "$@"
+
+AUDIO_TEST_SOURCES := $(BUILD)/fft.o $(wildcard $(SKETCH)/*.ino $(SKETCH)/*.h $(SKETCH)/src/*/*.h $(ROOT)/scripts/tests/stubs/*.h) ../tests/sketch.h $(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp $(CORE) Makefile
+.PHONY: audio-profile microphone-recovery
+audio-profile: $(BUILD)/audio-profile
+microphone-recovery: $(BUILD)/microphone-recovery
+$(BUILD)/audio-profile: ../tests/audio-profile.cpp $(AUDIO_TEST_SOURCES) $(TIMELINE_HEADER)
+	$(CXX) $(FLAGS) $(if $(TIMELINE_HEADER),-I"$(dir $(TIMELINE_HEADER))") "$<" "$(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp" $(CORE) "$(BUILD)/fft.o" -o "$@"
+$(BUILD)/microphone-recovery: ../tests/microphone-recovery.cpp $(AUDIO_TEST_SOURCES)
 	$(CXX) $(FLAGS) "$<" "$(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp" $(CORE) "$(BUILD)/fft.o" -o "$@"
