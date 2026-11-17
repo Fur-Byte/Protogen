@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "three-channel",
+  "name": "Side glance and squint",
+  "duration_ms": 5200,
+  "initial": {"expression": 0, "natural_blinks": false, "idle_motion": false, "cosmetic_seed": 19, "audio": 0},
+  "events": [
+    {"at_ms": 16, "duration_ms": 4000, "region": "left", "channel": "x", "from": -2, "to": 2, "easing": "in-out", "priority": 4},
+    {"at_ms": 16, "duration_ms": 4000, "region": "left", "channel": "lid", "from": 3, "to": 3, "easing": "linear", "priority": 4},
+    {"at_ms": 16, "duration_ms": 4000, "region": "left", "channel": "sprite", "from": 2, "to": 2, "easing": "linear", "priority": 4},
+    {"at_ms": 224, "duration_ms": 400, "region": "left", "channel": "y", "from": 1, "to": -1, "easing": "settle", "priority": 4},
+    {"at_ms": 4224, "duration_ms": 352, "region": "full", "channel": "squint", "from": 4, "to": 0, "easing": "settle", "priority": 3}
+  ]
+}

@@ -17,7 +17,7 @@ NUMERIC_BOUNDS = {
     "audio": (0, 1023), "sensor-stall": (0, 1), "audio-stall": (0, 1),
     "hold": (1, 120_000_000), "disconnect": (0, 1), "usb-disconnect": (0, 1),
     "short-write": (0, 32), "power-cut-after": (0, 1080), "hello": (1, 2**32 - 1),
-    "expression": (0, 5), "duplicate": (0, 0),
+    "expression": (0, 5), "duplicate": (0, 0), "timeline-cancel": (0, 0),
 }
 METRICS = (
     "inputs_processed", "loops", "adc_samples", "uart_wire_in_peak", "uart_wire_out_peak",
@@ -85,10 +85,11 @@ def encode(replay, reference=False):
     return "\n".join(lines) + "\n"
 
 
-def execute(replay, reference=False):
+def execute(replay, reference=False, *, program=None, asset=None):
     encoded = encode(replay, reference)
     start = time.monotonic()
-    result = subprocess.run([str(PROGRAM)], input=encoded, text=True, capture_output=True, timeout=120)
+    command = [str(program or PROGRAM)] + ([str(asset)] if asset is not None else [])
+    result = subprocess.run(command, input=encoded, text=True, capture_output=True, timeout=120)
     runtime = time.monotonic() - start
     if result.returncode:
         raise ValueError(f"runner exited {result.returncode}: {result.stderr.strip()}")

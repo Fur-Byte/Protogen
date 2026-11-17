@@ -7,6 +7,14 @@
 static_assert(PROTOGEN_ANIMATION_V2 == 0 || PROTOGEN_ANIMATION_V2 == 1,
               "Animation V2 must be 0 or 1.");
 
+#ifndef PROTOGEN_ANIMATION_TIMELINES
+#define PROTOGEN_ANIMATION_TIMELINES 0
+#endif
+static_assert(PROTOGEN_ANIMATION_TIMELINES == 0 || PROTOGEN_ANIMATION_TIMELINES == 1,
+              "Animation timelines must be 0 or 1.");
+static_assert(!PROTOGEN_ANIMATION_TIMELINES || PROTOGEN_ANIMATION_V2,
+              "Animation timelines require Animation V2.");
+
 #if PROTOGEN_ANIMATION_V2
 namespace Behavior::Animation {
 
@@ -28,6 +36,26 @@ struct Request {
   uint16_t duration;
   int8_t from, to;
 };
+
+constexpr bool valid(const Request &r) {
+  if (r.region > Region::FullFace || r.motion > Motion::MouthAperture ||
+      r.priority > MaxPriority || r.easing > Easing::Settle || r.duration > MaxDurationMs)
+    return false;
+  const bool mouth = r.motion == Motion::MouthAperture;
+  if (r.region != Region::FullFace && (r.region == Region::Mouth) != mouth) return false;
+  int low = 0, high = 0;
+  switch (r.motion) {
+    case Motion::Gaze: low = -MaxHorizontal; high = MaxHorizontal; break;
+    case Motion::Vertical: low = -MaxVertical; high = MaxVertical; break;
+    case Motion::Lid: high = 8; break;
+    case Motion::Squint: high = 4; break;
+    case Motion::Expression:
+      if (r.from != r.to) return false;
+      high = 5; break;
+    case Motion::MouthAperture: high = 3; break;
+  }
+  return r.from >= low && r.from <= high && r.to >= low && r.to <= high;
+}
 
 struct Handle {
   uint8_t slot = Capacity;
@@ -65,11 +93,18 @@ class Table {
   bool active(unsigned slot) const { return (activeMask & (1u << slot)) != 0; }
   void deactivate(unsigned slot) { activeMask &= static_cast<uint8_t>(~(1u << slot)); }
   void rebaseOrder();
+#if PROTOGEN_ANIMATION_TIMELINES
+  Selection select(Region region, const Motion *channel, uint32_t now) const;
+#endif
 
 public:
   // Initial order is injectable for boundary tests. Production starts at zero.
   explicit constexpr Table(uint32_t initialOrder = 0) : nextOrder(initialOrder) {}
   Start start(uint32_t now, Request request);
+#if PROTOGEN_ANIMATION_TIMELINES
+  Start startAt(uint32_t now, uint32_t at, Request request);
+  Selection resolveChannel(Region region, Motion channel, uint32_t now) const;
+#endif
   bool cancel(Handle handle);
   void expire(uint32_t now);
   Selection resolve(Region region, uint32_t now) const;
