@@ -12,6 +12,7 @@ import uuid
 from uart_key import compiler_options, validate_uart_key_flags
 
 FQBN = "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std"
+SOURCE_DIRECTORIES = ("firmware", "scripts", "tools", "profiles")
 
 
 def find_cli():
@@ -27,7 +28,7 @@ def find_cli():
 
 def source_identity(root):
     files = {}
-    for directory in ("firmware", "scripts", "tools", "profiles"):
+    for directory in SOURCE_DIRECTORIES:
         for path in sorted((root / directory).rglob("*")):
             relative = path.relative_to(root).as_posix()
             if (path.is_file() and relative != "firmware/esp32/compile_commands.json"
@@ -36,21 +37,81 @@ def source_identity(root):
     lock = root / "toolchain.lock.json"
     if lock.is_file():
         files[lock.name] = hashlib.sha256(lock.read_bytes()).hexdigest()
-    digest = hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    return {"sha256": digest, "files": files}
+    return {"sha256": source_digest(files), "files": files}
+
+
+def source_digest(files):
+    return hashlib.sha256(json.dumps(files, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _git_reader(root):
+    # Read the checkout's own index and objects, including from linked worktrees.
+    relocated = {"GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE",
+                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+                 "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT"}
+    env = {key: value for key, value in os.environ.items() if key not in relocated}
+
+    def read(*args):
+        result = subprocess.run(
+            ["git", "--no-replace-objects", "-c", "core.fsmonitor=false", *args],
+            cwd=root, env=env, capture_output=True, check=True)
+        return os.fsdecode(result.stdout)
+
+    return read
 
 
 def git_identity(root):
-    def read(*args):
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, check=True)
-        return result.stdout.decode(errors="backslashreplace")
-
+    read = _git_reader(root)
     try:
-        head = read("rev-parse", "HEAD").strip()
-        status = read("status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0")[:-1]
-    except (OSError, subprocess.CalledProcessError):
+        if Path(read("rev-parse", "--show-toplevel").removesuffix("\n")).resolve() != root.resolve():
+            raise ValueError("Expected the Git checkout root")
+        head = read("rev-parse", "--verify", "HEAD^{commit}").strip()
+        status = read("status", "--porcelain=v1", "-z", "--untracked-files=all",
+                      "--ignore-submodules=none").split("\0")[:-1]
+    except (OSError, ValueError, subprocess.CalledProcessError):
         return {"git_head": None, "working_tree_dirty": None, "git_status_porcelain": None}
     return {"git_head": head, "working_tree_dirty": bool(status), "git_status_porcelain": status}
+
+
+def release_source(root, required_files=()):
+    """Verify Git cleanliness and exclude ignored inputs from release evidence."""
+    identity = git_identity(root)
+    if not identity["git_head"]:
+        raise ValueError("Cannot identify the source Git checkout and commit")
+    if identity["working_tree_dirty"]:
+        raise ValueError("Git source checkout is dirty; commit or remove local changes before packaging")
+    read = _git_reader(root)
+    try:
+        tracked = read("ls-files", "-v", "--stage", "-z").split("\0")[:-1]
+        ignored = read("ls-files", "--others", "--ignored", "--exclude-standard", "-z", "--",
+                       *SOURCE_DIRECTORIES, "toolchain.lock.json").split("\0")[:-1]
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError("Cannot identify tracked and ignored Git source inputs") from error
+    tracked_source = set()
+    regular_files = set()
+    source_prefixes = tuple(directory + "/" for directory in SOURCE_DIRECTORIES)
+    for entry in tracked:
+        metadata, name = entry.split("\t", 1)
+        flag, mode, _, _ = metadata.split()
+        if flag != "H":
+            raise ValueError("Cannot verify Git checkout with hidden index entries")
+        if mode in ("100644", "100755"):
+            regular_files.add(name)
+        if name == "toolchain.lock.json" or name.startswith(source_prefixes):
+            tracked_source.add(name)
+    if not (tracked_source | set(required_files)) <= regular_files:
+        raise ValueError("Release inputs must be regular tracked files")
+    for name in ignored:
+        path = Path(name)
+        cache = path.parts[0] in ("scripts", "tools") and "__pycache__" in path.parts and path.suffix == ".pyc"
+        if not (cache or name == "firmware/esp32/compile_commands.json"):
+            raise ValueError("Ignored files within source directories must be removed before packaging")
+    source = source_identity(root)
+    if set(source["files"]) != tracked_source:
+        raise ValueError("Build source inventory differs from tracked Git source files")
+    if git_identity(root) != identity:
+        raise ValueError("Git source changed while identifying release inputs")
+    return identity["git_head"], source
 
 
 def write_json(path, value):
@@ -92,6 +153,14 @@ def check_toolchain(root, cli):
     return {"cli": str(cli), "arduino_cli": version, "platform": expected,
             "libraries": locked["libraries"], "bundled_libraries": locked["bundled_libraries"],
             "bundled_source_libraries": locked.get("bundled_source_libraries", {}), "fqbn": FQBN}
+
+
+def locked_library_versions(toolchain, features):
+    versions = {name: version for name, version in toolchain["libraries"].items()
+                if name != "arduinoFFT" or "Microphone" in features}
+    if set(features) & {"Microphone", "BoopSensor", "VisorConnector"}:
+        versions.update(toolchain["bundled_libraries"])
+    return versions
 
 
 def memory_metrics(output):
@@ -217,10 +286,7 @@ class BuildRun:
                             filename: hashlib.sha256((Path(library) / filename).read_bytes()).hexdigest()
                             for filename in files if (Path(library) / filename).is_file()}}
             result["selected_libraries"] = resolved
-            expected = {name: version for name, version in self.record["toolchain"]["libraries"].items()
-                        if name != "arduinoFFT" or "Microphone" in features}
-            if set(features) & {"Microphone", "BoopSensor", "VisorConnector"}:
-                expected.update(self.record["toolchain"]["bundled_libraries"])
+            expected = locked_library_versions(self.record["toolchain"], features)
             problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
             problems += [name for name, files in self.record["toolchain"].get("bundled_source_libraries", {}).items()
                          if resolved.get(name, {}).get("source_sha256") != files]
@@ -241,6 +307,9 @@ class BuildRun:
             valid = False
         if "source" in self.record and source_identity(self.root) != self.record["source"]:
             error = "Source changed during this run; rerun for current evidence"
+        if self.kind == "build" and "git_head" in self.record and any(
+                self.record[key] != value for key, value in git_identity(self.root).items()):
+            error = "Git checkout changed during this run; rerun for current evidence"
         self.record["state"] = "failed" if error or not valid else "success"
         self.record["finished_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         if error:
