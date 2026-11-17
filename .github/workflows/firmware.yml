@@ -63,6 +63,17 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-behavior-parity.py --deep
+      - name: Animation V2 scheduling, independent visuals and dirty SPI
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-animation-v2.py
+      - name: Extended Animation V2 replay stress
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-animation-v2.py --deep
       - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
@@ -104,6 +115,7 @@ jobs:
             build/mutation-evidence/
             build/flight-evidence/
             build/p4-evidence/
+            build/p5-evidence/
             build/matrix-*-esp32/
             build/twin/*.json
             build/twin/*.log
@@ -149,7 +161,7 @@ jobs:
         shell: bash
         run: |
           source build/toolchains/environment.sh
-          python3 scripts/check-behavior-build.py
+          python3 scripts/check-behavior-build.py --animation-v2 --output build/p5-evidence/target.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -158,5 +170,5 @@ jobs:
             build/runs/**/manifest.json
             build/runs/**/compile.log
             build/flight-evidence/
-            build/p4-evidence/target.json
+            build/p5-evidence/target.json
             build/toolchains/lock.json

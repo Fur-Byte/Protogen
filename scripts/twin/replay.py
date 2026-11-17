@@ -71,6 +71,12 @@ def encode(replay, reference=False):
             if not isinstance(value, str) or not re.fullmatch(r"(?:[a-fA-F0-9]{2}){1,2048}", value):
                 raise ValueError(f"event {sequence}: UART value must be 1–2048 bytes in hex")
             argument = value.lower()
+        elif operation in ("v2-track", "v2-cancel"):
+            bounds = ((0, 3), (0, 5), (0, 7), (0, 4), (0, 65535), (-8, 8), (-8, 8)) if operation == "v2-track" else ((0, 7), (1, 2**32 - 1))
+            if not isinstance(value, list) or len(value) != len(bounds):
+                raise ValueError(f"event {sequence}: {operation} expects {len(bounds)} numeric fields")
+            argument = ",".join(str(integer(number, *limits, f"event {sequence} field {index}"))
+                                for index, (number, limits) in enumerate(zip(value, bounds)))
         elif isinstance(operation, str) and operation in NUMERIC_BOUNDS:
             argument = integer(value, *NUMERIC_BOUNDS[operation], f"event {sequence} argument")
         else:
@@ -113,14 +119,19 @@ def digest(path):
 
 
 def main():
+    global PROGRAM
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
+    parser.add_argument("--animation-v2", action="store_true", help="use build/twin-v2/twin")
     parser.add_argument("--reference", action="store_true")
     parser.add_argument("--expect", type=Path, help="compare with explicitly supplied expected TSV")
     parser.add_argument("--trace", type=Path, help="save actual trace")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     command = f"python3 scripts/twin/replay.py {str(args.input)!r}"
+    if args.animation_v2:
+        PROGRAM = ROOT / "build/twin-v2/twin"
+        command += " --animation-v2"
     if args.reference:
         command += " --reference"
     if args.expect:
@@ -157,6 +168,8 @@ def main():
                 "execution": "reference" if args.reference else "accelerated",
                 "metrics": metrics,
             }
+            if args.animation_v2:
+                identity["animation_v2"] = True
             args.report.write_text(json.dumps(identity, indent=2) + "\n")
     except (ValueError, OSError, subprocess.SubprocessError) as error:
         parser.exit(1, f"{error}\nReproduce: {command}\n")

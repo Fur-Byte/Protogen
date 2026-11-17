@@ -81,6 +81,9 @@ ResponseTiming responseTiming;
 Face::Pose displayedPose;
 uint32_t localCommandSequence=0, usbCommandSequence=0;
 Face::Frame responseBaseline;
+#if PROTOGEN_ANIMATION_V2
+uint8_t responseSourceLeft = 0, responseSourceRight = 0;
+#endif
 uint32_t blinkFallbacks=0;
 bool brightnessBoostActive = false;
 uint32_t brightnessBoostAt = 0, brightnessBoostMs = 0;
@@ -158,6 +161,9 @@ void loop() {
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
   behavior.expireBoop(now, config.boopDuration);
   if (behavior.sleeping || !visorVisible || !displayReady || !connectorReady) {
+#if PROTOGEN_ANIMATION_V2
+    behavior.advanceMotion(now);
+#endif
     if (!displayBlanked) {
       matrix.shutdown(true);
       if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&responseTiming.target&&
@@ -232,13 +238,24 @@ void observeExpressionResponse(const Face::Pose &pose, const Face::AudioSnapshot
   if(!responseTiming.pending||displayBlanked)return;
   if(responseTiming.action==ResponseTiming::Visibility)return;
   const bool boop=responseTiming.action==ResponseTiming::Boop;
-  if(boop!=pose.boop||(!boop&&pose.expression!=responseTiming.target&& !behavior.transitionActive)) {
+#if PROTOGEN_ANIMATION_V2
+  const bool intendedArt = pose.showsExpression(responseTiming.target);
+#else
+  const bool intendedArt = pose.expression == responseTiming.target;
+#endif
+  if(boop!=pose.boop||(!boop&&!intendedArt&& !behavior.transitionActive)) {
     responseTiming.delay();return;
   }
   if(!boop&&behavior.expression!=responseTiming.target)return;
   Face::Pose source=pose;source.boop=false;source.expression=responseTiming.source;
+#if PROTOGEN_ANIMATION_V2
+  if (!boop) {
+    source.leftEye.expressionOverride = responseSourceLeft;
+    source.rightEye.expressionOverride = responseSourceRight;
+  }
+#endif
   Face::Frame old;Face::compose(old,source,spectrum);
-  const bool target=boop||pose.expression==responseTiming.target;
+  const bool target=boop||intendedArt;
   const bool onset=target&&(responseEyesDiffer(displayedFrame,old)||
     (responseTiming.source==responseTiming.target&&responseEyesPresent(displayedFrame)));
   const bool feedback=responseEyesDiffer(displayedFrame,responseBaseline);
@@ -262,7 +279,11 @@ void renderFrame(uint32_t now, Face::AudioSnapshot &spectrum) {
 #else
   const uint8_t aperture = 0;
 #endif
-  const auto pose = behavior.poseAt(now, config, speakingActive, aperture, Settings::EarlyExpressionReveal);
+  const auto pose = behavior.poseAt(now, config, speakingActive, aperture, Settings::EarlyExpressionReveal
+#if PROTOGEN_ANIMATION_V2
+      , responseTiming.pending
+#endif
+  );
   captureSpectrum(spectrum, pose.speaking, pose.mouthMode);
   if (PROTOGEN_CACHE_FACE && frameValid && visualCache.unchanged(pose, spectrum)) {
     Efficiency::increment(renderMetrics.skipped); observeExpressionResponse(pose, spectrum); return;
@@ -295,18 +316,36 @@ void renderFace(uint32_t now) {
 void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Origin origin,uint32_t id,uint32_t receivedUs) {
   if(expression>=ExpressionCount)return;
   if(expression==behavior.expression) {responseTiming.skip(id,origin);return;}
-  const uint8_t source=frameValid?displayedPose.expression:behavior.expression;
+  uint8_t source=frameValid?displayedPose.expression:behavior.expression;
   const uint8_t closure=frameValid?displayedPose.closure:behavior.blinkClosure;
+#if PROTOGEN_ANIMATION_V2
+  const bool emitted = frameValid && !displayedPose.boop;
+  responseSourceLeft = emitted ? displayedPose.eyeExpression(displayedPose.leftEye) : source;
+  responseSourceRight = emitted ? displayedPose.eyeExpression(displayedPose.rightEye) : source;
+  if (responseSourceLeft == responseSourceRight) source = responseSourceLeft;
+#endif
   responseBaseline=displayedFrame;
   responseTiming.start(id,receivedUs,origin,ResponseTiming::Expression,source,expression);
-  if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)) {
+  if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)
+#if PROTOGEN_ANIMATION_V2
+      && displayedPose.showsExpression(expression)
+#endif
+  ) {
     // Reversing to artwork that is still on screen has zero target-onset delay;
     // the record explicitly distinguishes this from newly revealed pixels.
     responseTiming.targetAlreadyVisible=true;responseTiming.onset=true;
   }
   behavior.expression=expression;resetAnimations(now);behavior.rising=true;
+#if PROTOGEN_ANIMATION_V2
+  behavior.requestSettle(now);
+#endif
   if (behavior.canTransition(visorVisible, config.transitionMs)) {
-    behavior.beginTransition(now, source, closure);
+    behavior.beginTransition(now, source, closure
+#if PROTOGEN_ANIMATION_V2
+        , emitted ? displayedPose.leftEye : Behavior::EyeMotion{},
+          emitted ? displayedPose.rightEye : Behavior::EyeMotion{}
+#endif
+    );
   } else if(behavior.sleeping||!visorVisible||behavior.boopActive||!displayReady||!connectorReady) responseTiming.delay();
 }
 void selectExpression(uint8_t expression, uint32_t now) {

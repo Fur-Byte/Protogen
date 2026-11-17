@@ -2,14 +2,32 @@
 
 #include "../../BlinkTiming.h"
 #include "../../Configuration.h"
+#include "AnimationV2.h"
 
 namespace Behavior {
 
+#if PROTOGEN_ANIMATION_V2
+struct EyeMotion {
+  int8_t x = 0, y = 0;
+  uint8_t closure = 0;
+  int8_t expressionOverride = -1;
+};
+#endif
 struct Pose {
   uint8_t expression = ExpressionHappy;
   bool boop = false, speaking = false;
   uint8_t closure = 0, glitch = 0, mouthMode = 0, aperture = 0;
   int8_t eyeOffset = 0;
+#if PROTOGEN_ANIMATION_V2
+  EyeMotion leftEye, rightEye;
+  int8_t mouthOverride = -1;
+  uint8_t eyeExpression(const EyeMotion &eye) const {
+    return eye.expressionOverride < 0 ? expression : static_cast<uint8_t>(eye.expressionOverride);
+  }
+  bool showsExpression(uint8_t target) const {
+    return eyeExpression(leftEye) == target && eyeExpression(rightEye) == target;
+  }
+#endif
 };
 
 struct TransitionPose {
@@ -34,6 +52,19 @@ struct Core {
   bool blinkState = false, blinkRandomPending = false, blinkDoublePending = false;
   bool transitionActive = false, transitionVisiblePending = false;
 
+#if PROTOGEN_ANIMATION_V2
+  Animation::Table animations{};
+  Animation::Handle settleTrack;
+  EyeMotion transitionLeftOrigin, transitionRightOrigin;
+  uint32_t settleRequestedAt = 0;
+  bool settlePending = false;
+  void requestSettle(uint32_t now);
+  void advanceMotion(uint32_t now);
+  // V2 samples on the existing frame cadence, including the legacy feedback
+  // window. It never requests a separate or faster render opportunity.
+  uint32_t nextVisualDeadline() const { return lastFrameTime + (transitionVisiblePending ? 2u : 16u); }
+#endif
+
   void resetAnimationAt(uint32_t now);
   void scheduleBlink(const RuntimeConfig &config, uint32_t sampledNow);
   void acceptBlinkWord(uint32_t word);
@@ -49,9 +80,17 @@ struct Core {
   bool wantsLocalBoop() const { return boopState && boopArmed && !boopActive; }
   bool releaseHeldBoop(uint16_t mode);
   bool canTransition(bool visorVisible, uint16_t duration) const;
-  void beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t displayedClosure);
+  void beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t displayedClosure
+#if PROTOGEN_ANIMATION_V2
+                       , EyeMotion leftOrigin = {}, EyeMotion rightOrigin = {}
+#endif
+                       );
   Pose poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint8_t aperture,
-              bool earlyReveal);
+              bool earlyReveal
+#if PROTOGEN_ANIMATION_V2
+              , bool legacyObservationPending = false
+#endif
+              );
   bool frameDue(uint32_t now, bool waking) const;
   void commitFrameTime(uint32_t now);
 };
