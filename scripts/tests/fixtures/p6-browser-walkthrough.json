@@ -1,0 +1,77 @@
+{
+  "cancel": "release",
+  "completion": "release",
+  "duration_ms": 5200,
+  "events": [
+    {
+      "at_ms": 16,
+      "channel": "x",
+      "duration_ms": 4000,
+      "easing": "in-out",
+      "from": -2,
+      "priority": 4,
+      "region": "left",
+      "to": 2
+    },
+    {
+      "at_ms": 16,
+      "channel": "lid",
+      "duration_ms": 4000,
+      "easing": "linear",
+      "from": 3,
+      "priority": 4,
+      "region": "left",
+      "to": 3
+    },
+    {
+      "at_ms": 16,
+      "channel": "sprite",
+      "duration_ms": 4000,
+      "easing": "linear",
+      "from": 2,
+      "priority": 4,
+      "region": "left",
+      "to": 2
+    },
+    {
+      "at_ms": 16,
+      "channel": "x",
+      "duration_ms": 160,
+      "easing": "out",
+      "from": -1,
+      "priority": 5,
+      "region": "right",
+      "to": 2
+    },
+    {
+      "at_ms": 224,
+      "channel": "y",
+      "duration_ms": 400,
+      "easing": "settle",
+      "from": 1,
+      "priority": 4,
+      "region": "left",
+      "to": -1
+    },
+    {
+      "at_ms": 4224,
+      "channel": "squint",
+      "duration_ms": 352,
+      "easing": "settle",
+      "from": 4,
+      "priority": 3,
+      "region": "full",
+      "to": 0
+    }
+  ],
+  "id": "p6-browser-walkthrough",
+  "initial": {
+    "audio": 0,
+    "cosmetic_seed": 19,
+    "expression": 0,
+    "idle_motion": false,
+    "natural_blinks": false
+  },
+  "name": "Browser walkthrough",
+  "version": 1
+}
