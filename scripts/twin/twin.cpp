@@ -2,6 +2,9 @@
 #include "../tests/sketch.h"
 
 #include <algorithm>
+#if PROTOGEN_ANIMATION_TIMELINES
+#include <fstream>
+#endif
 #include <iomanip>
 #include <limits>
 #include <sstream>
@@ -175,6 +178,15 @@ void animationInput(const Event &event) {
 #endif
 
 void apply(const Event &event) {
+#if PROTOGEN_ANIMATION_TIMELINES
+  if (event.operation == "timeline-cancel") {
+    lastInput = event.sequence;
+    behavior.cancelTimeline();
+    trace("input");
+    std::cout << "\ttimeline-cancel\t0\n";
+    return;
+  }
+#endif
   lastInput = event.sequence;
   trace("input");
   std::cout << '\t' << event.operation << '\t' << event.argument << '\n';
@@ -277,7 +289,7 @@ void run(uint64_t tick, bool accelerate) {
 }
 }
 
-int main() {
+int main(int argc, char **argv) {
   try {
     uint64_t duration, tick;
     unsigned seed, epoch, accelerated, tapeLength, audioLength;
@@ -300,6 +312,30 @@ int main() {
       const auto bytes = unhex(initial);
       std::copy(bytes.begin(), bytes.end(), EEPROM.bytes.begin());
     }
+#if PROTOGEN_ANIMATION_TIMELINES
+    std::array<uint8_t, Behavior::Timeline::AssetBytes> clip{};
+    const bool timelineMode = argc == 2;
+    if (timelineMode) {
+      std::ifstream stream(argv[1], std::ios::binary);
+      if (!stream.read(reinterpret_cast<char *>(clip.data()), clip.size()) || stream.peek() != EOF ||
+          !Behavior::Timeline::validAsset(clip.data(), clip.size()))
+        throw std::runtime_error("invalid compiled timeline");
+      RuntimeConfig initialConfig;
+      initialConfig.startupExpression = clip[10];
+      initialConfig.naturalBlinks = clip[11];
+      initialConfig.idleMotion = clip[12];
+      if (!saveStoredConfig(initialConfig)) throw std::runtime_error("invalid initial configuration");
+      seed = uint32_t(clip[6]) | uint32_t(clip[7]) << 8 | uint32_t(clip[8]) << 16 | uint32_t(clip[9]) << 24;
+      audioAmplitude = (unsigned(clip[3]) << 8) | clip[13];
+    }
+#else
+    (void)argv;
+#endif
+#if PROTOGEN_ANIMATION_TIMELINES
+    if (argc > 2) throw std::runtime_error("expected one asset");
+#else
+    if (argc != 1) throw std::runtime_error("timeline support disabled");
+#endif
     Event event;
     while (std::cin >> event.time >> event.sequence >> event.operation >> event.argument) {
       if (events.size() == 4096 || event.time > duration ||
@@ -321,6 +357,20 @@ int main() {
     setup();
     if (cursor < events.size() && events[cursor].time < fakeUs)
       throw std::runtime_error("input precedes completion of setup");
+#if PROTOGEN_ANIMATION_TIMELINES
+    if (timelineMode) {
+      // The first opportunity is at the millisecond captured after setup.
+      // Run until a loop that starts at the requested horizon has finished.
+      const uint64_t boot = ((fakeUs + 999) / 1000) * 1000;
+      if (events.size() && events.front().time < boot)
+        throw std::runtime_error("input precedes the timeline origin");
+      advanceTime(boot - fakeUs);
+      horizon += boot - origin;
+      if (!behavior.startTimeline(clip.data(), clip.size(), millis())) throw std::runtime_error("timeline admission failed");
+      trace("timeline-origin");
+      std::cout << '\n';
+    }
+#endif
     adcAdvance = timeAdvanceHook;
     timeAdvanceHook = advanceModel;
     try { run(tick, accelerated); }
@@ -328,6 +378,17 @@ int main() {
       if (EEPROM.writeBudget != 0 || std::string(error.what()) != "simulated power loss") throw;
       trace("power-loss"); std::cout << '\n';
     }
+#if PROTOGEN_ANIMATION_TIMELINES
+    if (timelineMode) {
+      trace("timeline-final");
+      const auto &progress = behavior.timeline.progress();
+      std::cout << '\t' << unsigned(progress.state) << '\t' << progress.next << '\t'
+                << progress.started << '\t' << progress.rejected << '\t' << progress.skipped << '\t';
+      for (unsigned i = 0; i < progress.next; ++i) std::cout << unsigned(progress.outcomes[i]);
+      std::cout << '\t' << SPI.shutdown << '\t' << SPI.transactions << '\t' << SPI.bytes
+                << '\t' << renderMetrics.compositions << '\t' << renderMetrics.skipped << '\n';
+    }
+#endif
     trace("eeprom"); hex(EEPROM.bytes.data(), 128); std::cout << '\n';
     trace("totals");
     std::cout << '\t' << cursor << '\t' << loops << '\t' << sampleCount << '\t' << toTeensy.peak

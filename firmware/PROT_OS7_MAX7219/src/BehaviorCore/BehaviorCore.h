@@ -2,7 +2,7 @@
 
 #include "../../BlinkTiming.h"
 #include "../../Configuration.h"
-#include "AnimationV2.h"
+#include "Timeline.h"
 
 namespace Behavior {
 
@@ -54,6 +54,14 @@ struct Core {
 
 #if PROTOGEN_ANIMATION_V2
   Animation::Table animations{};
+#if PROTOGEN_ANIMATION_TIMELINES
+  Timeline::Player timeline;
+  bool startTimeline(const uint8_t *data, size_t size, uint32_t now) {
+    return timeline.start(animations, data, size, now);
+  }
+  void cancelTimeline() { timeline.cancel(animations); }
+  void serviceTimeline(uint32_t now) { timeline.advance(animations, now); }
+#endif
   Animation::Handle settleTrack;
   EyeMotion transitionLeftOrigin, transitionRightOrigin;
   uint32_t settleRequestedAt = 0;

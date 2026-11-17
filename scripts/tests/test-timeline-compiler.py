@@ -20,7 +20,7 @@ class CompilerTests(unittest.TestCase):
         asset = compile_document(source)
         self.assertEqual([e["channel"] for e in asset.document["events"]], ["x", "lid", "x"])
         self.assertEqual(compile_document(asset.document).data, asset.data)
-        self.assertEqual(asset.data[:8].hex(), "0100030060ea0000")
+        self.assertEqual(asset.data[:8].hex(), "0100030060ea1300")
         self.assertEqual(asset.data[16:26].hex(), "0000640000000300fe02")
 
     def test_limits(self):

@@ -7,25 +7,6 @@ namespace Behavior::Animation {
 namespace {
 constexpr uint32_t Scale = 256;
 
-bool valid(const Request &r) {
-  if (r.region > Region::FullFace || r.motion > Motion::MouthAperture ||
-      r.priority > MaxPriority || r.easing > Easing::Settle || r.duration > MaxDurationMs)
-    return false;
-  const bool mouth = r.motion == Motion::MouthAperture;
-  if (r.region != Region::FullFace && (r.region == Region::Mouth) != mouth) return false;
-  int low = 0, high = 0;
-  switch (r.motion) {
-    case Motion::Gaze: low = -MaxHorizontal; high = MaxHorizontal; break;
-    case Motion::Vertical: low = -MaxVertical; high = MaxVertical; break;
-    case Motion::Lid: high = 8; break;
-    case Motion::Squint: high = 4; break;
-    case Motion::Expression:
-      if (r.from != r.to) return false;
-      high = ExpressionCount - 1; break;
-    case Motion::MouthAperture: high = 3; break;
-  }
-  return r.from >= low && r.from <= high && r.to >= low && r.to <= high;
-}
 
 bool affects(const Request &r, Region region) {
   if (region == Region::FullFace) return false;
@@ -69,13 +50,20 @@ void Table::rebaseOrder() {
 }
 
 Start Table::start(uint32_t now, Request request) {
+#if PROTOGEN_ANIMATION_TIMELINES
+  return startAt(now, now, request);
+}
+Start Table::startAt(uint32_t now, uint32_t at, Request request) {
+#else
+  const uint32_t at = now;
+#endif
   if (!valid(request)) return {Admission::Invalid, {}};
   expire(now);
   for (unsigned slot = 0; slot < Capacity; ++slot) {
     auto &track = tracks[slot];
     if (active(slot) || track.generation == UINT32_MAX) continue;
     if (nextOrder == UINT32_MAX) rebaseOrder();
-    track = {now, nextOrder++, track.generation + 1, request};
+    track = {at, nextOrder++, track.generation + 1, request};
     activeMask |= static_cast<uint8_t>(1u << slot);
     return {Admission::Started, {static_cast<uint8_t>(slot), track.generation}};
   }
@@ -101,11 +89,23 @@ void Table::expire(uint32_t now) {
 }
 
 Selection Table::resolve(Region region, uint32_t now) const {
+#if PROTOGEN_ANIMATION_TIMELINES
+  return select(region, nullptr, now);
+}
+Selection Table::resolveChannel(Region region, Motion channel, uint32_t now) const {
+  return select(region, &channel, now);
+}
+Selection Table::select(Region region, const Motion *channel, uint32_t now) const {
+#endif
   unsigned best = Capacity;
   for (unsigned i = 0; activeMask && i < Capacity; ++i) {
     const auto &track = tracks[i];
     if (!active(i) || now - track.at > track.request.duration || !affects(track.request, region))
       continue;
+#if PROTOGEN_ANIMATION_TIMELINES
+    const auto property = track.request.motion == Motion::Squint ? Motion::Lid : track.request.motion;
+    if (channel && property != *channel) continue;
+#endif
     if (best == Capacity || outranks(track.request.priority, track.order, i,
         tracks[best].request.priority, tracks[best].order, best)) best = i;
   }

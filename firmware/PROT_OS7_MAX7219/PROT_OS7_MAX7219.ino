@@ -57,6 +57,12 @@ constexpr RgbColor expressionColors[ExpressionCount] = {
 };
 
 Behavior::Core behavior;
+#if PROTOGEN_ANIMATION_TIMELINES && defined(PROTOGEN_LINK_TIMELINE_ASSET)
+#include "TimelineAsset.h"
+extern "C" __attribute__((used, noinline)) bool protogenStartLinkedTimeline(uint32_t now) {
+  return behavior.startTimeline(ProtogenAsset::clip, sizeof(ProtogenAsset::clip), now);
+}
+#endif
 bool visorVisible = true, displayBlanked = false, displayReady = false;
 bool speakingActive = false;
 #ifdef Microphone
@@ -159,6 +165,9 @@ void loop() {
   P3_TEENSY_CALL(Sensors, serviceSensorAcquisition(now));
   updateVisorConnector(now);
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
+#if PROTOGEN_ANIMATION_TIMELINES
+  behavior.serviceTimeline(now);
+#endif
   behavior.expireBoop(now, config.boopDuration);
   if (behavior.sleeping || !visorVisible || !displayReady || !connectorReady) {
 #if PROTOGEN_ANIMATION_V2

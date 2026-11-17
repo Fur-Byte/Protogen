@@ -211,8 +211,22 @@ Pose Core::poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint
         settlePending = false;
       }
       const int8_t idle = config.idleMotion ? idleGaze((now - blinkTime) % 6000) : 0;
+#if PROTOGEN_ANIMATION_TIMELINES
+      const auto composeEye = [&](EyeMotion &eye, Animation::Region region) {
+        using Animation::Motion;
+        eye.x = idle;
+        constexpr Motion properties[] = {Motion::Gaze, Motion::Vertical, Motion::Lid, Motion::Expression};
+        for (Motion property : properties) {
+          const auto selected = animations.resolveChannel(region, property, now);
+          if (selected.handle) applyEye(eye, selected, idle);
+        }
+      };
+      composeEye(pose.leftEye, Animation::Region::LeftEye);
+      composeEye(pose.rightEye, Animation::Region::RightEye);
+#else
       applyEye(pose.leftEye, animations.resolve(Animation::Region::LeftEye, now), idle);
       applyEye(pose.rightEye, animations.resolve(Animation::Region::RightEye, now), idle);
+#endif
     }
     if (!speaking && !glitchFrame) {
       const auto mouth = animations.resolve(Animation::Region::Mouth, now);

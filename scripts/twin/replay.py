@@ -85,10 +85,11 @@ def encode(replay, reference=False):
     return "\n".join(lines) + "\n"
 
 
-def execute(replay, reference=False):
+def execute(replay, reference=False, *, program=None, asset=None):
     encoded = encode(replay, reference)
     start = time.monotonic()
-    result = subprocess.run([str(PROGRAM)], input=encoded, text=True, capture_output=True, timeout=120)
+    command = [str(program or PROGRAM)] + ([str(asset)] if asset is not None else [])
+    result = subprocess.run(command, input=encoded, text=True, capture_output=True, timeout=120)
     runtime = time.monotonic() - start
     if result.returncode:
         raise ValueError(f"runner exited {result.returncode}: {result.stderr.strip()}")
