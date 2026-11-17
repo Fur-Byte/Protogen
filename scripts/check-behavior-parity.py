@@ -102,6 +102,11 @@ def verify(deep, evidence):
         raise ValueError("unexpected P3 trace provenance")
     replay, _ = load_harness(ROOT)
     evidence.mkdir(parents=True, exist_ok=True)
+    p4 = ROOT / "scripts/tests/fixtures/p4-legacy-traces.json"
+    capture = json.loads(p4.read_text()) if p4.is_file() else None
+    p4_hashes = {(c["case"], c["profile"]): c["trace_sha256"] for c in capture["cases"]} if capture else {}
+    if capture and capture["source_commit"] != "25eef9b4ccf8171338b646a2927f9d8e77aed123":
+        raise ValueError("unexpected P4 trace provenance")
     binaries = {}
     results = []
     for case in data["cases"]:
@@ -126,13 +131,18 @@ def verify(deep, evidence):
                 raise ValueError(f"{name}: expected USB, UART, local admissions in order, got {details}")
         if name.startswith("animation-") and not any(row[7] == "1" for row in replay_rows(trace, "state")):
             raise ValueError(f"{name}: no active speech frames")
+        digest = hashlib.sha256(trace.encode()).hexdigest()
+        if capture and p4_hashes.get((name, profile)) != digest:
+            raise ValueError(f"{name} ({profile}): trace digest differs from the independently captured P4 output")
         results.append({
-            "case": name, "profile": profile, "trace_sha256": hashlib.sha256(trace.encode()).hexdigest(),
+            "case": name, "profile": profile, "trace_sha256": digest,
             "host_metrics": metrics,
         })
     report = {"reference_sha": BASE, "reference_fixture_sha256": hashlib.sha256(FIXTURE.read_bytes()).hexdigest(),
               "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "cases": results}
+    if capture:
+        report["p4_reference_sha"] = capture["source_commit"]
     (evidence / ("deep.json" if deep else "fast.json")).write_text(json.dumps(report, indent=2) + "\n")
     print(f"PASS: {len(results)} byte-exact P3 reference traces, including diagnostic rows")
 

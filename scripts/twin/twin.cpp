@@ -144,6 +144,36 @@ void peer(const Event &event, unsigned value) {
   }
   send(packet);
 }
+#if PROTOGEN_ANIMATION_V2
+void animationInput(const Event &event) {
+  using namespace Behavior::Animation;
+  std::string fields = event.argument;
+  std::replace(fields.begin(), fields.end(), ',', ' ');
+  std::istringstream input(fields);
+  if (event.operation == "v2-cancel") {
+    unsigned slot, generation;
+    if (!(input >> slot >> generation) || slot >= Capacity) throw std::runtime_error("invalid track handle");
+    const bool cancelled = behavior.animations.cancel({static_cast<uint8_t>(slot), generation});
+    trace("v2-cancel");
+    std::cout << '\t' << slot << '\t' << generation << '\t' << cancelled << '\n';
+    return;
+  }
+  unsigned region, motion, priority, easing, duration;
+  int from, to;
+  if (!(input >> region >> motion >> priority >> easing >> duration >> from >> to) ||
+      region > 3 || motion > 5 || priority > 7 || easing > 4 || duration > UINT16_MAX ||
+      from < -8 || from > 8 || to < -8 || to > 8)
+    throw std::runtime_error("invalid track fields");
+  const auto result = behavior.animations.start(millis(), {
+      static_cast<Region>(region), static_cast<Motion>(motion), static_cast<uint8_t>(priority),
+      static_cast<Easing>(easing), static_cast<uint16_t>(duration),
+      static_cast<int8_t>(from), static_cast<int8_t>(to)});
+  trace("v2-track");
+  std::cout << '\t' << unsigned(result.status) << '\t' << unsigned(result.handle.slot)
+            << '\t' << result.handle.generation << '\n';
+}
+#endif
+
 void apply(const Event &event) {
   lastInput = event.sequence;
   trace("input");
@@ -158,6 +188,12 @@ void apply(const Event &event) {
     usbPeak = std::max(usbPeak, static_cast<unsigned>(Serial.input.size()));
     return;
   }
+#if PROTOGEN_ANIMATION_V2
+  if (op == "v2-track" || op == "v2-cancel") {
+    animationInput(event);
+    return;
+  }
+#endif
   const auto value = std::stoul(event.argument);
   if (op == "visor") visorInput = value;
   else if (op == "button") buttonInput = value;
