@@ -15,8 +15,9 @@ no tags, and 11 advertised pull-request refs. The audit included all local refs
 and the fetched P8 synthetic merge ref. Of 91 reachable commits, 80 were
 non-merges. GitHub listed nine merged PRs and one open draft at
 `b72b805cbe29dcd74e4ee852500d50b723e3b145`. That draft contains the P8
-qualification changes and manual virtual soak. It remains separate from this
-branch. [P8 draft](https://github.com/Fur-Byte/Protogen/pull/10)
+qualification changes and manual virtual soak. P8 subsequently landed on
+`main` at `aa37fda`. This PR carries its firmware upload restrictions forward
+onto that baseline. [P8 draft](https://github.com/Fur-Byte/Protogen/pull/10)
 
 | Tracked area at the baseline | Files | Contents and exposure |
 | --- | ---: | --- |
@@ -113,10 +114,10 @@ needs per-job peak RSS, disk and duration measurements first. No new
 four-way job fanout was added.
 [GitHub-hosted runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 
-### P8 draft workflow review
+### P8 workflow review
 
 The P8 version of `firmware.yml` retains the read-only token, checkout controls
-and triggers. The proposed `virtual-soak.yml` is dispatch-only. Typed inputs
+and triggers. `virtual-soak.yml` is dispatch-only. Typed inputs
 flow through environment variables, then the plan parses and bounds the seed
 range and duration. At most 50 two-seed shards run, with four jobs in parallel,
 bounded wall-clock limits and coverage checking. The executed twin comes from
@@ -124,8 +125,9 @@ the build job in the same workflow run. The aggregator reads same-run JSON.
 There is no cross-run artifact selector, token input, privileged deployment or
 persistent shared runner.
 
-Before merging P8, carry forward the revised firmware upload scope. For the soak
-workflow, explicitly bound artifact retention, keep the same-run digest
+The revised firmware upload scope retains P8 reports, replay traces and the two
+named synthetic timeline fixtures. Before enabling the separate soak workflow
+in a public export, explicitly bound artifact retention, keep the same-run digest
 validation, and set an intentional policy for concurrent dispatches. Preserve
 full requested seed coverage and partial evidence on shard failure. Review the
 artwork contained in the twin binary and virtual trace data before enabling this

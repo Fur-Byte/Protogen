@@ -103,6 +103,26 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-audio.py 2>&1 | tee build/p7-evidence/development.log
+      - name: P8 qualification schema, packaging and reset retention
+        shell: bash
+        run: |
+          python3 scripts/tests/test-qualification.py
+          python3 scripts/tests/test-reset-retention.py
+          python3 scripts/qualification.py record --requirement release.provenance --level F1 --environment host \
+            --artifact-root build/p8 --log proof/packaging.log --output build/p8/proof/packaging.json \
+            --limitation "Synthetic manifests and rollback archives" -- python3 scripts/tests/test-release-packaging.py
+      - name: P8 observational supervision and integrated faults
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          make -C scripts/twin BUILD=../../build/twin-p8-experimental \
+            EXTRA_FLAGS='-DPROTOGEN_ANIMATION_V2=1 -DPROTOGEN_ANIMATION_TIMELINES=1 -DPROTOGEN_AUDIO_V2=1 -DVisorConnector'
+          python3 scripts/qualification.py record --requirement host.integration --level F2 --environment host \
+            --artifact-root build/p8 --log proof/faults.log --output build/p8/proof/faults.json \
+            --tool "clang=$(clang++ --version | head -1)" --flag PROTOGEN_AUDIO_V2=0,1 \
+            --limitation "Simulated acquisition, rendering and sensor failures" -- bash -ec '
+              python3 scripts/check-supervision.py
+              python3 scripts/twin/test_soak.py --evidence build/p8/faults --experimental-program build/twin-p8-experimental/twin'
       - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
@@ -113,7 +133,14 @@ jobs:
           python3 scripts/generate-config-metadata.py --check
           bash scripts/test-config-compatibility.sh
           python3 scripts/check-invalid-configurations.py
-          python3 scripts/check-invariant-mutations.py --group full
+          python3 scripts/check-invariant-mutations.py --group fast
+      - name: Extended P8 invariant mutations
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          export CMAKE=cmake CC=clang CXX=clang++
+          python3 scripts/check-invariant-mutations.py --group extended
       - name: Both C3 roles with UART auth on and off
         shell: bash
         run: |
@@ -173,6 +200,15 @@ jobs:
             build/p7-evidence/**/*.log
             build/p7-evidence/**/*.tsv
             build/p7-evidence/**/*.txt
+            build/p8/faults/**/*.json
+            build/p8/faults/**/*.tsv
+            build/p8/faults/timeline.bin
+            build/p8/faults/invalid-timeline.bin
+            build/p8/proof/faults.json
+            build/p8/proof/faults.log
+            build/p8/proof/packaging.json
+            build/p8/proof/packaging.log
+            build/p8/supervision-host.json
             build/matrix-*-esp32/**/*.json
             build/matrix-*-esp32/**/*.log
             build/twin/*.json
@@ -236,6 +272,16 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-audio-profiles.py --target
+      - name: P8 supervisor and flight-recorder target combinations
+        if: matrix.group != 'auth'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/qualification.py record --requirement target.supervision --level F0 --environment target-build \
+            --artifact-root build/p8 --log proof/supervision-target.log --output build/p8/proof/supervision-target.json \
+            --tool arduino-cli=1.5.1 --tool teensy=1.62.0 --tool arduinoFFT=2.0.4 \
+            --flag PROTOGEN_SUPERVISION_OBSERVE=0,1 --flag PROTOGEN_FLIGHT_RECORDER=0,1 \
+            --limitation "Four focused Teensy target builds" -- python3 scripts/check-supervision.py --target
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         # Keep diagnostics for maintainer runs, including failures. Fork PRs still run the checks.
         if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
@@ -252,4 +298,7 @@ jobs:
             build/p5-evidence/target.json
             build/p6-evidence/target.json
             build/p7-evidence/target.json
+            build/p8/proof/supervision-target.json
+            build/p8/proof/supervision-target.log
+            build/p8/supervision-target.json
             build/toolchains/lock.json

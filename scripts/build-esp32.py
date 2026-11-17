@@ -17,8 +17,13 @@ def main():
     pio=os.environ.get("PIO",str(build/"esp32-venv/bin/pio"))
     env=dict(os.environ,PLATFORMIO_CORE_DIR=str(build/"platformio"),IDF_COMPONENT_MANAGER="0")
     locked=json.loads((root/"toolchain.lock.json").read_text())["esp32"]
+    git=git_identity(root)
+    # Local overrides remain available to developers. Record names only so
+    # release packaging can reject these builds without exporting values.
+    overrides=sorted(key for key in env if key.startswith("PLATFORMIO_") and
+                     key != "PLATFORMIO_CORE_DIR" and not key.startswith("PLATFORMIO_SETTING_"))
     record={"state":"running","started_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "source":source_identity(root),**git_identity(root),"platform":locked["platform"],
+            "source":source_identity(root),**git,"platformio_overrides":overrides,"platform":locked["platform"],
             "esp_idf":locked["esp_idf"],"mbedtls":locked["mbedtls"]}
     target=build/"esp32-build.json";write_json(target,record)
     try:
@@ -91,7 +96,7 @@ def main():
             for name in ("firmware.bin","firmware.elf","bootloader.bin","partitions.bin"):
                 path=build/"esp32"/role/name
                 if path.is_file():record["artifacts"][str(path.relative_to(root))]=hashlib.sha256(path.read_bytes()).hexdigest()
-        if source_identity(root)!=record["source"]:
+        if source_identity(root)!=record["source"] or git_identity(root)!=git:
             raise RuntimeError("Sources changed during the run.")
         record["state"]="success" if run.returncode==0 and record["warnings"]==0 else "failed"
     except (Exception,KeyboardInterrupt) as error:

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "qualification_status": "UNQUALIFIED",
+  "run_id": "UNKNOWN",
+  "date_utc": "UNKNOWN",
+  "operator": "UNKNOWN",
+  "hardware_id": "UNKNOWN",
+  "firmware": {
+    "git_sha": "UNKNOWN",
+    "tracked_source_sha256": "UNKNOWN",
+    "build_manifest_sha256": "UNKNOWN",
+    "feature_flags": "UNKNOWN",
+    "uart_auth": "UNKNOWN",
+    "teensy_hex_sha256": "UNKNOWN",
+    "helmet_c3_image_sha256": "UNKNOWN",
+    "paw_c3_image_sha256": "UNKNOWN",
+    "matching_recovery_archive_sha256": "UNKNOWN",
+    "toolchain_and_dependency_versions": "UNKNOWN"
+  },
+  "hardware": {
+    "teensy": {"expected_target": "Teensy 4.0", "installed": "UNKNOWN", "board_id": "UNKNOWN", "revision": "UNKNOWN"},
+    "helmet_c3": {"expected_target": "ESP32-C3-DevKitM-1", "installed": "UNKNOWN", "board_id": "UNKNOWN", "revision": "UNKNOWN"},
+    "paw_c3": {"expected_target": "Seeed XIAO ESP32C3", "installed": "UNKNOWN", "board_id": "UNKNOWN", "revision": "UNKNOWN"},
+    "installed_features_and_optional_modules": "UNKNOWN",
+    "microphone_model_and_position": "UNKNOWN",
+    "installed_sensor_models_and_locations": "UNKNOWN",
+    "display_part_and_module_ids": "UNKNOWN",
+    "physical_led_layout_chain_order_and_rotations": "UNKNOWN",
+    "power_source_voltage_current_limit_and_identifiers": "UNKNOWN",
+    "regulator_and_protection_identifiers_and_limits": "UNKNOWN",
+    "wiring_and_connector_ids_and_revisions": "UNKNOWN",
+    "calibration_record_references": "UNKNOWN",
+    "available_instruments_and_calibration": "UNKNOWN"
+  },
+  "test_conditions": {
+    "ambient_temperature_and_enclosure": "UNKNOWN",
+    "supply_and_state_of_charge": "UNKNOWN",
+    "rf_and_acoustic_environment": "UNKNOWN",
+    "configuration_backup_sha256": "UNKNOWN",
+    "brightness_approval_effective_and_ceiling": "UNKNOWN"
+  },
+  "tests": {
+    "timing": "NOT_RUN",
+    "audio": "NOT_RUN",
+    "visual": "NOT_RUN",
+    "power_thermal": "NOT_RUN",
+    "wireless": "NOT_RUN",
+    "recovery": "NOT_RUN",
+    "one_hour_stress": "NOT_RUN"
+  },
+  "measurements": [
+    {
+      "test_id": "UNKNOWN",
+      "result": "NOT_RUN",
+      "hardware_ids": "UNKNOWN",
+      "firmware_and_build_hash_refs": "UNKNOWN",
+      "conditions": "UNKNOWN",
+      "equipment_and_uncertainty": "UNKNOWN",
+      "duration_seconds": "UNKNOWN",
+      "measurement_values_and_units": "UNKNOWN",
+      "counter_deltas": "UNKNOWN",
+      "observed_failures": "UNKNOWN",
+      "supporting_artifacts_and_sha256": "UNKNOWN"
+    }
+  ],
+  "outstanding_unknowns": [
+    "Physical hardware identity, connectivity, installed options and measured limits are unknown.",
+    "All physical measurements and recovery demonstrations are outstanding."
+  ]
+}

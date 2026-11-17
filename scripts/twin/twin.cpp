@@ -7,6 +7,7 @@
 #endif
 #include <iomanip>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 
@@ -17,7 +18,10 @@ constexpr unsigned PeerBacklogCapacity = 512, UsbCapacity = 512;
 // The serial implementation reserves one entry in each ring.
 constexpr unsigned TeensyRxCapacity = 319, TeensyTxCapacity = 63;
 constexpr uint64_t Baud = 115200, ByteBitsUs = 10000000;
+constexpr uint64_t MaxSoakDuration = 86400000000;
 uint64_t origin = 0;
+bool soak = false;
+uint64_t traceFrom = Never;
 
 struct Wire {
   struct Byte { uint64_t at; uint8_t data; };
@@ -47,15 +51,27 @@ unsigned loops = 0, sampleCount = 0, skipped = 0, shortWrite = 32, lastInput = 0
 unsigned traceRecords = 0;
 bool peerConnected = true;
 int audioAmplitude = 0;
+unsigned dropAck = 0, lostAcks = 0;
+std::array<unsigned, HelmetLink::Unavailable + 1> acks{};
+std::map<std::string, uint64_t> checks;
+uint64_t queueChecks = 0, brightnessChecks = 0;
+unsigned rejectedTracks = 0;
 Wire toTeensy(PeerBacklogCapacity), fromTeensy(TeensyTxCapacity);
 void (*adcAdvance)(uint64_t) = nullptr;
 HelmetLink::Decoder peerDecoder;
-HelmetLink::Packet lastStatus, lastCommand;
-bool haveStatus = false, haveCommand = false;
+HelmetLink::Packet lastStatus, lastCommand, previousCommand;
+bool haveStatus = false, haveCommand = false, havePrevious = false;
 
-void trace(const char *kind) {
+struct InvariantFailure {
+  std::string name;
+  uint64_t expected, observed;
+};
+
+bool trace(const char *kind, bool always = false) {
+  if (soak && !always && fakeUs - origin < traceFrom) return false;
   if (++traceRecords > 1000000) throw std::runtime_error("trace exceeded 1000000 records");
   std::cout << fakeUs - origin << '\t' << kind << '\t' << lastInput;
+  return true;
 }
 void hex(const uint8_t *data, size_t size) {
   std::cout << '\t' << std::hex << std::setfill('0');
@@ -70,7 +86,12 @@ std::vector<uint8_t> unhex(const std::string &value) {
 }
 
 void latch(const std::vector<byte> &packet) {
-  trace("spi");
+  if (soak && packet[0] == 10) {
+    ++brightnessChecks;
+    if (SPI.registers[10] > Settings::MaxBrightness)
+      throw InvariantFailure{"spi-brightness-limit", Settings::MaxBrightness, SPI.registers[10]};
+  }
+  if (!trace("spi")) return;
   hex(packet.data(), packet.size());
   std::cout << '\t' << SPI.shutdown << '\t' << SPI.registers[10] + 0 << '\n';
 }
@@ -81,7 +102,7 @@ size_t uartWrite(const uint8_t *data, size_t count) {
   return accepted;
 }
 size_t usbWrite(const uint8_t *data, size_t count) {
-  trace("usb");
+  if (!trace("usb")) return count;
   hex(data, count);
   std::cout << '\n';
   return count;
@@ -105,7 +126,11 @@ void deliver() {
     HelmetLink::Packet packet;
     if (!peerDecoder.feed(data, millis(), packet)) continue;
     if (packet.kind == HelmetLink::Status) { lastStatus = packet; haveStatus = true; }
-    trace("uart-packet");
+    if (packet.kind == HelmetLink::Ack && packet.length == 5) {
+      if (dropAck) { --dropAck; ++lostAcks; continue; }
+      if (packet.payload[4] < acks.size()) ++acks[packet.payload[4]];
+    }
+    if (!trace("uart-packet")) continue;
     std::cout << '\t' << unsigned(packet.kind) << '\t' << packet.sequence
               << '\t' << packet.epoch << '\t' << packet.ticket;
     hex(packet.payload, packet.length);
@@ -120,6 +145,11 @@ void send(const HelmetLink::Packet &packet) {
   for (size_t i = 0; i < count; ++i) toTeensy.push(framed[i]);
 }
 void peer(const Event &event, unsigned value) {
+  if (event.operation == "reorder") {
+    if (!havePrevious) throw std::runtime_error("reorder requires two prior commands");
+    send(previousCommand);
+    return;
+  }
   if (!haveStatus) throw std::runtime_error("peer action requires a received status");
   if (event.operation == "duplicate") {
     if (!haveCommand) throw std::runtime_error("duplicate requires a prior command");
@@ -142,6 +172,7 @@ void peer(const Event &event, unsigned value) {
     HelmetLink::put32(packet.payload, bridge);
     packet.payload[4] = HelmetLink::Expression;
     packet.payload[5] = value;
+    if (haveCommand) { previousCommand = lastCommand; havePrevious = true; }
     lastCommand = packet;
     haveCommand = true;
   }
@@ -157,8 +188,8 @@ void animationInput(const Event &event) {
     unsigned slot, generation;
     if (!(input >> slot >> generation) || slot >= Capacity) throw std::runtime_error("invalid track handle");
     const bool cancelled = behavior.animations.cancel({static_cast<uint8_t>(slot), generation});
-    trace("v2-cancel");
-    std::cout << '\t' << slot << '\t' << generation << '\t' << cancelled << '\n';
+    if (trace("v2-cancel"))
+      std::cout << '\t' << slot << '\t' << generation << '\t' << cancelled << '\n';
     return;
   }
   unsigned region, motion, priority, easing, duration;
@@ -171,26 +202,63 @@ void animationInput(const Event &event) {
       static_cast<Region>(region), static_cast<Motion>(motion), static_cast<uint8_t>(priority),
       static_cast<Easing>(easing), static_cast<uint16_t>(duration),
       static_cast<int8_t>(from), static_cast<int8_t>(to)});
-  trace("v2-track");
-  std::cout << '\t' << unsigned(result.status) << '\t' << unsigned(result.handle.slot)
-            << '\t' << result.handle.generation << '\n';
+  if (!result.handle.generation) ++rejectedTracks;
+  if (trace("v2-track"))
+    std::cout << '\t' << unsigned(result.status) << '\t' << unsigned(result.handle.slot)
+              << '\t' << result.handle.generation << '\n';
 }
 #endif
 
+void checkpoint(const std::string &argument) {
+  const auto comma = argument.find(',');
+  if (comma == std::string::npos) throw std::runtime_error("malformed checkpoint");
+  const auto name = argument.substr(0, comma);
+  const auto expected = std::stoul(argument.substr(comma + 1));
+  uint64_t observed;
+  if (name == "expression") observed = state;
+  else if (name == "sleeping") observed = sleeping;
+  else if (name == "visor-visible") observed = visorVisible;
+  else if (name == "display-blanked") observed = SPI.shutdown;
+  else if (name == "effective-brightness") observed = config.effectiveBrightness();
+  else if (name == "brightness-approval") observed = config.brightnessApproval;
+  else if (name == "sensor-faults") observed = sensorFaults;
+  else if (name == "sensor-retries") observed = sensorRetryCount();
+  else if (name == "audio-retries") observed = microphoneRetryCount();
+  else if (name == "audio-recovery-state") observed = microphoneRecoveryState();
+  else if (name == "audio-failure-reason") observed = microphoneLastFailure();
+  else if (name == "audio-running") observed = microphoneSampling;
+  else if (name == "speaking") observed = speakingActive;
+  else if (name == "mouth-aperture") observed = mouthAperture;
+  else if (name == "boop-active") observed = boopActive;
+  else if (name == "connector-ready") observed = connectorReady;
+  else if (name == "dock-buffer-enabled") observed = digitalValues[Settings::DockBufferEnablePin];
+  else if (name == "lost-acks") observed = lostAcks;
+  else if (name == "uart-accepted") observed = acks[HelmetLink::Accepted];
+  else if (name == "uart-duplicate") observed = acks[HelmetLink::Duplicate];
+  else if (name == "uart-expired") observed = acks[HelmetLink::Expired];
+  else if (name == "uart-invalid") observed = acks[HelmetLink::Invalid];
+  else if (name == "uart-bad-session") observed = acks[HelmetLink::BadSession];
+  else if (name == "rejected-tracks") observed = rejectedTracks;
+#if PROTOGEN_ANIMATION_TIMELINES
+  else if (name == "timeline-state") observed = static_cast<unsigned>(behavior.timeline.progress().state);
+#endif
+  else throw std::runtime_error("unknown checkpoint: " + name);
+  if (observed != expected) throw InvariantFailure{name, expected, observed};
+  ++checks[name];
+}
+
 void apply(const Event &event) {
+  lastInput = event.sequence;
 #if PROTOGEN_ANIMATION_TIMELINES
   if (event.operation == "timeline-cancel") {
-    lastInput = event.sequence;
     behavior.cancelTimeline();
-    trace("input");
-    std::cout << "\ttimeline-cancel\t0\n";
+    if (trace("input")) std::cout << "\ttimeline-cancel\t0\n";
     return;
   }
 #endif
-  lastInput = event.sequence;
-  trace("input");
-  std::cout << '\t' << event.operation << '\t' << event.argument << '\n';
+  if (trace("input")) std::cout << '\t' << event.operation << '\t' << event.argument << '\n';
   const auto &op = event.operation;
+  if (soak && op == "expect") { checkpoint(event.argument); return; }
   if (op == "usb" || op == "uart") {
     for (auto data : unhex(event.argument)) {
       if (op == "uart") toTeensy.push(data);
@@ -214,6 +282,11 @@ void apply(const Event &event) {
   else if (op == "audio") audioAmplitude = value;
   else if (op == "sensor-stall") sensorAdc->adc1->stuck = value;
   else if (op == "audio-stall") sensorAdc->adc0->timerStalled = value;
+  else if (soak && op == "audio-invalid-pin") sensorAdc->adc0->validPin = !value;
+  else if (soak && op == "dock-pilot") pilotInput = value;
+  else if (soak && op == "dock-voltage") voltageInput = value;
+  else if (soak && op == "drop-ack") dropAck = value;
+  else if (soak && op == "reorder") peer(event, value);
   else if (op == "hold") heldUntil = std::max(heldUntil, fakeUs + value);
   else if (op == "disconnect") {
     peerConnected = !value;
@@ -237,6 +310,10 @@ void advanceModel(uint64_t target) {
       // No main-loop reads occur during this interval. The ISR uses uint16_t
       // distance and can occupy every physical slot.
       const auto occupied = static_cast<uint16_t>(audioWrite - audioRead);
+      if (soak) {
+        ++queueChecks;
+        if (occupied > audioBufferSize) throw InvariantFailure{"audio-queue-limit", audioBufferSize, occupied};
+      }
       assert(occupied <= audioBufferSize);
       audioPeak = std::max(audioPeak, unsigned(occupied));
     }
@@ -248,7 +325,8 @@ void advanceModel(uint64_t target) {
 }
 
 std::string previous;
-void observe() {
+void observe(bool always = false) {
+  if (!always && soak && fakeUs - origin < traceFrom) return;
   std::ostringstream stateLine;
   stateLine << unsigned(state) << '\t' << sleeping << '\t' << visorVisible << '\t' << boopActive
             << '\t' << speakingActive << '\t' << sensorFaults << '\t' << audioDroppedSamples
@@ -258,7 +336,10 @@ void observe() {
   for (const auto pixel : displayedFrame.bytes)
     stateLine << std::hex << std::setw(2) << std::setfill('0') << unsigned(pixel);
   const auto next = stateLine.str();
-  if (next != previous) { trace("state"); std::cout << '\t' << next << '\n'; previous = next; }
+  if ((always || next != previous) && trace("state", always)) {
+    std::cout << '\t' << next << '\n';
+    previous = next;
+  }
 }
 
 void run(uint64_t tick, bool accelerate) {
@@ -291,11 +372,27 @@ void run(uint64_t tick, bool accelerate) {
 
 int main(int argc, char **argv) {
   try {
+    int arg = 1;
+    if (arg < argc && std::string(argv[arg]) == "--soak") {
+      soak = true;
+      ++arg;
+      if (arg + 1 < argc && std::string(argv[arg]) == "--trace-from-us") {
+        traceFrom = std::stoull(argv[arg + 1]);
+        if (traceFrom > MaxSoakDuration) throw std::runtime_error("invalid trace start");
+        arg += 2;
+      }
+    }
+#if PROTOGEN_ANIMATION_TIMELINES
+    if (argc - arg > 1) throw std::runtime_error("expected at most one asset");
+#else
+    if (argc != arg) throw std::runtime_error("timeline support disabled");
+#endif
     uint64_t duration, tick;
     unsigned seed, epoch, accelerated, tapeLength, audioLength;
     std::string initial;
     if (!(std::cin >> origin >> duration >> tick >> seed >> epoch >> accelerated >> initial >> tapeLength >> audioLength)
-        || origin > (uint64_t{1} << 48) || duration > 120000000 || tick < 100 || tick > 20000
+        || origin > (uint64_t{1} << 48) || duration > (soak ? MaxSoakDuration : 120000000)
+        || tick < 100 || tick > 20000
         || !epoch || tapeLength > 4096 || audioLength > 32768 || (initial != "-" && initial.size() != 256))
       throw std::runtime_error("invalid runner header");
     fakeUs = origin;
@@ -314,9 +411,9 @@ int main(int argc, char **argv) {
     }
 #if PROTOGEN_ANIMATION_TIMELINES
     std::array<uint8_t, Behavior::Timeline::AssetBytes> clip{};
-    const bool timelineMode = argc == 2;
+    const bool timelineMode = argc - arg == 1;
     if (timelineMode) {
-      std::ifstream stream(argv[1], std::ios::binary);
+      std::ifstream stream(argv[arg], std::ios::binary);
       if (!stream.read(reinterpret_cast<char *>(clip.data()), clip.size()) || stream.peek() != EOF ||
           !Behavior::Timeline::validAsset(clip.data(), clip.size()))
         throw std::runtime_error("invalid compiled timeline");
@@ -328,17 +425,10 @@ int main(int argc, char **argv) {
       seed = uint32_t(clip[6]) | uint32_t(clip[7]) << 8 | uint32_t(clip[8]) << 16 | uint32_t(clip[9]) << 24;
       audioAmplitude = (unsigned(clip[3]) << 8) | clip[13];
     }
-#else
-    (void)argv;
-#endif
-#if PROTOGEN_ANIMATION_TIMELINES
-    if (argc > 2) throw std::runtime_error("expected one asset");
-#else
-    if (argc != 1) throw std::runtime_error("timeline support disabled");
 #endif
     Event event;
     while (std::cin >> event.time >> event.sequence >> event.operation >> event.argument) {
-      if (events.size() == 4096 || event.time > duration ||
+      if (events.size() == (soak ? 8192 : 4096) || event.time > duration ||
           event.time < (events.empty() ? 1000 : events.back().time - origin) ||
           event.sequence != events.size() + 1)
         throw std::runtime_error("invalid runner event order or sequence");
@@ -350,6 +440,9 @@ int main(int argc, char **argv) {
     PawLink::gate.epoch = epoch; // Explicit host generation, separate from cosmetic draws.
     SPI.latchHook = latch;
     SPI.retainWakeFrames = false;
+#ifdef VisorConnector
+    if (soak) SPI.requireEnabledBuffer = true;
+#endif
     Serial1.spaceHook = uartSpace;
     Serial1.writeHook = uartWrite;
     Serial.writeHook = usbWrite;
@@ -366,8 +459,7 @@ int main(int argc, char **argv) {
         throw std::runtime_error("input precedes the timeline origin");
       advanceTime(boot - fakeUs);
       if (!behavior.startTimeline(clip.data(), clip.size(), millis())) throw std::runtime_error("timeline admission failed");
-      trace("timeline-origin");
-      std::cout << '\n';
+      if (trace("timeline-origin")) std::cout << '\n';
     }
 #endif
     adcAdvance = timeAdvanceHook;
@@ -375,11 +467,11 @@ int main(int argc, char **argv) {
     try { run(tick, accelerated); }
     catch (const std::runtime_error &error) {
       if (EEPROM.writeBudget != 0 || std::string(error.what()) != "simulated power loss") throw;
+      if (soak) throw std::runtime_error("seed terminated by simulated power loss");
       trace("power-loss"); std::cout << '\n';
     }
 #if PROTOGEN_ANIMATION_TIMELINES
-    if (timelineMode) {
-      trace("timeline-final");
+    if (timelineMode && trace("timeline-final")) {
       const auto &progress = behavior.timeline.progress();
       std::cout << '\t' << unsigned(progress.state) << '\t' << progress.next << '\t'
                 << progress.started << '\t' << progress.rejected << '\t' << progress.skipped << '\t';
@@ -388,8 +480,36 @@ int main(int argc, char **argv) {
                 << '\t' << renderMetrics.compositions << '\t' << renderMetrics.skipped << '\n';
     }
 #endif
-    trace("eeprom"); hex(EEPROM.bytes.data(), 128); std::cout << '\n';
-    trace("totals");
+    if (soak) {
+      observe(true);
+      trace("checks", true);
+      std::cout << "\taudio-queue-limit=" << queueChecks << "\tspi-brightness-limit=" << brightnessChecks;
+      for (const auto &[name, count] : checks) std::cout << '\t' << name << '=' << count;
+      std::cout << '\n';
+      trace("soak", true);
+      unsigned features = PROTOGEN_FLIGHT_RECORDER | (PROTOGEN_ANIMATION_V2 << 1)
+                          | (PROTOGEN_ANIMATION_TIMELINES << 2) | (PROTOGEN_AUDIO_V2 << 3);
+#ifdef VisorConnector
+      features |= 1 << 4;
+#endif
+#if PROTOGEN_SUPERVISION_OBSERVE
+      features |= 1 << 5;
+#endif
+#ifdef PROTOGEN_UART_AUTH
+      features |= 1 << 6;
+#endif
+#ifdef Microphone
+      features |= 1 << 7;
+#endif
+      std::cout << '\t' << std::min(fakeUs - origin, duration) << '\t' << features
+                << '\t' << lostAcks << '\t' << acks[HelmetLink::Accepted]
+                << '\t' << acks[HelmetLink::Duplicate] << '\t' << acks[HelmetLink::Expired]
+                << '\t' << microphoneRetryCount() << '\t' << microphoneRecoveryCount()
+                << '\t' << sensorRetryCount() << '\t' << sensorRecoveryCount()
+                << '\t' << SPI.transactions << '\t' << pawRejectedPackets() << '\n';
+    }
+    trace("eeprom", true); hex(EEPROM.bytes.data(), 128); std::cout << '\n';
+    trace("totals", true);
     std::cout << '\t' << cursor << '\t' << loops << '\t' << sampleCount << '\t' << toTeensy.peak
               << '\t' << fromTeensy.peak << '\t' << rxPeak << '\t' << usbPeak << '\t'
               << audioPeak << '\t'
@@ -398,6 +518,10 @@ int main(int argc, char **argv) {
     std::cerr << "skipped_loop_opportunities=" << skipped << '\n';
     pauseMicrophone();
     delete sensorAdc;
+  } catch (const InvariantFailure &error) {
+    std::cerr << "P8-INVARIANT\t" << fakeUs - origin << '\t' << lastInput << '\t'
+              << error.name << '\t' << error.expected << '\t' << error.observed << '\n';
+    return 3;
   } catch (const std::exception &error) {
     std::cerr << "event " << lastInput << " at " << fakeUs - origin << "us: " << error.what() << '\n';
     return 1;
