@@ -1,0 +1,125 @@
+name: Bounded virtual soak
+on:
+  workflow_dispatch:
+    inputs:
+      seed_start:
+        description: First seed in the requested range
+        required: true
+        type: number
+        default: 0
+      seed_count:
+        description: Total seeds in the requested range (1 through 100)
+        required: true
+        type: number
+        default: 2
+      virtual_duration_ms:
+        description: Requested duration per seed in ms (86400000 for one virtual day)
+        required: true
+        type: number
+        default: 910000
+permissions:
+  contents: read
+env:
+  SEED_START: ${{ inputs.seed_start }}
+  SEED_COUNT: ${{ inputs.seed_count }}
+  DURATION_MS: ${{ inputs.virtual_duration_ms }}
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      shards: ${{ steps.shards.outputs.matrix }}
+    steps:
+      - name: Plan independent two-seed shards
+        id: shards
+        run: |
+          python3 - <<'PY'
+          import json, os
+          start, count, duration = (int(os.environ[key]) for key in ("SEED_START", "SEED_COUNT", "DURATION_MS"))
+          if not 0 <= start < 2**32 or not 1 <= count <= min(100, 2**32 - start) or not 6500 <= duration <= 86400000:
+              raise SystemExit("Invalid seed range or virtual duration")
+          matrix = [{"start": offset, "count": min(2, start + count - offset)}
+                    for offset in range(start, start + count, 2)]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
+          PY
+  build:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Pinned Teensy dependencies
+        run: python3 scripts/install-toolchains.py --teensy-only
+      - name: Build the default-configuration host twin
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          make -C scripts/twin
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: soak-twin
+          path: build/twin/twin
+          if-no-files-found: error
+  soak:
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      SHARD_START: ${{ matrix.shard.start }}
+      SHARD_COUNT: ${{ matrix.shard.count }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: soak-twin
+          path: build/twin
+      - name: Run this bounded shard
+        shell: bash
+        run: |
+          chmod +x build/twin/twin
+          python3 scripts/twin/soak.py run --seed-start "$SHARD_START" --seed-count "$SHARD_COUNT" \
+            --virtual-duration-ms "$DURATION_MS" --wall-clock-budget-sec 300 --per-seed-timeout-sec 120 \
+            --output-dir build/p8-soak-shard
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: soak-shard-${{ matrix.shard.start }}
+          path: build/p8-soak-shard/
+          if-no-files-found: error
+  aggregate:
+    needs: [plan, soak]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          pattern: soak-shard-*
+          path: build/p8-soak-shards
+      - name: Verify exact shard coverage
+        shell: bash
+        run: |
+          shopt -s nullglob
+          python3 scripts/twin/soak.py aggregate --seed-start "$SEED_START" --seed-count "$SEED_COUNT" \
+            --virtual-duration-ms "$DURATION_MS" --output-dir build/p8-soak-aggregate \
+            build/p8-soak-shards/soak-shard-*/shard.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: soak-aggregate
+          path: build/p8-soak-aggregate/
+          if-no-files-found: error
