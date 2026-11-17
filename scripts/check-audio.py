@@ -79,14 +79,14 @@ def main():
     OUT.mkdir(parents=True,exist_ok=True)
     build()
     results={}
-    for seed in ((37,53) if args.held_out else (11,19)):
+    for seed in ((61,74,78) if args.held_out else (11,19,37,53)):
         for name in SCENARIOS:
             samples,labels=signal(name,seed)
             key=f"{seed}-{name}"
             results[key]={mode:score(samples,labels,ROOT/"build"/directory/"audio-corpus",OUT/(key+"-"+mode+".tsv"))
                           for mode,directory in (("legacy","audio-legacy"),("v2","audio-v2"))}
     total,checks=accepts(results)
-    report={"protocol":"iteration 1","held_out":args.held_out,"aggregate":total,"checks":checks,"cases":results}
+    report={"protocol":"iteration 2","held_out":args.held_out,"aggregate":total,"checks":checks,"cases":results}
     (OUT/("held-out.json" if args.held_out else "development.json")).write_text(json.dumps(report,indent=2)+"\n")
     print(json.dumps(total))
     failed=[key for key,value in checks.items() if not value]

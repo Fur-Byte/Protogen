@@ -19,7 +19,7 @@ struct Features {
 };
 
 class Detector {
-  float bias = 0, envelope = 0, noise = 0;
+  float bias = 0, envelope = 0, noise = 0, rollingPeak = 0;
   float history[16]{};
   uint16_t amplitudes[10]{};
   uint32_t amplitudeSum = 0, windowSum = 0, energySum = 0;

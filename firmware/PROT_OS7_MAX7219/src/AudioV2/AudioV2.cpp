@@ -28,6 +28,7 @@ bool Detector::sample(uint16_t raw, const Settings &config) {
   amplitudeSum += amplitude;
   if (++averageIndex == 10) averageIndex = 0;
   const float average = amplitudeSum / 10.0f;
+  if (average > rollingPeak) rollingPeak = average;
   const float millis = average > envelope ? config.attackMs : config.releaseMs;
   envelope += (average - envelope) / (4.0f * (millis < 1 ? 1 : millis));
 
@@ -43,6 +44,7 @@ bool Detector::sample(uint16_t raw, const Settings &config) {
   finish(config);
   sampleIndex = 0;
   windowSum = energySum = clipped = 0;
+  rollingPeak = 0;
   for (auto &n : correlation) n = 0;
   return true;
 }
@@ -52,7 +54,7 @@ void Detector::finish(const Settings &config) {
   const bool wasSpeech = value.speech;
   bool periodic = false;
   for (const float dot : correlation) periodic |= std::fabs(dot) * 10 > energySum * 7.0f;
-  periodic &= level >= config.sensitivity;
+  periodic &= rollingPeak >= config.sensitivity;
   // Consecutive windows must remain in a narrow amplitude band without
   // periodic energy. Any voiced evidence or a new amplitude band starts a
   // fresh observation. There is no maximum permitted speech duration.
@@ -72,7 +74,8 @@ void Detector::finish(const Settings &config) {
 
   const float previousGate = noise * 2 + config.noiseMargin;
   const float gate = previousGate > config.sensitivity ? previousGate : config.sensitivity;
-  const bool high = level > gate;
+  const float onsetLevel = periodic ? rollingPeak : level;
+  const bool high = onsetLevel > gate;
   if (clipped >= WindowSamples / 2) {
     // Shell rail/retry policy still owns hardware recovery. Invalid energy
     // cannot remain an accepted speech observation in the meantime.
@@ -84,7 +87,7 @@ void Detector::finish(const Settings &config) {
     noise = bounded(noise, 0, 1023);
     const float adapted = noise * 2 + config.noiseMargin;
     const float threshold = adapted > config.sensitivity ? adapted : config.sensitivity;
-    const bool onset = level > threshold && !stationary;
+    const bool onset = onsetLevel > threshold && !stationary;
     const bool keep = level > threshold * 0.72f && (!stationary || periodic);
     if (!value.speech) {
       credible = onset ? static_cast<uint8_t>(credible + (credible < 2)) : 0;
