@@ -19,6 +19,20 @@ int main() {
   assert(supervision.foreground.lateEpisodes == 0 && supervision.render.lateEpisodes == 0);
 #endif
 
+  syntheticMicrophone = false;
+  micInput = 1023;
+  run(90);
+  assert(microphoneRecoveryState() == 1);
+  micInput = 510;
+  unsigned wait = 0;
+  while (microphoneRecoveryState() == 1 && wait++ < 2000) run(1);
+  assert(microphoneRecoveryState() == 3 && microphoneSampling);
+#if PROTOGEN_SUPERVISION_OBSERVE
+  assert(!supervision.audio.required && supervision.audio.lateEpisodes == 0);
+#endif
+  run(100);
+  assert(microphoneRecoveryState() == 0 && microphoneSampling);
+
   Serial.input = "MIC 0\nSAVE\n";
   run(256);
   assert(!microphoneSampling && !speakingActive);

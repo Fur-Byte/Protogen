@@ -140,7 +140,8 @@ uint32_t supervisionRenderEpoch = 0;
 
 void observeProgress(bool visible) {
 #ifdef Microphone
-  supervision.observe(millis(), visible, supervisionRenderEpoch, microphoneSampling, audioRead);
+  const bool draining = microphoneSampling && microphoneRecoveryState() == 0;
+  supervision.observe(millis(), visible, supervisionRenderEpoch, draining, audioRead);
 #else
   supervision.observe(millis(), visible, supervisionRenderEpoch, false, 0);
 #endif
