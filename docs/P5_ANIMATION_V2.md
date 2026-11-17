@@ -74,7 +74,8 @@ art is observed as a visible change.
 | Mouth aperture | 0–3, while the legacy mouth is quiet |
 
 Curves use Q8 integer linear, quadratic ease-in/out, smoothstep, and cubic
-settling with exact endpoints. Durations are 0–5,000 ms and age is unsigned.
+settling with exact endpoints. Durations are 0–5,000 ms. Age uses unsigned subtraction with a half-range
+check so a sampled loop timestamp cannot expire a future admission.
 A zero-duration track yields its target only at its admission timestamp.
 A duration endpoint is eligible at that exact timestamp and expires
 afterward. Subframe effects can fall between sampled frames. There is no

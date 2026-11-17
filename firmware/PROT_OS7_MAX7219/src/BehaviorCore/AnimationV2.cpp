@@ -91,8 +91,13 @@ bool Table::cancel(Handle handle) {
 
 void Table::expire(uint32_t now) {
   if (!activeMask) return;
-  for (unsigned i = 0; i < Capacity; ++i)
-    if (active(i) && now - tracks[i].at > tracks[i].request.duration) deactivate(i);
+  for (unsigned i = 0; i < Capacity; ++i) {
+    if (!active(i)) continue;
+    const uint32_t age = now - tracks[i].at;
+    // A render can still hold a loop timestamp from before a replay input.
+    // Ignore a future admission instead of throwing it away as very old.
+    if (age <= INT32_MAX && age > tracks[i].request.duration) deactivate(i);
+  }
 }
 
 Selection Table::resolve(Region region, uint32_t now) const {

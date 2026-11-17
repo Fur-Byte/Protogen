@@ -34,6 +34,8 @@ void arbitration() {
   const Request left{Region::LeftEye, Motion::Gaze, 3, Easing::Linear, 50, 2, -2};
   const auto first = table.start(start, wide);
   assert(table.count() == 1 && first.handle.slot == 0);
+  table.expire(start - 1);
+  assert(table.count() == 1 && !table.resolve(Region::LeftEye, start - 1).handle);
   const auto second = table.start(start, left);
   assert(second.handle.slot == 1);
   // Same timestamp. The later admission wins only for the target eye.
