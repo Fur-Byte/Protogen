@@ -74,6 +74,18 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-animation-v2.py --deep
+      - name: Timeline compiler, runtime and Face Studio replay
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/tests/test-timeline-compiler.py
+          python3 scripts/check-timelines.py
+      - name: Deep timeline seeking
+        if: env.MATRIX_MODE == 'full'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-timelines.py --deep
       - name: Host regressions, metadata and mutation checks
         shell: bash
         run: |
@@ -116,6 +128,7 @@ jobs:
             build/flight-evidence/
             build/p4-evidence/
             build/p5-evidence/
+            build/p6-evidence/
             build/matrix-*-esp32/
             build/twin/*.json
             build/twin/*.log
@@ -162,6 +175,12 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-behavior-build.py --animation-v2 --output build/p5-evidence/target.json
+      - name: Linked timeline asset and footprint
+        if: matrix.group != 'auth'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-timeline-build.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -171,4 +190,5 @@ jobs:
             build/runs/**/compile.log
             build/flight-evidence/
             build/p5-evidence/target.json
+            build/p6-evidence/target.json
             build/toolchains/lock.json

@@ -144,7 +144,7 @@ class BuildRun:
         return sketch
 
     def compile(self, cli, sketch, features, output_directory=None, extra_flags=None, fqbn=FQBN,
-                reuse_cache=False, jobs=None):
+                reuse_cache=False, jobs=None, build_properties=()):
         output_directory = output_directory or self.path / ("artifacts-" + str(len(self.record["results"])))
         command = [cli, "compile", "--fqbn", fqbn, "--warnings", "all",
                    "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
@@ -152,6 +152,8 @@ class BuildRun:
             command.insert(2, "--clean")
         if jobs is not None:
             command[2:2] = ["--jobs", str(jobs)]
+        for value in build_properties:
+            command[2:2] = ["--build-property", value]
         extra_flags=extra_flags or "-Werror"
         auth_enabled = "PROTOGEN_UART_AUTH" in features
         if extra_flags:

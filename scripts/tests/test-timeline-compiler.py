@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from timelines.compiler import compile_document, TimelineError
+from timelines.compiler import compile_document, TimelineError, load_json
 
 def document(events=()):
     return {"version": 1, "id": "qualification", "name": "Qualification", "duration_ms": 60000,
@@ -30,6 +30,22 @@ class CompilerTests(unittest.TestCase):
                        [event(region="mouth")], [event(channel="sprite", first=0, last=1)]):
             with self.assertRaises(TimelineError):
                 compile_document(document(events))
+
+    def test_untrusted_text(self):
+        for raw in (b'{"a":1,"a":2}', b'['*9+b']'*9, b' '*32769,
+                    b'{"number":1e100}', b'{"number":123456789012}', b'{"number":NaN}', b"\xff"):
+            with self.assertRaises(TimelineError):
+                load_json(raw)
+        for unsafe in ("../clip", "../../TimelineAsset.h", 'bad";'):
+            source = document()
+            source["id"] = unsafe
+            with self.assertRaises(TimelineError):
+                compile_document(source)
+        source = document([event()])
+        source["name"] = 'Name " with {}; and unicode ☀'
+        output = compile_document(source)
+        self.assertNotIn(source["name"], output.header())
+        self.assertEqual(compile_document(load_json(output.source().encode())).header(), output.header())
 
     def test_repetition(self):
         motion = event()

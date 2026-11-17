@@ -7,11 +7,16 @@ import json
 import os
 from pathlib import Path
 import select
+import sys
 import subprocess
 import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+# Support the existing importlib-based host tests as well as CLI execution.
+scripts_directory = str(Path(__file__).resolve().parent)
+if scripts_directory not in sys.path:
+    sys.path.insert(0, scripts_directory)
 from timelines.compiler import MAX_BYTES as TIMELINE_MAX_BYTES, TimelineError, compile_document, fields, load_json
 from timelines.simulator import replay_asset
 
