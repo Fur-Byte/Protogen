@@ -366,6 +366,24 @@ void handleUsbCommand(char *line, uint32_t now) {
       static_cast<unsigned long>(microphoneRecoveryCount()));
     if (!out.okay()) replyTooLarge();
   }
+#if PROTOGEN_SUPERVISION_OBSERVE
+  else if (strcmp(command, "SUPERVISION") == 0) {
+    BoundedReply out(usbReply, sizeof(usbReply));
+    out.append("{\"ok\":true,\"maximum_save_ms\":%lu,\"long_saves\":%lu",
+               static_cast<unsigned long>(supervision.maxSaveMs),
+               static_cast<unsigned long>(supervision.longSaves));
+    const char *names[] = {"foreground", "render", "audio"};
+    const Supervision::Progress *stages[] = {&supervision.foreground, &supervision.render, &supervision.audio};
+    for (unsigned i = 0; i < 3; ++i) {
+      const auto &stage = *stages[i];
+      out.append(",\"%s\":{\"required\":%s,\"stale\":%s,\"late\":%lu,\"max_gap_ms\":%lu}",
+                 names[i], stage.required ? "true" : "false", stage.stale ? "true" : "false",
+                 static_cast<unsigned long>(stage.lateEpisodes), static_cast<unsigned long>(stage.maxGap));
+    }
+    out.append("}\n");
+    if (!out.okay()) replyTooLarge();
+  }
+#endif
   else if (strcmp(command, "GET") == 0) replyConfig();
   else if (strcmp(command, "STATUS") == 0) replyStatus();
   else if (strcmp(command, "PERF") == 0) {
@@ -390,7 +408,14 @@ void handleUsbCommand(char *line, uint32_t now) {
   else if (strcmp(command, "FRAME") == 0) replyFrame();
   else if (strcmp(command, "SAVE") == 0) {
     pauseMicrophone(); // Flash programming can mask interrupts; restart cleanly afterward.
+#if PROTOGEN_SUPERVISION_OBSERVE
+    const uint32_t started = millis();
+    const bool saved = saveStoredConfig(config);
+    supervision.storage(millis() - started);
+    if (saved) {
+#else
     if (saveStoredConfig(config)) {
+#endif
       BoundedReply out(usbReply, sizeof(usbReply));
       out.append("{\"ok\":true,\"saved\":true,\"record_format\":%u,"
                  "\"brightness\":{\"configured\":%u,\"effective\":%u,\"maximum\":%u,\"approved\":%u}}\n",

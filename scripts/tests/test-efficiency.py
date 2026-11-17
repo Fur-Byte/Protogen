@@ -7,7 +7,6 @@ from pathlib import Path
 import tempfile
 import unittest
 import sys
-import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('analysis', ROOT / 'scripts/analyze-efficiency.py')
@@ -15,8 +14,6 @@ analysis = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(analysis)
 sys.path.insert(0,str(ROOT / 'scripts'))
 from maintenance_support import validate_profile
-package_spec = importlib.util.spec_from_file_location('package', ROOT / 'scripts/package-release.py')
-package = importlib.util.module_from_spec(package_spec);package_spec.loader.exec_module(package)
 CHECKS = ('artwork_and_timing_equivalent', 'microphone_timing_equivalent',
           'radio_reliability_preserved', 'security_preserved', 'sleep_wake_rollover_reconnect_pass',
           'packet_loss_storage_interruption_pass', 'no_missed_command_deadlines',
@@ -24,48 +21,13 @@ CHECKS = ('artwork_and_timing_equivalent', 'microphone_timing_equivalent',
 
 
 class QualificationTests(unittest.TestCase):
-    def test_release_rejects_incompatible_uart_modes(self):
-        teensy = {'results': [{'exit_code': 0, 'features': ['WirelessPaw'], 'command': ['compiler', '-Werror']}]}
-        self.assertTrue(package.compatibility(teensy, {'uart_auth': False})['wireless_bridge_enabled'])
-        with self.assertRaises(ValueError): package.compatibility(teensy, {'uart_auth': True})
-        teensy['results'][0]['command'].append('-DPROTOGEN_UART_AUTH=1')
-        self.assertTrue(package.compatibility(teensy, {'uart_auth': True})['teensy_uart_auth'])
-        with self.assertRaises(ValueError): package.compatibility(teensy, {'uart_auth': False})
-        teensy['results'][0]['features'] = []
-        self.assertFalse(package.compatibility(teensy, {'uart_auth': False})['wireless_bridge_enabled'])
-
-    def test_recovery_checksums_and_secret_free_profiles(self):
+    def test_secret_free_profiles(self):
         original=json.loads((ROOT / 'profiles/everyday.json').read_text())
         self.assertEqual(validate_profile(original)['config'],original['config'])
         original['psk']='secret'
         with self.assertRaises(ValueError):validate_profile(original)
         del original['psk'];original['config']['paired']=1
         with self.assertRaises(ValueError):validate_profile(original)
-        with tempfile.TemporaryDirectory() as tmp:
-            path=Path(tmp)/'release.zip'
-            raw=b'firmware fixture'
-            evidence = {'state': 'success', 'source': {'sha256': 'fixture'},
-                        'results': [{'exit_code': 0, 'features': [], 'command': []}]}
-            content = {f'{role}/{name}': raw for role in ('helmet', 'paw')
-                       for name in ('firmware.bin', 'bootloader.bin', 'partitions.bin')}
-            content.update({'teensy/fixture.hex': raw, 'toolchain.lock.json': b'{}',
-                            'evidence/teensy-build.json': json.dumps(evidence).encode(),
-                            'evidence/esp32-build.json': json.dumps(evidence).encode()})
-            manifest = {'schema': 1, 'source_sha256': 'fixture',
-                        'sha256': {name: package.digest(data) for name, data in content.items()}}
-            with zipfile.ZipFile(path,'w') as archive:
-                for name, data in content.items(): archive.writestr(name, data)
-                archive.writestr('release.json', json.dumps(manifest))
-            self.assertEqual(package.previous_release(path),package.digest(path.read_bytes()))
-            with zipfile.ZipFile(path,'w') as archive:
-                for name, data in content.items(): archive.writestr(name, b'corrupted' if name.endswith('.hex') else data)
-                archive.writestr('release.json', json.dumps(manifest))
-            with self.assertRaises(ValueError):package.previous_release(path)
-            # Checksums alone must not turn an incomplete ZIP into recovery.
-            with zipfile.ZipFile(path,'w') as archive:
-                archive.writestr('teensy/fixture.hex', raw)
-                archive.writestr('release.json', json.dumps({'sha256': {'teensy/fixture.hex': package.digest(raw)}}))
-            with self.assertRaises(ValueError): package.previous_release(path)
 
     def fixture(self, folder, candidate=False, reaction=90000, complete=230000, hold=30000, action="navigation", edge="release"):
         # Synthetic parser fixtures never ship as qualification records.

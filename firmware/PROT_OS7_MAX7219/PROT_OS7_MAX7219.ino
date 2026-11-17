@@ -19,6 +19,7 @@
 #include "BlinkTiming.h"
 #include "ControllerIdle.h"
 #include "ResponseTiming.h"
+#include "Supervision.h"
 #include "src/AudioV2/AudioV2.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
@@ -133,6 +134,20 @@ AudioV2::Settings audioSettings() {
 #endif
 #endif
 
+#if PROTOGEN_SUPERVISION_OBSERVE
+Supervision::Observer supervision;
+uint32_t supervisionRenderEpoch = 0;
+
+void observeProgress(bool visible) {
+#ifdef Microphone
+  const bool draining = microphoneSampling && microphoneRecoveryState() == 0;
+  supervision.observe(millis(), visible, supervisionRenderEpoch, draining, audioRead);
+#else
+  supervision.observe(millis(), visible, supervisionRenderEpoch, false, 0);
+#endif
+}
+#endif
+
 void setup() {
   Serial.begin(115200); // USB is optional; startup never waits for a computer.
   Entropy.Initialize(); // Starts hardware entropy collection without waiting for it.
@@ -202,6 +217,9 @@ void loop() {
     P3Teensy::finishLoop();
     p3Loop.stop();
 #endif
+#if PROTOGEN_SUPERVISION_OBSERVE
+    observeProgress(false);
+#endif
     if (!pending) controllerIdle.wait();
     return;
   }
@@ -235,6 +253,9 @@ void loop() {
       else observeExpressionResponse(displayedPose, spectrum);
     }
   }
+#if PROTOGEN_SUPERVISION_OBSERVE
+  observeProgress(true);
+#endif
 #if PROTOGEN_FLIGHT_RECORDER
   P3Teensy::finishLoop();
 #endif
@@ -293,6 +314,9 @@ void captureSpectrum(Face::AudioSnapshot &snapshot, bool speaking, uint8_t mode)
 void renderFrame(uint32_t now, Face::AudioSnapshot &spectrum) {
   P3_TEENSY_SCOPE(p3Render, Render);
   Efficiency::increment(renderMetrics.attempts);
+#if PROTOGEN_SUPERVISION_OBSERVE
+  ++supervisionRenderEpoch;
+#endif
 #ifdef Microphone
   const uint8_t aperture = mouthAperture;
 #else

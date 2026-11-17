@@ -1,31 +1,57 @@
 # Matching firmware and USB recovery
 
 Rebuild Teensy and both wireless roles from matching current sources with the
-pinned toolchain. Then create a non-overwriting, checksummed development bundle:
+pinned toolchain. Use a clean Git checkout and run `python3 scripts/build.py`
+and `python3 scripts/build-esp32.py` from the same commit. Keep generated outputs
+under the ignored `build/` directory. Then create a checksummed development bundle.
 
 ```sh
 python3 scripts/package-release.py --output build/releases/release.zip \
   --previous /path/to/verified-previous-release.zip \
+  --previous-sha256 "$PREVIOUS_RELEASE_SHA256" \
   --configuration /path/to/helmet-profile.json
 ```
 
-For the first release only, explicitly use `--initial-release` in place of
-`--previous`. This records the lack of a previous release; it never fabricates
-one. Verify every file against `release.json` before flashing. The packager
-verifies the previous ZIP before including it, keeps its checksum, checks current
-build states/source identities and artifact hashes, and leaves existing bundles
-untouched. Keep a separate copy of the verified previous bundle off the helmet.
-Bench images and unqualified S31 images are not production releases.
+`PREVIOUS_RELEASE_SHA256` comes from the independently retained record of the
+previously verified bundle. For a first bundle, use `--initial-release` and omit
+both previous-release arguments. The manifest records the absence of a rollback
+bundle. Keep the known-good archive and its digest off the helmet and verify
+every file against `release.json` before flashing.
+
+Packaging checks Git status and the exact commit independently of the hashed
+build inputs. Both successful build manifests must identify the current commit
+and source hashes. A documentation-only commit still requires fresh builds.
+Git may ignore build output outside the source directories. Within `firmware`,
+`scripts`, `tools` and `profiles`, unexpected untracked files and ignored
+inputs are rejected. The generated ESP32 compilation database and Python bytecode
+under script and tool cache directories are permitted. Put the output in an
+ignored build directory or outside the checkout. The packager publishes the
+ZIP only after all checks pass and preserves an existing output path.
+
+`release.json` schema 2 records the exact Git commit, source-content hash,
+build compatibility, configuration-backup presence, rollback digest and a
+hash of every payload. It labels all output as development with physical
+qualification pending. This is a local build and archive integrity check.
+Production approval requires the physical evidence in the qualification
+procedures.
 
 Matching source hashes alone do not establish UART compatibility. The packager
 also checks authenticated UART modes when Teensy's `WirelessPaw` is enabled and
 records selected features and bridge availability in `release.json`. A default
 Teensy image has optional wireless control disabled; bundling radio images does
 not enable it. Authenticated images still require the correctly provisioned
-per-helmet key and a hardware handshake check. No key is exported by this tool.
+per-helmet key and a hardware handshake check. Treat authenticated firmware as
+per-helmet material and keep its bundle private. Store the provisioning key
+separately from the firmware and configuration backups. Keep the UART provisioning
+header outside the checkout and point the existing build tooling at that directory.
 Previous recovery ZIPs must contain the Teensy HEX, both radio roles' firmware,
-bootloaders and partition tables, toolchain pins, and matching successful build
-evidence. A checksum-valid but incomplete archive is rejected.
+bootloaders and partition tables, toolchain pins, wiring and recovery
+references, and matching successful build evidence. The packager verifies the
+independent archive digest, rejects duplicate or unsafe paths, and checks that
+archived files match both the archive manifest and the build evidence. A
+schema-1 bundle can be used if the retained digest, contents and its build
+evidence satisfy those checks. A recovery ZIP is limited to 256 MiB of
+uncompressed data.
 
 The bundle contains Teensy HEX, matching helmet/paw firmware/bootloader/partition
 images, build manifests, dependency provenance/licenses/bundled sources, toolchain
@@ -63,3 +89,7 @@ identification and manufacturer limits, probe/meter serials, calibration methods
 measurements and the applicable firmware SHA. A blank ledger means unrecorded
 calibration. Use `docs/HARDWARE_WIRING.md` plus `hardware/connector-map.csv` as the
 single wiring reference and update them together when a real repair changes it.
+
+Run the isolated packager regression tests with
+`python3 scripts/tests/test-release-packaging.py`. They create temporary Git
+checkouts and archives with synthetic payloads that must never be flashed.
