@@ -158,6 +158,9 @@ void loop() {
   // Reaction lifetime continues while hidden or asleep. Visibility never rearms it.
   behavior.expireBoop(now, config.boopDuration);
   if (behavior.sleeping || !visorVisible || !displayReady || !connectorReady) {
+#if PROTOGEN_ANIMATION_V2
+    behavior.advanceMotion(now);
+#endif
     if (!displayBlanked) {
       matrix.shutdown(true);
       if(responseTiming.pending&&responseTiming.action==ResponseTiming::Visibility&&responseTiming.target&&
@@ -262,7 +265,11 @@ void renderFrame(uint32_t now, Face::AudioSnapshot &spectrum) {
 #else
   const uint8_t aperture = 0;
 #endif
-  const auto pose = behavior.poseAt(now, config, speakingActive, aperture, Settings::EarlyExpressionReveal);
+  const auto pose = behavior.poseAt(now, config, speakingActive, aperture, Settings::EarlyExpressionReveal
+#if PROTOGEN_ANIMATION_V2
+      , responseTiming.pending
+#endif
+  );
   captureSpectrum(spectrum, pose.speaking, pose.mouthMode);
   if (PROTOGEN_CACHE_FACE && frameValid && visualCache.unchanged(pose, spectrum)) {
     Efficiency::increment(renderMetrics.skipped); observeExpressionResponse(pose, spectrum); return;
@@ -299,12 +306,19 @@ void selectExpressionCommand(uint8_t expression,uint32_t now,ResponseTiming::Ori
   const uint8_t closure=frameValid?displayedPose.closure:behavior.blinkClosure;
   responseBaseline=displayedFrame;
   responseTiming.start(id,receivedUs,origin,ResponseTiming::Expression,source,expression);
-  if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)) {
+  if(source==expression&&!displayedPose.boop&&!displayBlanked&&responseEyesPresent(displayedFrame)
+#if PROTOGEN_ANIMATION_V2
+      && displayedPose.showsExpression(expression)
+#endif
+  ) {
     // Reversing to artwork that is still on screen has zero target-onset delay;
     // the record explicitly distinguishes this from newly revealed pixels.
     responseTiming.targetAlreadyVisible=true;responseTiming.onset=true;
   }
   behavior.expression=expression;resetAnimations(now);behavior.rising=true;
+#if PROTOGEN_ANIMATION_V2
+  behavior.requestSettle(now);
+#endif
   if (behavior.canTransition(visorVisible, config.transitionMs)) {
     behavior.beginTransition(now, source, closure);
   } else if(behavior.sleeping||!visorVisible||behavior.boopActive||!displayReady||!connectorReady) responseTiming.delay();

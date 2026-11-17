@@ -116,8 +116,55 @@ void Core::beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t di
   transitionStarted = now;
 }
 
+#if PROTOGEN_ANIMATION_V2
+void Core::requestSettle(uint32_t now) {
+  animations.cancel(settleTrack);
+  settleTrack = {};
+  settleRequestedAt = now;
+  settlePending = true;
+}
+
+void Core::advanceMotion(uint32_t now) {
+  animations.expire(now);
+  if (settlePending && now - settleRequestedAt >= Animation::MaxDurationMs)
+    settlePending = false;
+}
+
+namespace {
+int8_t idleGaze(uint32_t phase) {
+  constexpr uint16_t Half = 144;
+  constexpr uint16_t RightStart = 2200, LeftStart = 4400;
+  const bool left = phase >= LeftStart;
+  const uint32_t start = left ? LeftStart : RightStart;
+  if (phase < start || phase >= start + 2 * Half) return 0;
+  const uint32_t offset = phase - start;
+  const uint32_t progress = offset < Half ? offset : 2 * Half - offset;
+  const auto eased = Animation::ease(Animation::Easing::InOut, progress, Half);
+  const int gaze = (2 * eased + 128) / 256;
+  return static_cast<int8_t>(left ? -gaze : gaze);
+}
+
+void applyEye(EyeMotion &eye, Animation::Selection selected, int8_t idle) {
+  using Animation::Motion;
+  if (!selected.handle) { eye.x = idle; return; }
+  switch (selected.motion) {
+    case Motion::Gaze: eye.x = selected.value; break;
+    case Motion::Vertical: eye.y = selected.value; break;
+    case Motion::Lid:
+    case Motion::Squint: eye.closure = static_cast<uint8_t>(selected.value); break;
+    case Motion::Expression: eye.expressionOverride = selected.value; break;
+    case Motion::MouthAperture: break;
+  }
+}
+}
+#endif
+
 Pose Core::poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint8_t aperture,
-                  bool earlyReveal) {
+                  bool earlyReveal
+#if PROTOGEN_ANIMATION_V2
+                  , bool legacyObservationPending
+#endif
+                  ) {
   Pose pose;
   pose.expression = expression; pose.boop = boopActive;
   pose.speaking = speaking; pose.glitch = glitchFrame; pose.closure = blinkClosure;
@@ -131,15 +178,40 @@ Pose Core::poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint
       pose.closure = transition.closure;
     }
   }
+#if PROTOGEN_ANIMATION_V2
+  advanceMotion(now);
+  if (!boopActive) {
+    if (!blinkState && !transitionActive && !legacyObservationPending) {
+      if (settlePending) {
+        using namespace Animation;
+        settleTrack = animations.start(now, {Region::FullFace, Motion::Squint, 2,
+            Easing::Settle, 144, 3, 0}).handle;
+        settlePending = false;
+      }
+      const int8_t idle = config.idleMotion ? idleGaze((now - blinkTime) % 6000) : 0;
+      applyEye(pose.leftEye, animations.resolve(Animation::Region::LeftEye, now), idle);
+      applyEye(pose.rightEye, animations.resolve(Animation::Region::RightEye, now), idle);
+    }
+    if (!speaking && !glitchFrame) {
+      const auto mouth = animations.resolve(Animation::Region::Mouth, now);
+      if (mouth.handle) pose.mouthOverride = mouth.value;
+    }
+  }
+#else
   if (config.idleMotion && !blinkState && !transitionActive && !boopActive) {
     const uint32_t phase = (now - blinkTime) % 6000;
     pose.eyeOffset = phase >= 2200 && phase < 2500 ? 1 : phase >= 4400 && phase < 4700 ? -1 : 0;
   }
+#endif
   return pose;
 }
 
 bool Core::frameDue(uint32_t now, bool waking) const {
+#if PROTOGEN_ANIMATION_V2
+  return waking || rising || now - lastFrameTime >= nextVisualDeadline() - lastFrameTime;
+#else
   return waking || rising || now - lastFrameTime >= (transitionVisiblePending ? 2u : 16u);
+#endif
 }
 
 void Core::commitFrameTime(uint32_t now) {

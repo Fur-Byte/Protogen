@@ -28,14 +28,25 @@ inline void bitmap(Frame &frame, int x, int width, const uint8_t *data) {
     for (int i = 0; i < width; ++i)
       if (data[y * (width / 8) + i / 8] & (0x80 >> (i & 7))) put(frame, x + i, y);
 }
-inline void eyes(Frame &frame, int x, const uint8_t *data, uint8_t closure, int offset) {
+inline void eyes(Frame &frame, int x, const uint8_t *data, uint8_t closure, int offset
+#if PROTOGEN_ANIMATION_V2
+                 , int vertical = 0
+#endif
+                 ) {
   const int cut = closure > 8 ? 8 : closure;
-  for (int y = cut; y < Height; ++y)
+  for (int y = cut; y < Height; ++y) {
+#if PROTOGEN_ANIMATION_V2
+    const int destinationY = y + vertical;
+    if (destinationY < 0 || destinationY >= Height) continue;
+#else
+    const int destinationY = y;
+#endif
     for (int i = 0; i < 16; ++i) {
       const int shifted = i + offset;
       if (shifted >= 0 && shifted < 16 && (data[y * 2 + i / 8] & (0x80 >> (i & 7))))
-        put(frame, x + shifted, y);
+        put(frame, x + shifted, destinationY);
     }
+  }
 }
 inline void amplitudeMouth(Frame &frame, int x, uint8_t aperture, bool mirror) {
   const int opening = aperture > 3 ? 3 : aperture;
@@ -46,6 +57,22 @@ inline void amplitudeMouth(Frame &frame, int x, uint8_t aperture, bool mirror) {
     put(frame, x + column, 4 + inner);
   }
 }
+#if PROTOGEN_ANIMATION_V2
+inline void renderEye(Frame &frame, const Pose &pose, bool left, Behavior::EyeMotion motion) {
+  if (pose.boop) motion = {};
+  const uint8_t expression = pose.boop ? static_cast<uint8_t>(ExpressionVwv)
+      : motion.expressionOverride >= 0 ? static_cast<uint8_t>(motion.expressionOverride) : pose.expression;
+  const uint8_t *data = left ? EyeL : Eye;
+  if (expression == ExpressionSurprised) data = left ? SpookedL : Spooked;
+  if (expression == ExpressionAngry) data = left ? AngryL : Angry;
+  if (expression == ExpressionVwv) data = left ? vwvL : vwv;
+  uint8_t closure = pose.boop ? 0 : pose.closure;
+  if (motion.closure > closure) closure = motion.closure;
+  if (expression == ExpressionSleepy && closure < 4) closure = 4;
+  if (expression == ExpressionWink && !left && closure < 7) closure = 7;
+  eyes(frame, left ? EyeLeft : EyeRight, data, closure, motion.x, motion.y);
+}
+#endif
 inline void compose(Frame &frame, const Pose &pose, const AudioSnapshot &audio) {
   memset(frame.bytes, 0, sizeof(frame.bytes));
   bitmap(frame, NoseLeft, 8, noseL);
@@ -60,12 +87,21 @@ inline void compose(Frame &frame, const Pose &pose, const AudioSnapshot &audio) 
       bitmap(frame, MouthRight + 16, 16, audio.first);
       bitmap(frame, MouthRight, 16, audio.second);
     }
+#if PROTOGEN_ANIMATION_V2
+  } else if (!pose.boop && !pose.glitch && pose.mouthOverride >= 0) {
+    amplitudeMouth(frame, MouthLeft, static_cast<uint8_t>(pose.mouthOverride), true);
+    amplitudeMouth(frame, MouthRight, static_cast<uint8_t>(pose.mouthOverride), false);
+#endif
   } else {
     const uint8_t *left = pose.glitch == 1 ? Glitch1L : pose.glitch == 2 ? Glitch2L : mawL;
     const uint8_t *right = pose.glitch == 1 ? Glitch1 : pose.glitch == 2 ? Glitch2 : maw;
     bitmap(frame, MouthLeft, 32, pose.boop ? mawL : left);
     bitmap(frame, MouthRight, 32, pose.boop ? maw : right);
   }
+#if PROTOGEN_ANIMATION_V2
+  renderEye(frame, pose, true, pose.leftEye);
+  renderEye(frame, pose, false, pose.rightEye);
+#else
   const uint8_t expression = pose.boop ? static_cast<uint8_t>(ExpressionVwv) : pose.expression;
   const uint8_t *left = EyeL, *right = Eye;
   if (expression == ExpressionSurprised) { left = SpookedL; right = Spooked; }
@@ -79,5 +115,6 @@ inline void compose(Frame &frame, const Pose &pose, const AudioSnapshot &audio) 
   if (expression == ExpressionWink && rightCut < 7) rightCut = 7;
   eyes(frame, EyeLeft, left, leftCut, pose.boop ? 0 : pose.eyeOffset);
   eyes(frame, EyeRight, right, rightCut, pose.boop ? 0 : pose.eyeOffset);
+#endif
 }
 }
