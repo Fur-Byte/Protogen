@@ -1,5 +1,10 @@
 # Matching firmware and USB recovery
 
+Keep recovery bundles private. Authenticated firmware images can contain the
+provisioned UART key even when the ZIP contains no standalone key file. Check
+[redistribution requirements](../THIRD_PARTY_NOTICES.md) before distributing
+any source or firmware build.
+
 Rebuild Teensy and both wireless roles from matching current sources with the
 pinned toolchain. Then create a non-overwriting, checksummed development bundle:
 
@@ -22,7 +27,7 @@ also checks authenticated UART modes when Teensy's `WirelessPaw` is enabled and
 records selected features and bridge availability in `release.json`. A default
 Teensy image has optional wireless control disabled; bundling radio images does
 not enable it. Authenticated images still require the correctly provisioned
-per-helmet key and a hardware handshake check. No key is exported by this tool.
+per-helmet key and a hardware handshake check. The tool adds no standalone key file.
 Previous recovery ZIPs must contain the Teensy HEX, both radio roles' firmware,
 bootloaders and partition tables, toolchain pins, and matching successful build
 evidence. A checksum-valid but incomplete archive is rejected.

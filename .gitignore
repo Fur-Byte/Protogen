@@ -9,3 +9,11 @@ __pycache__/
 /firmware/esp32/compile_commands.json
 ProtogenUartKey.h
 !scripts/tests/uart-fixture/ProtogenUartKey.h
+
+# Local credential files and firmware signing material.
+.env
+.env.*
+!.env.example
+*.key
+*.p12
+*.pfx

@@ -1,5 +1,9 @@
 # Protogen helmet — Teensy 4.0
 
+This repository is a private firmware development and recovery workspace.
+See [public repository readiness](docs/PUBLIC_RELEASE_READINESS.md) for release
+status and redistribution gates, and [Contributing](CONTRIBUTING.md) for changes.
+
 > **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
 > for helmet and Paw; C3/v3 is retained as legacy development/regression.
 > Current production sources remain v3. Public S31 preview builds and a 48 KiB
@@ -13,7 +17,7 @@
 Open **[firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino](firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino)** in Arduino IDE.
 This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work
-without them. Your manually mapped bitmap graphics are preserved.
+without them. The firmware retains the original facial bitmaps.
 
 Firmware **8.2** retains expression transitions, hardware-random blink timing, sleepy/wink
 expressions, buffered audio, runtime USB settings, and the local preview/configuration
@@ -72,20 +76,18 @@ no upload or wiring change was performed. [ESP32 setup instructions](firmware/es
 - `scripts/build.sh`: reproducible Teensy 4.0 CLI build.
 - `build/`: generated firmware and check logs; can be regenerated.
 
-## Upload from Arduino IDE on this Mac
+## Upload from Arduino IDE
 
 1. Disconnect helmet battery/external power for the initial USB upload. Connect
    the Teensy 4.0 using a **micro-USB data cable**. A charging-only cable will not work.
 2. Open the sketch linked above. All `.ino` tabs and the `src/` folder must stay
    together inside `PROT_OS7_MAX7219`.
-3. In Boards Manager, confirm **Teensy 1.62.0** is installed. This Mac already has it.
-   For another computer, add `https://www.pjrc.com/teensy/package_teensy_index.json`
+3. To install **Teensy 1.62.0** in Boards Manager, add `https://www.pjrc.com/teensy/package_teensy_index.json`
    to Additional Boards Manager URLs, then install Teensy.
 4. Select **Tools → Board → Teensy → Teensy 4.0**. Set **USB Type: Serial**,
    **CPU Speed: 600 MHz**, and **Optimize: Faster** (the normal defaults used here).
 5. Library Manager must have **arduinoFFT 2.0.4**, **Adafruit GFX Library 1.12.6**,
-   and **Adafruit BusIO 1.17.4**. These are already installed on this Mac. The
-   MAX7219 driver is bundled inside this sketch and needs no separate installation.
+   and **Adafruit BusIO 1.17.4**. The MAX7219 driver is bundled inside this sketch and needs no separate installation.
 6. Select the Teensy entry under **Tools → Port** if one appears, then click **Upload**.
    Teensy Loader should open. If automatic reboot/upload cannot find the board,
    briefly press the **button on the Teensy itself** when the loader is ready.

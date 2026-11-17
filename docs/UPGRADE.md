@@ -54,7 +54,7 @@ After uploading firmware 8.2 using Arduino IDE, find the serial device and conne
 
 ```sh
 python3 scripts/helmet-tool.py --list-ports
-python3 scripts/helmet-tool.py --port /dev/cu.usbmodemYOUR_DEVICE
+python3 scripts/helmet-tool.py --port "<port from --list-ports>"
 ```
 
 USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It opens only the device explicitly supplied with `--port`; it never uploads firmware. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.

@@ -134,25 +134,56 @@ jobs:
           python3 scripts/check-mlkem-preflight.py
           python3 scripts/check-v4.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        # Keep diagnostics for maintainer runs, including failures. Fork PRs still run the checks.
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         with:
+          retention-days: 30
+          include-hidden-files: false
           name: host-and-c3-evidence
           path: |
-            build/*json
-            build/*log
-            build/baseline-host/
-            build/mutation-evidence/
-            build/flight-evidence/
-            build/p4-evidence/
-            build/p5-evidence/
-            build/p6-evidence/
-            build/p7-evidence/
-            build/matrix-*-esp32/
+            build/archive-face-comparison.json
+            build/compile.log
+            build/current-build.json
+            build/efficiency-checks.log
+            build/efficiency-results.json
+            build/esp32-build.json
+            build/esp32-build.log
+            build/extensions-checks.log
+            build/extensions-results.json
+            build/feature-checks.log
+            build/feature-results.json
+            build/latest-successful-build.json
+            build/uart-auth-checks.log
+            build/uart-auth-results.json
+            build/wireless-benchmark.json
+            build/baseline-host/**/*.json
+            build/baseline-host/**/*.log
+            build/mutation-evidence/**/*.json
+            build/mutation-evidence/**/*.log
+            build/flight-evidence/**/*.json
+            build/flight-evidence/**/*.log
+            build/flight-evidence/**/*.tsv
+            build/p4-evidence/**/*.json
+            build/p4-evidence/**/*.json.gz
+            build/p5-evidence/**/*.json
+            build/p5-evidence/**/*.tsv
+            build/p6-evidence/**/*.json
+            build/p6-evidence/**/*.tsv
+            build/p7-evidence/**/*.json
+            build/p7-evidence/**/*.log
+            build/p7-evidence/**/*.tsv
+            build/p7-evidence/**/*.txt
+            build/matrix-*-esp32/**/*.json
+            build/matrix-*-esp32/**/*.log
             build/twin/*.json
             build/twin/*.log
             build/twin/*.tsv
-            build/twin/fast/
-            build/twin/deep/
+            build/twin/fast/**/*.json
+            build/twin/fast/**/*.log
+            build/twin/fast/**/*.tsv
+            build/twin/deep/**/*.json
+            build/twin/deep/**/*.log
+            build/twin/deep/**/*.tsv
             build/runs/**/manifest.json
             build/runs/**/compile.log
             build/runs/**/esp32.log
@@ -206,13 +237,18 @@ jobs:
           source build/toolchains/environment.sh
           python3 scripts/check-audio-profiles.py --target
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        # Keep diagnostics for maintainer runs, including failures. Fork PRs still run the checks.
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         with:
+          retention-days: 30
+          include-hidden-files: false
           name: teensy-evidence-${{ matrix.group }}
           path: |
             build/runs/**/manifest.json
             build/runs/**/compile.log
-            build/flight-evidence/
+            build/flight-evidence/**/*.json
+            build/flight-evidence/**/*.log
+            build/flight-evidence/**/*.tsv
             build/p5-evidence/target.json
             build/p6-evidence/target.json
             build/p7-evidence/target.json
