@@ -47,6 +47,14 @@ class CompilerTests(unittest.TestCase):
         self.assertNotIn(source["name"], output.header())
         self.assertEqual(compile_document(load_json(output.source().encode())).header(), output.header())
 
+    def test_reordering_ties_after_expansion(self):
+        earlier = event(0, duration=10)
+        earlier["repeat"] = {"count": 2, "period_ms": 20}
+        later = event(20, duration=0, channel="sprite", first=2, last=2)
+        output = compile_document(document([later, earlier]))
+        self.assertEqual(output.data, compile_document(output.document).data)
+        self.assertEqual([output.data[16+i*10+5] for i in range(3)], [0,0,4])
+
     def test_repetition(self):
         motion = event()
         motion["repeat"] = {"count": 3, "period_ms": 101}

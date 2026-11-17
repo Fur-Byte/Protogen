@@ -211,7 +211,19 @@ def main():
         raise RuntimeError("visibility transition did not survive rollover")
     if frames[1200]["state"][4] != "1" or extra["metrics"]["audio_dropped"]:
         raise RuntimeError("speaking or audio service missing during timeline playback")
+    interrupted, _ = compare_seek(asset, [160, 260, 160], 0, [[200000, "timeline-cancel", 0]])
+    same_frame(interrupted["frames"][0], independent_eye(f["happy"], f["angry"], -2, 0, 3), "before cancellation")
+    same_frame(interrupted["frames"][1], f["happy"], "cancelled clip releases owned channels")
+    if interrupted["progress"]["state"] != 3:
+        raise RuntimeError("timeline cancellation was not reported")
+
+    # A 60-second seek is bounded by the same limits even with active modeled ADC.
     if args.deep:
+        long_source = dict(source, duration_ms=60000)
+        long_clip = compile_document(long_source)
+        long_result = replay_asset(long_clip, [60000])
+        same_frame(long_result["frames"][0], f["happy"], "sixty-second seek")
+        (OUT/"long-seek.json").write_text(json.dumps(long_result["metrics"], indent=2)+"\n")
         for at in range(0, 5001, 250):
             compare_seek(asset, [at,50,at], (2**32-200)*1000, environment)
     api = http_round_trip()

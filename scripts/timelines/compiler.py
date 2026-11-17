@@ -188,9 +188,8 @@ def compile_document(doc):
     # base time, then original declaration index. This survives re-import.
     expanded.sort()
     end = []
-    data = bytearray(HEADER.pack(VERSION, len(expanded), 0, duration, seed, expression,
+    data = bytearray(HEADER.pack(VERSION, len(expanded), audio >> 8, duration, seed, expression,
                                  blink, idle, audio & 255))
-    data[3] = audio >> 8
     for at, _, index, length, region, channel, priority, easing, first, last in expanded:
         end = [t for t in end if t >= at]  # P5 includes the last millisecond.
         if len(end) == 8:
