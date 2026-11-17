@@ -12,6 +12,9 @@ import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from timelines.compiler import MAX_BYTES as TIMELINE_MAX_BYTES, TimelineError, compile_document, fields, load_json
+from timelines.simulator import replay_asset
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -250,6 +253,11 @@ def make_handler(helmet, port):
             try:
                 if self.path == "/":
                     self.respond(200, (ROOT / "tools/helmet/index.html").read_bytes(), "text/html; charset=utf-8")
+                elif self.path == "/timeline-editor.js":
+                    self.respond(200, (ROOT / "tools/helmet/timeline-editor.js").read_bytes(), "text/javascript; charset=utf-8")
+                elif self.path == "/api/timeline/sample" and helmet.transport.simulation:
+                    sample = ROOT / "tools/helmet/timelines/three-channel.json"
+                    self.respond(200, load_json(sample.read_bytes()))
                 elif self.path == "/api/state":
                     self.respond(200, helmet.state())
                 elif self.path == "/api/profiles":
@@ -264,6 +272,12 @@ def make_handler(helmet, port):
         def do_POST(self):
             if not self.local_request():
                 self.respond(403, {"error": "Local access only"}); return
+            if self.path in ("/api/timeline/compile", "/api/timeline/seek"):
+                if not helmet.transport.simulation:
+                    self.respond(403, {"error": "Timeline editing is simulator-only"})
+                    return
+                self.timeline_request()
+                return
             if self.path != "/api/action":
                 self.respond(404, {"error": "Not found"}); return
             try:
@@ -276,6 +290,39 @@ def make_handler(helmet, port):
                 self.respond(200, helmet.action(payload))
             except (ValueError, TypeError, OSError, RuntimeError) as error:
                 self.respond(400, {"error": str(error)})
+        def timeline_request(self):
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type") != "application/json":
+                    raise TimelineError("$", "expected fixed-length application/json")
+                if not 0 < length <= TIMELINE_MAX_BYTES:
+                    raise TimelineError("$", "request exceeds the timeline size limit")
+                self.connection.settimeout(5)
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise TimelineError("$", "incomplete request")
+                request = load_json(raw)
+                seeking = self.path == "/api/timeline/seek"
+                raw_import = not seeking and type(request) is dict and "document_json" in request
+                fields(request, ("document", "positions_ms") if seeking else
+                       ("document_json",) if raw_import else ("document",), "$")
+                if seeking and type(request["positions_ms"]) is not list:
+                    raise TimelineError("positions_ms", "expected an array")
+                if raw_import and type(request["document_json"]) is not str:
+                    raise TimelineError("document_json", "expected a JSON source string")
+                try:
+                    document = load_json(request["document_json"].encode("utf-8")) if raw_import else request["document"]
+                except UnicodeError as error:
+                    raise TimelineError("document_json", "invalid UTF-8 source") from error
+                asset = compile_document(document)
+                result = replay_asset(asset, request["positions_ms"]) if seeking else {
+                    "document": asset.document, "json": asset.source(), "header": asset.header(),
+                    "asset_bytes": len(asset.data)}
+                self.respond(200, result)
+            except TimelineError as error:
+                self.respond(400, {"error": error.diagnostic()})
+            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+                self.respond(503, {"error": {"path": "$", "message": str(error)}})
     return Handler
 
 

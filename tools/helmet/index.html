@@ -56,6 +56,78 @@
 </div></div>
 <footer><span id="footer">Local controls · no account or internet required</span><span>Artwork preserved. Expressions rendered by the firmware.</span></footer>
 </main>
+
+<style>
+#timeline { margin-top: 18px; }
+#timeline[hidden] { display: none; }
+#timeline .timeline-layout { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(245px,1fr); gap:16px; }
+#timeline .timeline-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0; }
+#timeline canvas { width:100%; height:auto; background:#111512; border:1px solid var(--line); border-radius:7px; image-rendering:pixelated; }
+#timeline input[type=range] { width:100%; accent-color:var(--accent); }
+#timeline .ruler { display:flex; justify-content:space-between; color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
+#timeline .events { max-height:240px; overflow:auto; padding:4px; border:1px solid var(--line); border-radius:6px; }
+#timeline .events button { display:block; width:100%; text-align:left; margin:3px 0; }
+#timeline .events button[aria-pressed=true] { border-color:var(--accent); }
+#timeline .events strong { display:block; color:var(--muted); margin:.5em 0 .25em; font-size:12px; }
+#timeline fieldset { min-width:0; border:1px solid var(--line); border-radius:6px; margin:0 0 10px; padding:10px; }
+#timeline fieldset .edit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+#timeline label { display:block; color:var(--muted); font-size:12px; }
+#timeline label :is(input:not([type=checkbox]),select) { width:100%; display:block; }
+#timeline-status { min-height:2.5em; overflow-wrap:anywhere; }
+@media(max-width:790px){#timeline .timeline-layout{grid-template-columns:1fr}}
+</style>
+<section class="card" id="timeline" tabindex="0" aria-label="Timeline editor" hidden>
+  <div class="card-title"><h2>Animation timeline</h2><span id="timeline-badge" class="small">Simulator only</span></div>
+  <div class="timeline-layout">
+    <div>
+      <canvas id="timeline-face" width="672" height="48" aria-label="Firmware timeline frame"></canvas>
+      <div class="timeline-controls">
+        <button id="timeline-play" type="button">Play</button><button id="timeline-restart" type="button">Restart</button>
+        <button id="timeline-step" type="button">Step 16 ms</button><output id="timeline-time">0 ms</output>
+      </div>
+      <label for="timeline-scrub">Time position</label>
+      <input id="timeline-scrub" type="range" min="0" max="5200" value="0" step="1">
+      <div class="ruler" id="timeline-ruler" aria-hidden="true"></div>
+      <div class="timeline-controls">
+        <button id="timeline-add" type="button">Add keyframe</button><button id="timeline-delete" type="button">Delete keyframe</button>
+      </div>
+      <div id="timeline-events" class="events" aria-label="Animation tracks"></div>
+    </div>
+    <div>
+      <fieldset><legend>Clip</legend><div class="edit-grid">
+        <label>Name<input id="timeline-name" maxlength="80"></label>
+        <label>Identifier<input id="timeline-id" maxlength="32"></label>
+        <label>Duration (ms)<input id="timeline-duration" type="number" min="1" max="60000"></label>
+        <label>Starting expression<select id="timeline-expression"></select></label>
+        <label>Cosmetic seed<input id="timeline-seed" type="number" min="0" max="4294967295"></label>
+        <label>Model audio<input id="timeline-audio" type="number" min="0" max="500"></label>
+        <label><input id="timeline-blink" type="checkbox"> Natural blinks</label>
+        <label><input id="timeline-idle" type="checkbox"> Idle motion</label>
+      </div></fieldset>
+      <fieldset id="timeline-inspector"><legend>Selected keyframe</legend><div class="edit-grid">
+        <label>Region<select id="timeline-region"></select></label>
+        <label>Property<select id="timeline-channel"></select></label>
+        <label>Starts at (ms)<input id="timeline-at" type="number" min="0"></label>
+        <label>Duration (ms)<input id="timeline-length" type="number" min="0" max="5000"></label>
+        <label>From<input id="timeline-from" type="number"></label>
+        <label>To<input id="timeline-to" type="number"></label>
+        <label>Easing<select id="timeline-easing"></select></label>
+        <label>Priority<input id="timeline-priority" type="number" min="0" max="7"></label>
+        <label>Repetitions<input id="timeline-repeat" type="number" min="1" max="8"></label>
+        <label>Repeat interval (ms)<input id="timeline-period" type="number" min="1" max="60000"></label>
+      </div></fieldset>
+      <div class="timeline-controls">
+        <button id="timeline-validate" type="button">Validate</button>
+        <button id="timeline-import" type="button">Import JSON</button>
+        <input id="timeline-file" type="file" accept="application/json,.json" hidden>
+        <button id="timeline-json" type="button">Export JSON</button>
+        <button id="timeline-header" type="button">Export C++ asset</button>
+      </div>
+      <p id="timeline-status" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+<script src="/timeline-editor.js" defer></script>
 <script>
 const names=['Happy','Surprised','Angry','vwv','Sleepy','Wink'],symbols=['^‿^','O_O','>_<','vωv','–_–','^_–'];
 const keys=['brightness','startup_expression','mouth_mode','sensitivity','noise_margin','noise_floor','boop_trigger','boop_release','blink_interval_ms','blink_jitter_ms','transition_ms','attack_ms','release_ms','natural_blinks','idle_motion','boop_mode','boop_duration_ms'];

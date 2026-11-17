@@ -47,7 +47,7 @@ def replay_asset(asset, positions, *, origin=0, inputs=(), full_trace=False):
         # after the SPI setup transaction on the pinned 4 MHz model.
         for event in selected:
             event[0] += 1000
-        scenario = dict(version=1, origin_us=origin, duration_us=max(1000, last*1000), loop_us=1000,
+        scenario = dict(version=1, origin_us=origin, duration_us=(last+1)*1000, loop_us=1000,
                         cosmetic_seed=0, epoch=1, events=selected)
         with tempfile.TemporaryDirectory(prefix="protogen-timeline-") as tmp:
             path = Path(tmp) / "clip.bin"

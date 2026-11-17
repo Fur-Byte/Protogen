@@ -365,7 +365,6 @@ int main(int argc, char **argv) {
       if (events.size() && events.front().time < boot)
         throw std::runtime_error("input precedes the timeline origin");
       advanceTime(boot - fakeUs);
-      horizon += boot - origin;
       if (!behavior.startTimeline(clip.data(), clip.size(), millis())) throw std::runtime_error("timeline admission failed");
       trace("timeline-origin");
       std::cout << '\n';
