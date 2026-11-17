@@ -18,6 +18,7 @@ SCHEMA = json.loads((ROOT / "docs/validation/qualification-v1.schema.json").read
 GATES = {
     "software.compatibility": "F1",
     "host.integration": "F2",
+    "host.soak-100x24h": "F2",
     "target.compilation": "F0",
     "release.provenance": "F1",
     "hardware.timing": "F3",
@@ -131,6 +132,23 @@ def artifact_identity(root, name):
     return {"path": name, "sha256": digest, "size_bytes": file.stat().st_size}
 
 
+def validate_full_soak(path, source):
+    aggregate = load_manifest(path)
+    duration = 86_400_000_000
+    target = {"seed_start": 0, "seed_count": 100, "virtual_duration_us": duration}
+    blockers = ("failed_seeds", "incomplete_seeds", "missing_seeds", "duplicate_seeds", "unexpected_seeds")
+    identity, coverage = aggregate.get("identity") or {}, aggregate.get("coverage") or {}
+    if not (aggregate.get("version") == 1 and aggregate.get("status") == "PASS"
+            and aggregate.get("evidence_level") == "F2" and aggregate.get("architecture_target_met") is True
+            and aggregate.get("request") == target and aggregate.get("errors") == []
+            and identity.get("source_sha") == source and identity.get("source_dirty") is False
+            and coverage.get("passed_seed_ids") == list(range(100))
+            and coverage.get("passed_seed_count") == 100
+            and coverage.get("passed_virtual_duration_us") == 100 * duration
+            and all(coverage.get(key) == [] for key in blockers)):
+        raise ValueError("Release soak evidence must cover all 100 complete full-day seeds on this source")
+
+
 def validate(document, artifact_root, expected_source):
     check_schema(document, SCHEMA, "manifest")
     if document["source_sha"] != expected_source:
@@ -166,6 +184,8 @@ def validate(document, artifact_root, expected_source):
                 raise ValueError(f"{name}: successful stress run requires a continuous hour")
         if artifact and artifact_identity(artifact_root, artifact["path"]) != artifact:
             raise ValueError(f"{name}: artifact identity mismatch")
+        if name == "host.soak-100x24h" and record["result"] == "PASS":
+            validate_full_soak(artifact_path(artifact_root, artifact["path"]), expected_source)
 
 
 def readiness(document):

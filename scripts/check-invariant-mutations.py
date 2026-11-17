@@ -87,8 +87,12 @@ def exercise(directory, test, env):
         # hosts. Recompile the sole mutated translation unit in the fixture.
         for object_file in (build / "CMakeFiles/test-wireless.dir").rglob("WirelessSession.cpp.o"):
             object_file.unlink()
-        run([env["CMAKE"], "--build", str(build), "--target", "test-wireless", "-j", "4"], env)
-        return run([str(build / "test-wireless"), "--session-only"], env, check=False)
+        executable = build / "test-wireless"
+        executable.unlink(missing_ok=True)
+        compiled = run([env["CMAKE"], "--build", str(build), "--target", "test-wireless", "-j", "4"], env)
+        if "WirelessSession.cpp" not in compiled.stdout or not executable.is_file():
+            raise RuntimeError("Wireless mutation fixture failed to rebuild and link")
+        return run([str(executable), "--session-only"], env, check=False)
     flags = [env["CXX"], "-std=c++17", "-O1", "-g", "-Wall", "-Wextra", "-Werror",
              "-fsanitize=" + env["PROTOGEN_HOST_SANITIZERS"], "-fno-sanitize-recover=all",
              f"-I{scripts / 'stubs'}", f"-I{source}", f"-I{source / 'src/HelmetProtocol'}",

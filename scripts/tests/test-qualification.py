@@ -91,10 +91,34 @@ class Qualification(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "physical environment"):
             validate(self.manifest(invalid), self.root, SOURCE)
 
+    def soak_artifact(self, **overrides):
+        duration = 86_400_000_000
+        artifact = self.root / "soak.json"
+        values = {"passed_seed_count": 100, "passed_seed_ids": list(range(100)),
+                  "passed_virtual_duration_us": 100 * duration, "failed_seeds": [], "incomplete_seeds": [],
+                  "missing_seeds": [], "duplicate_seeds": [], "unexpected_seeds": []}
+        artifact.write_text(json.dumps({"version": 1, "evidence_level": "F2", "status": "PASS",
+            "architecture_target_met": True, "errors": [],
+            "identity": {"source_sha": SOURCE, "source_dirty": False},
+            "request": {"seed_start": 0, "seed_count": 100, "virtual_duration_us": duration},
+            "coverage": {**values, **overrides}}))
+        return {"path": "soak.json", "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                "size_bytes": artifact.stat().st_size}
+
+    def test_partial_soak_cannot_unlock_release_gate(self):
+        record = self.record("host.soak-100x24h")
+        record["artifact"] = self.soak_artifact(passed_seed_count=1)
+        with self.assertRaisesRegex(ValueError, "100 complete full-day seeds"):
+            validate(self.manifest(record), self.root, SOURCE)
+        record["artifact"] = self.soak_artifact()
+        validate(self.manifest(record), self.root, SOURCE)
+
     def test_gated_readiness(self):
         records = []
         for name, minimum in GATES.items():
             record = self.record(name, minimum)
+            if name == "host.soak-100x24h":
+                record["artifact"] = self.soak_artifact()
             if minimum == "F3":
                 record["hardware"] = {"boards": ["fixture-board"], "firmware_sha256": ["a" * 64],
                                       "instruments": ["fixture-probe"], "operator": "fixture operator",
