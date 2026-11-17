@@ -54,9 +54,6 @@
 </section>
 <section class="card"><div class="card-title"><h2>Profiles</h2><span class="small" style="color:var(--muted)">JSON / schema 2</span></div><div class="profile-row"><select id="profiles" aria-label="Preset profile"></select><button class="secondary" id="use-profile">Use preset</button></div><label for="profile-name">Profile name</label><input id="profile-name" type="text" value="My helmet" maxlength="64"><div class="actions"><button class="secondary" id="export">Download profile</button><button class="secondary" id="import">Import profile</button><input id="profile-file" type="file" accept=".json,application/json" hidden></div><p class="small" style="margin-top:12px">Profiles fill the controls. Apply them to preview; Save to keep them on the helmet.</p></section>
 </div></div>
-<footer><span id="footer">Local controls · no account or internet required</span><span>Artwork preserved. Expressions rendered by the firmware.</span></footer>
-</main>
-
 <style>
 #timeline { margin-top: 18px; }
 #timeline[hidden] { display: none; }
@@ -127,6 +124,9 @@
     </div>
   </div>
 </section>
+<footer><span id="footer">Local controls · no account or internet required</span><span>Artwork preserved. Expressions rendered by the firmware.</span></footer>
+</main>
+
 <script src="/timeline-editor.js" defer></script>
 <script>
 const names=['Happy','Surprised','Angry','vwv','Sleepy','Wink'],symbols=['^‿^','O_O','>_<','vωv','–_–','^_–'];

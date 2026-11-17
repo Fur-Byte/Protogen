@@ -245,7 +245,7 @@
       change();
     };
     for (const name of ["name","id","duration","expression","seed","audio","blink","idle"]) {
-      element(name).onchange = e => {
+      element(name).oninput = e => {
         if (name === "name" || name === "id") clip[name] = e.target.value;
         else if (name === "duration") { clip.duration_ms = number(name); renderRuler(); move(position); }
         else if (name === "blink" || name === "idle") clip.initial[name === "blink" ? "natural_blinks" : "idle_motion"] = e.target.checked;
@@ -254,14 +254,14 @@
       };
     }
     for (const [control,key] of Object.entries(eventFields)) {
-      element(control).onchange = e => {
+      element(control).oninput = e => {
         if (selected < 0) return;
         clip.events[selected][key] = ["region","channel","easing"].includes(control) ? e.target.value : number(control);
         renderEvents();
         change();
       };
     }
-    for (const name of ["repeat","period"]) element(name).onchange = () => {
+    for (const name of ["repeat","period"]) element(name).oninput = () => {
       if (selected < 0) return;
       if (number("repeat") === 1) delete clip.events[selected].repeat;
       else clip.events[selected].repeat = {count:number("repeat"),period_ms:number("period")};

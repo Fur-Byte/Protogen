@@ -114,6 +114,8 @@ The qualification linker explicitly retains both the read-only asset and
 hardware. A board integrator would call it explicitly in the owner context
 after establishing the expected live conditions. No USB upload or activation
 command exists. The ELF check searches for one byte-exact compiled asset.
+The [browser walkthrough](validation/P6_BROWSER_WALKTHROUGH.md) records
+creation, inspector edits, backward seeking and import/export through the UI.
 The exact browser-authored JSON and generated header were exported from
 Face Studio, independently recompiled by the CLI, linked into Teensy, and
 replayed by the actual firmware twin.

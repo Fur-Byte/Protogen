@@ -79,6 +79,7 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/tests/test-timeline-compiler.py
+          node scripts/tests/test-timeline-editor.js
           python3 scripts/check-timelines.py
       - name: Deep timeline seeking
         if: env.MATRIX_MODE == 'full'
