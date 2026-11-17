@@ -158,6 +158,40 @@ def check_causal_interaction(evidence):
     return metrics
 
 
+def check_retarget_handoff(evidence):
+    cases = {
+        "retarget-settle": scenario([[1000, "usb", "SET natural_blinks=0"], [100000, "usb", "EXPR 2"],
+                                    [300000, "usb", "EXPR 1"], [550000, "usb", "LATENCY"]], 600000),
+        "retarget-override": scenario([[1000, "usb", "SET natural_blinks=0"],
+                                      [100000, "v2-track", [3, 4, 7, 0, 800, 2, 2]],
+                                      [200000, "usb", "EXPR 2"], [450000, "usb", "LATENCY"]], 500000),
+    }
+    report = {}
+    for name, case in cases.items():
+        path = evidence / (name + ".tsv")
+        trace, metrics = execute(case, path)
+        report[name] = metrics
+        usb = b"".join(bytes.fromhex(r[-1]) for r in rows(trace, "usb"))
+        latency = next(d for line in usb.splitlines() if "feedback_valid" in (d := json.loads(line)))
+        if name == "retarget-settle":
+            first = int(at(trace, 301000)[0])
+            before = bytes.fromhex(at(trace, 299999)[-1])
+            # A nonzero settling squint was already emitted. At elapsed zero,
+            # a new command must not reopen it or record cosmetic feedback.
+            if before == frozen()["angry"]:
+                raise ValueError("reference retarget did not interrupt the settling pose")
+            visual_at(trace, 301000, before, name, path)
+            if not (latency["feedback_valid"] and latency["feedback_us"] >= 2000):
+                raise ValueError(f"{name}: false elapsed-zero feedback after {first} us: {latency}")
+        else:
+            angry = frozen()["angry"]
+            visual_at(trace, 199999, angry, "override emits requested art before admission", path)
+            visual_at(trace, 201000, angry, name, path)
+            if not latency["target_already_visible"] or latency["target_onset_us"] != 0:
+                raise ValueError(f"{name}: already-visible target art was not retained: {latency}")
+    return report
+
+
 def stress(evidence):
     # Independent oracle for high-volume deterministic admission: a fixed
     # ordered stream is emitted once per policy and all outputs must agree.
@@ -194,6 +228,7 @@ def build_demo(args):
     cases = check_demo(trace, trace_file)
     hidden = check_hidden(OUT)
     speech = check_speech(OUT)
+    retarget = check_retarget_handoff(OUT)
     # Run the interaction build twice with recorder enabled, early reveal and cache;
     # its intentionally different early transitions are allowed, SPI stability is not.
     replay.PROGRAM = mixed / "twin"
@@ -203,7 +238,7 @@ def build_demo(args):
     causal = check_causal_interaction(OUT)
     replay.PROGRAM = v2 / "twin"
     seeded = stress(OUT) if args.deep else {}
-    result = {"unit": unit, "visual": pixels, "demo": metrics, "hidden": hidden, "speech": speech, "causal": causal,
+    result = {"unit": unit, "visual": pixels, "demo": metrics, "hidden": hidden, "speech": speech, "causal": causal, "retarget": retarget,
               "interaction": interaction_stats, "stress": seeded}
     (OUT / ("deep-v2.json" if args.deep else "fast-v2.json")).write_text(json.dumps(result, indent=2) + "\n")
     if args.demo:

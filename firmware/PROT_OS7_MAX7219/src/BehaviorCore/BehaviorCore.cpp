@@ -108,12 +108,20 @@ bool Core::canTransition(bool visorVisible, uint16_t duration) const {
   return !sleeping && visorVisible && !boopActive && duration;
 }
 
-void Core::beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t displayedClosure) {
+void Core::beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t displayedClosure
+#if PROTOGEN_ANIMATION_V2
+                           , EyeMotion leftOrigin, EyeMotion rightOrigin
+#endif
+                           ) {
   transitionActive = true;
   transitionVisiblePending = true;
   transitionFrom = displayedExpression;
   transitionStartClosure = displayedClosure;
   transitionStarted = now;
+#if PROTOGEN_ANIMATION_V2
+  transitionLeftOrigin = leftOrigin;
+  transitionRightOrigin = rightOrigin;
+#endif
 }
 
 #if PROTOGEN_ANIMATION_V2
@@ -176,6 +184,20 @@ Pose Core::poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint
     if (transitionActive) {
       pose.expression = transition.expression;
       pose.closure = transition.closure;
+#if PROTOGEN_ANIMATION_V2
+      const uint32_t elapsed = now - transitionStarted;
+      const bool sourceArt = !earlyReveal && elapsed < config.transitionMs / 2;
+      const auto closure = [&](uint8_t floor) -> uint8_t {
+        if (floor <= transitionStartClosure) return 0; // The shared P4 closure suffices.
+        return transitionPose(elapsed, config.transitionMs, transitionFrom, expression, floor, earlyReveal).closure;
+      };
+      pose.leftEye = transitionLeftOrigin;
+      pose.rightEye = transitionRightOrigin;
+      pose.leftEye.closure = closure(pose.leftEye.closure);
+      pose.rightEye.closure = transitionRightOrigin.closure == transitionLeftOrigin.closure
+          ? pose.leftEye.closure : closure(pose.rightEye.closure);
+      if (!sourceArt) pose.leftEye.expressionOverride = pose.rightEye.expressionOverride = -1;
+#endif
     }
   }
 #if PROTOGEN_ANIMATION_V2

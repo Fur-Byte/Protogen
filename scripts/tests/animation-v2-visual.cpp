@@ -230,6 +230,31 @@ void cacheAndSpi() {
   selectExpressionCommand(ExpressionHappy, 416, ResponseTiming::Uart, 2, micros());
   require(!responseTiming.targetAlreadyVisible && !responseTiming.onset,
           "causal reversal incorrectly treated an override as requested artwork");
+
+  testName = "remote boop observes shifted Vwv rather than skipping";
+  behavior = Behavior::Core{};
+  behavior.expression = ExpressionVwv;
+  responseTiming = {};
+  const auto gaze = behavior.animations.start(500, {
+      Region::RightEye, Motion::Gaze, 4, Easing::Linear, 100, 2, 2});
+  require(gaze.status == Admission::Started, "boop fixture gaze failed");
+  renderExpected(transformed(3,3,0,2,0,0), 500);
+  matrix.shutdown(false);
+  displayBlanked = false;
+  PawLink::gate.epoch = 1;
+  PawLink::gate.bridge = 42;
+  PawLink::gate.issue(7, 505);
+  HelmetLink::Packet command;
+  command.kind = HelmetLink::Command; command.length = 8;
+  command.sequence = 1; command.epoch = 1; command.ticket = 7;
+  HelmetLink::put32(command.payload, 42);
+  command.payload[4] = HelmetLink::Boop; command.payload[5] = 0;
+  HelmetLink::put16(command.payload + 6, 100);
+  PawLink::receive(command, 505);
+  require(PawLink::lastResult == HelmetLink::Accepted && behavior.boopActive && responseTiming.pending,
+          "changed boop appearance was not admitted for observation");
+  renderExpected(rest[ExpressionVwv], 505);
+  require(responseTiming.feedback && responseTiming.completed == 1, "boop feedback was not observed");
 }
 
 int main(int argc, char **argv) {

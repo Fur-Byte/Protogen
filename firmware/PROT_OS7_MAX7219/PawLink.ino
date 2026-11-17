@@ -107,6 +107,17 @@ void receive(const HelmetLink::Packet &p, uint32_t now) {
       case HelmetLink::Boop:
         if(behavior.sleeping || !visorVisible || !connectorReady || !displayReady || behavior.boopActive) result=HelmetLink::Unavailable;
         else {expectedChange=behavior.expression!=ExpressionVwv || speakingActive || behavior.blinkClosure || behavior.transitionActive;
+#if PROTOGEN_ANIMATION_V2
+          if (!expectedChange && frameValid && !displayBlanked) {
+            // The Vwv intent can still be displaying a shifted eye or a
+            // mouth effect. Compare the emitted canvas with the actual boop art.
+            Face::Pose reaction;
+            reaction.boop = true;
+            Face::Frame expected;
+            Face::compose(expected, reaction, Face::AudioSnapshot{});
+            expectedChange = memcmp(displayedFrame.bytes, expected.bytes, sizeof(expected.bytes)) != 0;
+          }
+#endif
           behavior.beginRemoteBoop(now, HelmetLink::u16(p.payload+6));
           resetAnimations(now);setColor(16,4,0);behavior.rising=true;}
         break;

@@ -21,9 +21,11 @@ struct Pose {
 #if PROTOGEN_ANIMATION_V2
   EyeMotion leftEye, rightEye;
   int8_t mouthOverride = -1;
+  uint8_t eyeExpression(const EyeMotion &eye) const {
+    return eye.expressionOverride < 0 ? expression : static_cast<uint8_t>(eye.expressionOverride);
+  }
   bool showsExpression(uint8_t target) const {
-    return (leftEye.expressionOverride < 0 || leftEye.expressionOverride == target) &&
-           (rightEye.expressionOverride < 0 || rightEye.expressionOverride == target);
+    return eyeExpression(leftEye) == target && eyeExpression(rightEye) == target;
   }
 #endif
 };
@@ -53,6 +55,7 @@ struct Core {
 #if PROTOGEN_ANIMATION_V2
   Animation::Table animations{};
   Animation::Handle settleTrack;
+  EyeMotion transitionLeftOrigin, transitionRightOrigin;
   uint32_t settleRequestedAt = 0;
   bool settlePending = false;
   void requestSettle(uint32_t now);
@@ -77,7 +80,11 @@ struct Core {
   bool wantsLocalBoop() const { return boopState && boopArmed && !boopActive; }
   bool releaseHeldBoop(uint16_t mode);
   bool canTransition(bool visorVisible, uint16_t duration) const;
-  void beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t displayedClosure);
+  void beginTransition(uint32_t now, uint8_t displayedExpression, uint8_t displayedClosure
+#if PROTOGEN_ANIMATION_V2
+                       , EyeMotion leftOrigin = {}, EyeMotion rightOrigin = {}
+#endif
+                       );
   Pose poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint8_t aperture,
               bool earlyReveal
 #if PROTOGEN_ANIMATION_V2

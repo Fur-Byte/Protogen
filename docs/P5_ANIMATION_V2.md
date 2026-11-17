@@ -55,8 +55,14 @@ tracks while blanked. Boop masks both eyes and the mouth. Blink, a legacy
 expression transition, or a pending causal observation masks experimental
 eye effects. Speaking and an active glitch retain their existing mouth
 ownership. An override temporarily chooses which existing eye sprite to
-sample and never changes the base expression. A reversal cannot report
-already-visible target artwork from a different sprite override.
+sample and never changes the base expression. A new transition anchors its closing phase
+to the last emitted per-eye sprite, position and effective lid. Retargeting
+during a settling squint therefore starts from the emitted closure. V2
+effects age behind that handoff. The shell tests actual emitted artwork for
+already-visible targets and keeps per-eye source IDs for the post-write
+counterfactual. Removing an effect at admission alone cannot manufacture
+transition feedback. A boop that restores shifted Vwv to its canonical
+art is observed as a visible change.
 
 | Primitive | Bounds and output |
 | --- | --- |
