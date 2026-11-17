@@ -1,12 +1,15 @@
 name: Firmware regression and builds
 on:
   push:
-    branches: ['**']
+    branches: ['main']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
   schedule:
     - cron: '32 9 * * 1'
+concurrency:
+  group: firmware-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'automatic' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 env:
