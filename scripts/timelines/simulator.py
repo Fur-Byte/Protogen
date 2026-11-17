@@ -42,12 +42,12 @@ def replay_asset(asset, positions, *, origin=0, inputs=(), full_trace=False):
     try:
         build()
         started = time.monotonic()
-        selected = [list(event) for event in inputs if event[0] <= last * 1000]
+        selected = [list(event) for event in inputs if event[0] < (last+1) * 1000]
         # Model offsets are from the timer origin. The asset begins at 1 ms
         # after the SPI setup transaction on the pinned 4 MHz model.
         for event in selected:
             event[0] += 1000
-        scenario = dict(version=1, origin_us=origin, duration_us=(last+1)*1000, loop_us=1000,
+        scenario = dict(version=1, origin_us=origin, duration_us=(last+2)*1000-1, loop_us=1000,
                         cosmetic_seed=0, epoch=1, events=selected)
         with tempfile.TemporaryDirectory(prefix="protogen-timeline-") as tmp:
             path = Path(tmp) / "clip.bin"

@@ -6,7 +6,7 @@
 namespace Behavior::Timeline {
 constexpr unsigned Version = 1, MaxEvents = 32, HeaderBytes = 16, EventBytes = 10;
 constexpr unsigned AssetBytes = HeaderBytes + MaxEvents * EventBytes;
-constexpr unsigned EventsPerLoop = 4;
+constexpr unsigned EventsPerLoop = Animation::Capacity;
 static_assert(AssetBytes == 336 && sizeof(uint8_t) == 1 && sizeof(uint16_t) == 2 &&
               sizeof(uint32_t) == 4, "Timeline v1 wire size");
 

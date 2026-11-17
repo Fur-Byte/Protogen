@@ -39,7 +39,7 @@ int main() {
 
   assert(player.start(table, data, AssetBytes, origin));
   player.advance(table, origin + 4200);
-  assert(player.progress().next == EventsPerLoop && player.progress().skipped == 4);
+  assert(player.progress().next == 4 && player.progress().skipped == 4);
   player.advance(table, origin + 4224);
   assert(player.progress().started == 1);
   player.advance(table, origin + 5201);
@@ -73,6 +73,29 @@ int main() {
   assert(layered.resolveChannel(Region::LeftEye, Motion::Lid, origin+6).value == 1);
 
   std::cout << "{\"player_bytes\":" << sizeof(Player) << ",\"asset_bytes\":" << AssetBytes << "}\n";
+  // An ideal service opportunity must not discard the latter half of
+  // a legal eight-track, zero-duration group.
+  std::array<uint8_t, AssetBytes> simultaneous{};
+  simultaneous[0] = 1;
+  simultaneous[2] = 8;
+  simultaneous[4] = 100;
+  for (unsigned i = 0; i < 8; ++i) {
+    simultaneous[HeaderBytes + i*EventBytes + 6] = i;
+    simultaneous[HeaderBytes + i*EventBytes + 9] = i == 7 ? 2 : 0;
+  }
+  Table collision;
+  assert(player.start(collision, simultaneous.data(), simultaneous.size(), origin));
+  player.advance(collision, origin);
+  assert(player.progress().started == 8 && player.progress().skipped == 0);
+  assert(collision.resolveChannel(Region::LeftEye, Motion::Gaze, origin).value == 2);
+
+  std::array<uint8_t, AssetBytes> backlog{};
+  backlog[0] = 1; backlog[2] = 32; backlog[4] = 100;
+  for (unsigned i = 0; i < 32; ++i) backlog[HeaderBytes+i*EventBytes] = i;
+  assert(player.start(collision, backlog.data(), backlog.size(), origin));
+  player.advance(collision, origin+40);
+  assert(player.progress().next == EventsPerLoop && player.progress().skipped == EventsPerLoop);
+
   // Numerical conformance stream. Python's independent rational oracle
   // checks signed division at all integer ticks and every easing endpoint.
   for (unsigned curve = 0; curve < 5; ++curve)

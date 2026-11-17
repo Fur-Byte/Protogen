@@ -65,7 +65,7 @@ clips. The Wink guard and immutable audio snapshot remain in that renderer.
 The core has one player and the original eight-slot table. The player
 keeps one generation handle per slot and releases only tracks it admitted.
 A new valid start replaces the old clip; invalid input leaves it running.
-Each loop handles at most four due events. Late events whose inclusive
+Each loop handles at most eight due events, so a legal same-time group fits one service opportunity. Late events whose inclusive
 window has ended are recorded as skipped, and an admitted late event retains
 its absolute start instead of restarting its curve. Shared-table conflicts
 report Full without eviction. An ended clip releases all owned tracks

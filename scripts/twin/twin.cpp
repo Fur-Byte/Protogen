@@ -361,7 +361,7 @@ int main(int argc, char **argv) {
     if (timelineMode) {
       // The first opportunity is at the millisecond captured after setup.
       // Run until a loop that starts at the requested horizon has finished.
-      const uint64_t boot = ((fakeUs + 999) / 1000) * 1000;
+      const uint64_t boot = origin + ((fakeUs - origin + 999) / 1000) * 1000;
       if (events.size() && events.front().time < boot)
         throw std::runtime_error("input precedes the timeline origin");
       advanceTime(boot - fakeUs);

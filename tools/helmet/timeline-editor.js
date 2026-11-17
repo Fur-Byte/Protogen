@@ -6,7 +6,7 @@
   const channels = {x:"Horizontal", y:"Vertical", lid:"Lid closure", squint:"Squint", sprite:"Sprite", aperture:"Aperture"};
   const curves = {linear:"Linear", in:"Ease in", out:"Ease out", "in-out":"Ease in/out", settle:"Settle"};
   let clip, position = 0, selected = -1, playing = false, timer = null;
-  let revision = 0, snapshot = 0, busy = false, queued = false, batch = [];
+  let revision = 0, snapshot = 0, importOrder = 0, busy = false, queued = false, batch = [];
 
   function optionList(name, values) {
     for (const [value, label] of Object.entries(values)) {
@@ -190,8 +190,6 @@
   async function compiled(kind) {
     pause();
     const version = revision;
-    snapshot += 1;
-    queued = false;
     try {
       const value = await request("compile", {document:clip});
       if (revision !== version) return;
@@ -281,14 +279,14 @@
       pause();
       snapshot += 1;
       queued = false;
-      const version = revision;
+      const version = revision, order = ++importOrder;
       try {
         if (file.size > 30000) throw Error("Timeline JSON exceeds the import limit.");
         const value = await request("compile", {document_json:await file.text()});
-        if (version !== revision) return;
+        if (version !== revision || order !== importOrder) return;
         resetEditor(value.document);
         badge("Validated import");
-      } catch (error) { if (version === revision) status(error.message); }
+      } catch (error) { if (version === revision && order === importOrder) status(error.message); }
     };
     document.getElementById("timeline").addEventListener("keydown", e => {
       if (e.target.matches("input,select,button,textarea") || e.ctrlKey || e.metaKey || e.altKey) return;

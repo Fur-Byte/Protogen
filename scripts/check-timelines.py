@@ -211,6 +211,7 @@ def main():
         raise RuntimeError("visibility transition did not survive rollover")
     if frames[1200]["state"][4] != "1" or extra["metrics"]["audio_dropped"]:
         raise RuntimeError("speaking or audio service missing during timeline playback")
+    compare_seek(asset, [0, 16, 0], 500, [[10, "visor", 1], [11000, "visor", 0]])
     interrupted, _ = compare_seek(asset, [160, 260, 160], 0, [[200000, "timeline-cancel", 0]])
     same_frame(interrupted["frames"][0], independent_eye(f["happy"], f["angry"], -2, 0, 3), "before cancellation")
     same_frame(interrupted["frames"][1], f["happy"], "cancelled clip releases owned channels")
