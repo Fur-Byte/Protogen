@@ -63,7 +63,7 @@ assert.equal(context.exported.brightness,3,'profile exports must keep the reques
 console.log('PASS: Face Studio unrelated edits preserve brightness approval; explicit edits/profiles authorize brightness');
 
 function snapshot(expression, brightness=1) {
-  return {simulation:false, status:{expression, visible:true, features:4, microphone_enabled:true},
+  return {simulation:false, status:{expression, visible:true, sleeping:false, boop:false, features:4, microphone_enabled:true},
     config:{brightness, mouth_mode:1}, display:{frame:'00'.repeat(112)}};
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -124,21 +124,32 @@ test('a rejected Apply keeps edits and its error survives a superseded polling e
   assert.equal(requests.length, count, 'unapplied edits block Save');
   element('apply').onclick();
   assert.equal(JSON.parse(requests.at(-1).options.body).config.brightness, 4);
+  requests.at(-1).reply(snapshot(1, 4));
+  await settle();
+  assert.equal(requests.length, count + 1, 'Apply sends only the settings request');
+  element('save').onclick();
+  assert.deepEqual(JSON.parse(requests.at(-1).options.body), {action:'save'});
 });
 
 test('a preset selected during Apply stays pending for the next explicit Apply', async () => {
-  const {element, requests} = openStudio();
+  const {element, requests, timers} = openStudio();
   requests.find(request => request.path === '/api/profiles').reply([
     {schema:2, name:'Edited', config:{mouth_mode:0}}
   ]);
   requests.find(request => request.path === '/api/state').reply(snapshot(0));
   await settle();
+  const polling = timers.shift().fn();
+  const poll = requests.at(-1);
   element('brightness').value = '3';
   element('settings').listeners.input({target:element('brightness')});
   element('apply').onclick();
   const apply = requests.at(-1);
   element('profiles').value = '0';
   element('use-profile').onclick();
+  poll.reply(snapshot(2));
+  await polling;
+  assert.equal(element('reaction').textContent, 'Happy');
+  assert.equal(element('settings').disabled, true);
   apply.reply(snapshot(0, 3));
   await settle();
   assert.equal(element('mouth_mode').value, 0);
