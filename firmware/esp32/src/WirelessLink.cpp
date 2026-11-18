@@ -156,6 +156,14 @@ void Link::tick(uint32_t now) {
   if (!started)
     return;
   assert(invariant());
+  // Both receivers enforce their own hard session deadline *before* opening
+  // queued records. A peer that never requests a renewal must not extend
+  // the old authenticated session by continuing to transmit.
+  if (connected() && due(now, renewAt + ActiveMs)) {
+    increment(budget.diagnostics.renewals);
+    recover(now);
+    return;
+  }
   if (!radio.busy())
     lastBusy = now;
   if (radio.busy() && now - lastBusy >= HandshakeMs) {
@@ -250,8 +258,7 @@ void Link::tick(uint32_t now) {
       recover(now);
       return;
     }
-    if ((session.needsRekey() && (role == Helmet || count || txPending)) ||
-        (role == Paw && due(now, renewAt + ActiveMs))) {
+    if (session.needsRekey() && (role == Helmet || count || txPending)) {
       increment(budget.diagnostics.renewals);
       recover(now);
       return;
