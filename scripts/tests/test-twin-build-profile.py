@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ensure one host output directory cannot silently reuse a different profile."""
+"""Check incremental host builds after source and profile changes."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -9,6 +9,31 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class TwinCompileProfile(unittest.TestCase):
+    def test_changed_inputs_in_a_warm_build(self):
+        sketch = ROOT / 'firmware/PROT_OS7_MAX7219'
+        stubs = ROOT / 'scripts/tests/stubs'
+        driver = sketch / 'src/Max72xxPanel/Max72xxPanel.cpp'
+        cases = [
+            (driver, 'audio-corpus', 1),
+            (stubs / 'SPI.h', 'audio-corpus', 1),
+            (stubs / 'Arduino.h', 'fft.o', 1),
+            (stubs / 'Arduino.h', 'flight-recorder-unit', 1),
+            (sketch / 'src/BehaviorCore/Timeline.h', 'behavior-core-unit', 1),
+            (sketch / 'Settings.h', 'animation-v2-unit', 1),
+            (driver, 'behavior-core-unit', 0),
+            (stubs / 'SPI.h', 'fft.o', 0),
+        ]
+        with tempfile.TemporaryDirectory(prefix='protogen-twin-inputs-') as tmp:
+            make = ['make', '-s', '-C', str(ROOT / 'scripts/twin'), f'ROOT={ROOT}',
+                    f'BUILD={tmp}', 'EXTRA_FLAGS=-DPROTOGEN_FLIGHT_RECORDER=1']
+            targets = sorted({str(Path(tmp) / target) for _, target, _ in cases})
+            subprocess.run([*make, *targets], check=True)
+            subprocess.run([*make, '-q', *targets], check=True)
+            for changed, target, expected in cases:
+                with self.subTest(changed=changed.name, target=target):
+                    result = subprocess.run([*make, '-q', '-W', str(changed), str(Path(tmp) / target)])
+                    self.assertEqual(result.returncode, expected)
+
     def test_default_goal_rebuilds_the_executable_when_profile_changes(self):
         with tempfile.TemporaryDirectory(prefix='protogen-twin-binary-') as tmp:
             program = Path(tmp) / 'twin'
