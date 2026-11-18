@@ -47,13 +47,14 @@ struct FakeRadio : Transport {
   Mac own{}, peer{};
   uint8_t c = 6;
   bool encrypted = false, blocked = false, stuck = false;
-  unsigned packets = 0, dropFinish = 0;
+  unsigned packets = 0, dropFinish = 0, failConfigurations = 0;
   std::array<unsigned, SessionProof + 1> dropControl{};
   uint16_t deniedChannels = 0;
   std::deque<Received> incoming;
   std::vector<Frame> captured;
   bool configure(const Mac &m, const Mac *p, const uint8_t *lmk,
                  const uint8_t *pmk, uint8_t channel) override {
+    if (failConfigurations) { --failConfigurations; return false; }
     own = m;
     peer = p ? *p : Mac{};
     encrypted = p != nullptr;
@@ -512,6 +513,21 @@ void testReceiverHardExpiry() {
     assert(r.h.actions == before);
     assert(!r.h.link->online());
   }
+}
+void testRadioConfigureFaultRetries() {
+  Rig r;
+  r.connect();
+  const unsigned previousConnections = r.h.connections;
+  r.h.radio.failConfigurations = 2;
+  r.h.radio.stuck = true;
+  r.step(HandshakeMs + InvalidBackoffMs * 3 + 100);
+  assert(r.h.radio.failConfigurations == 0);
+  r.connect();
+  assert(r.h.connections > previousConnections);
+  const unsigned delivered = r.h.actions;
+  assert(r.p.link->queue(command()));
+  r.step(100);
+  assert(r.h.actions == delivered + 1);
 }
 void testRecovery() {
   Rig r;
@@ -973,6 +989,7 @@ int main(int argc,char **argv) {
   testInvalidPairingPointRecovery();
   testSession();
   testReceiverHardExpiry();
+  testRadioConfigureFaultRetries();
   testRecovery();
   testIdentityAndActions();
   testHandshakeAndForwardSecrecy();
