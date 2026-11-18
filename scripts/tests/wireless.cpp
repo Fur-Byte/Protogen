@@ -1,5 +1,6 @@
 #include "ActionQueue.h"
 #include "PairingIndicator.h"
+#include "ControlArming.h"
 #include "UartAuthentication.h"
 #include "WirelessLink.h"
 #include <array>
@@ -952,6 +953,17 @@ void testIdentityAndActions() {
   assert(!q.pop(400, intent));
   q.clear();
   assert(!q.pending());
+  ReleaseGate release;
+  assert(!release.ready(100, false)); // Pre-held during reconnect.
+  assert(!release.ready(120, true));
+  assert(!release.ready(149, true));
+  assert(release.ready(150, true));
+  release.reset(); // New connection always disarms.
+  assert(!release.ready(160, true));
+  assert(!release.ready(170, false)); // Bounce resets the interval.
+  assert(!release.ready(UINT32_MAX - 10, true));
+  assert(!release.ready(10, true));
+  assert(release.ready(20, true)); // Rollover-safe timing.
   Indicator led;
   assert(!led.level(0, false, false, 0));
   assert(led.level(0, true, false, 0));
