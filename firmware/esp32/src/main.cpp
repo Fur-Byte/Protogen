@@ -451,8 +451,7 @@ void serviceUnlock(uint32_t now) {
     unlockStarted = now;
   if (!held) {
     entryConsumed = eraseConsumed = false;
-    if (unlocked)
-      confirmationArmed = true;
+    // Confirmation is armed below, only after the code has been fully shown.
   }
   if (held && !unlocked && !entryConsumed && now - unlockStarted >= hold) {
     unlocked = true;
@@ -476,7 +475,15 @@ void serviceUnlock(uint32_t now) {
     eraseConsumed = true;
   }
   uint32_t code = 0;
-  if (unlocked && confirmationArmed && wirelessLink.pairingCode(code) && held &&
+  const bool codePresented = unlocked && wirelessLink.pairingCode(code) &&
+                             indicator.complete(now, code);
+  // A complete six-digit LED cycle must precede a fresh release and hold.
+  // Do not accept a pre-held button when the first display finishes.
+  if (!codePresented)
+    confirmationArmed = false;
+  else if (!held)
+    confirmationArmed = true;
+  if (codePresented && confirmationArmed && held &&
       now - unlockStarted >= Wireless::PairConfirmHoldMs) {
     wirelessLink.confirmPairing();
     confirmationArmed = false;
