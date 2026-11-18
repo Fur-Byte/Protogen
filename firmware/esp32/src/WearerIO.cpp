@@ -363,10 +363,10 @@ void task(void*) {
       saving.attempted(now,used,okay);
       Efficiency::increment(okay?s.metrics.commits:s.metrics.commitFailures);
     }
-    HelmetLink::Packet face;bool radio;uint32_t at;
-    portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;portEXIT_CRITICAL(&mux);
+    HelmetLink::Packet face;bool radio,known;uint32_t at;
+    portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;known=faceKnown;portEXIT_CRITICAL(&mux);
     observedFaceAt=at;
-    const bool stale=!faceKnown || now-at>=2000;
+    const bool stale=!known || now-at>=2000;
     const bool urgent=warningFor(s)!=previousWarning || s.faults!=previousFaults || radio!=previousRadio || stale!=previousStale ||
         memcmp(face.payload+4,previousFace.payload+4,2) || memcmp(face.payload+10,previousFace.payload+10,2) ||
         (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=now/60000);
