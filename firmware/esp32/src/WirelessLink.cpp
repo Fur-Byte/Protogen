@@ -54,6 +54,7 @@ void Link::recover(uint32_t now) {
   if (!randomIdentity(own, role) ||
       !radio.configure(own, nullptr, nullptr, nullptr, PairChannel)) {
     started = false;
+    retryAt = now + InvalidBackoffMs;
     return;
   }
   recoveryAt = identityAt = now;
@@ -61,6 +62,7 @@ void Link::recover(uint32_t now) {
   if (paired) {
     if (!recovery.start(haveRecovery ? recoveryKey : psk, role, now)) {
       started = false;
+      retryAt = now + InvalidBackoffMs;
       transition(State::PairedOffline);
       return;
     }
@@ -153,8 +155,15 @@ void Link::keepalive(uint32_t now) {
   }
 }
 void Link::tick(uint32_t now) {
-  if (!started)
+  if (!started) {
+    // A failed radio configuration is retryable; it is not an intentional
+    // shutdown. Keep the previous pair in storage and rebuild fresh state.
+    if (due(now, retryAt)) {
+      started = true;
+      recover(now);
+    }
     return;
+  }
   assert(invariant());
   // Both receivers enforce their own hard session deadline *before* opening
   // queued records. A peer that never requests a renewal must not extend
@@ -321,6 +330,7 @@ void Link::tick(uint32_t now) {
     if (!randomIdentity(own, role) ||
         !radio.configure(own, nullptr, nullptr, nullptr, currentChannel)) {
       started = false;
+      retryAt = now + InvalidBackoffMs;
       return;
     }
     handshake.start(psk, role, own, now);
