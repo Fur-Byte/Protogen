@@ -86,3 +86,32 @@ python3 scripts/qualification.py verify "$qualification_manifest" \
 
 Any physical gate required for the intended build remains open until its
 measured conditions, results and supporting hashes have been reviewed.
+
+## Prioritized bench preparation
+
+The available physical assembly and instruments are **unknown**. No device
+or optional module has been confirmed by this qualification record. First
+inventory the helmet, installed modules and calibrated instruments using the
+manifest. With the corresponding equipment identified and operator approval,
+run these trials in order.
+
+1. Teensy 4.0 service gaps, ADC drops and stack headroom using a suitable
+   timing instrument and approved stack measurement method.
+2. MAX7219 mapping, blanking, readability and flicker using the actual panels
+   and, where timing matters, a photodiode and oscilloscope.
+3. Installed microphone, representative wearer speech and mixed background
+   noise using independently labeled trials. Include the P7 848 ms missed-speech
+   case and compare matched legacy and Audio V2 profiles.
+4. Supply voltage, current and thermal behavior using a suitable multimeter,
+   current measurement and temperature instrument under rated load.
+5. Helmet and paw ESP32-C3 communication, if both roles are installed, including
+   reconnect, latency and stale-command rejection.
+6. Verify and restore a matching known-good firmware bundle under separately
+   authorized procedures, then verify settings and command freshness.
+7. Run the documented connected one-hour workload and retain measurement
+   files, operator identity, instrument details and hashes.
+
+A Teensy board, panels, microphone, power instrumentation, oscilloscope,
+photodiode and both wireless roles are required only for their respective
+applicable trials. Their current availability is unconfirmed. Missing
+equipment and unknown installation details remain open in the manifest.

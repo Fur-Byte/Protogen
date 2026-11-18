@@ -117,3 +117,25 @@ child output overflow.
 910,000 ms each. It completed **0/100 full-day seeds**. Run the bounded
 manual workflow against the release candidate and aggregate the matching
 shard artifacts before claiming the full virtual-soak target.
+
+## Completed qualification run
+
+Run [44225128810](https://github.com/Fur-Byte/Protogen/actions/runs/44225128810) completed
+100 seeds, each for 86,400,000 virtual milliseconds, across 50 passing shards.
+The F2 aggregate reports no failed, incomplete, missing, duplicate or unexpected
+seeds and identifies clean source `aa37fdac93fa484a9092025eb5eec0540d405477`.
+The original [aggregate](validation/p8-soak-44225128810/aggregate.json) has SHA-256
+`ff0f93108121136c7f5112a0a98ee22193e921c6fafcc54c6e310241454d608d`.
+GitHub reports artifact 14394150401 with archive digest
+`a1b95b43ac8613d969001c85b97edc9284e8ce4b0c1c869a3e6f813f682589f5`.
+The [evidence record](validation/p8-soak-44225128810/evidence.json) validates
+against that tested commit. The runner used GitHub Actions ubuntu-24.04 and
+the default-feature host twin. Physical and opt-in hardware behavior remain
+separate qualification gates.
+
+Main at `5044678157b2fa5690b8d3174ec8fc04a8762f0c` adds public-readiness
+documentation, credential ignore rules, and CI artifact upload restrictions.
+It changes neither firmware, twin, soak invariants, build definitions nor the
+soak workflow. The security documentation and artifact-retention policy
+changed, so review those policies and run targeted validation on a release
+candidate. The historical evidence remains bound to its tested commit.
