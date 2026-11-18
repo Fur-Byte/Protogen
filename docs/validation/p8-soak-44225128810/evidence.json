@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "source_sha": "aa37fdac93fa484a9092025eb5eec0540d405477",
+  "records": [
+    {
+      "requirement_id": "host.soak-100x24h",
+      "source_sha": "aa37fdac93fa484a9092025eb5eec0540d405477",
+      "feature_flags": {
+        "profile": "default twin"
+      },
+      "toolchain": {
+        "environment": "GitHub Actions ubuntu-24.04; pinned toolchains in tested workflow"
+      },
+      "command": [
+        "python3",
+        "scripts/twin/soak.py",
+        "aggregate"
+      ],
+      "result": "PASS",
+      "evidence_level": "F2",
+      "artifact": {
+        "path": "aggregate.json",
+        "sha256": "ff0f93108121136c7f5112a0a98ee22193e921c6fafcc54c6e310241454d608d",
+        "size_bytes": 8401
+      },
+      "environment": {
+        "kind": "host",
+        "description": "GitHub Actions ubuntu-24.04, 50 bounded shards"
+      },
+      "hardware": null,
+      "limitations": [
+        "Simulation and default feature profile; physical qualification remains outstanding."
+      ],
+      "outstanding_gates": []
+    }
+  ]
+}
