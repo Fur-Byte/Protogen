@@ -357,14 +357,14 @@ void connectionChanged(void *, bool online) {
     } while (!helmetStatus.bridge);
     lastSentStatus = HelmetLink::Packet{};
   }
-  WearerIO::face(helmetStatus.packet, online);
+  WearerIO::link(online);
 #else
   commandWaiting = buttonsArmed = false;
   commandSequence = 0;
   actions.clear();
   helmetStatus.available = false;
   helmetStatus.bridge = 0;helmetStatus.expecting=false;
-  WearerIO::face(helmetStatus.packet, online);
+  WearerIO::link(online);
 #endif
   printf("{\"event\":\"%s\"}\n", online ? "connected" : "disconnected");
 }
