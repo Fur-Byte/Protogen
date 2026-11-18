@@ -118,6 +118,17 @@ def main():
             results[key]={mode:score(samples,labels,executable,OUT/(key+"-"+mode+".tsv"))
                           for mode,executable in modes.items()}
     total,checks=accepts(results)
+    # Keep the frozen score comparable. Exercise the audit's mixed-noise
+    # regression separately, including tones between the original lag taps.
+    carrier_sweep = {}
+    if args.held_out:
+        for frequency in (110, 160, 190, 220, 310, 375, 437, 675):
+            samples, labels = signal("speech_ambient_step", 78, carrier_hz=frequency)
+            observed = score(samples, labels, modes["v2"], OUT/f"carrier-{frequency}.tsv")
+            carrier_sweep[str(frequency)] = observed
+            checks[f"carrier-{frequency}/activity"] = (
+                observed["missed_ms"] <= 600 and observed["false_ms"] <= 300
+            )
     # Host scheduling and wall-clock runtime must not change any window or pixel.
     repeat = "speech_ambient_step"
     samples, labels = signal(repeat, seeds[0])
@@ -127,7 +138,7 @@ def main():
     checks["deterministic_rows_and_pixels"] = original.read_bytes() == repeated.read_bytes()
     demo(seeds[0])
     report={"protocol":"iteration 2","held_out":args.held_out,"seeds":seeds,"aggregate":total,
-            "checks":checks,"cases":results,"host_cost":{mode:costs(exe) for mode,exe in modes.items()}}
+            "checks":checks,"cases":results,"carrier_sweep":carrier_sweep,"host_cost":{mode:costs(exe) for mode,exe in modes.items()}}
     (OUT/("held-out.json" if args.held_out else "development.json")).write_text(json.dumps(report,indent=2)+"\n")
     print(json.dumps(total))
     failed=[key for key,value in checks.items() if not value]

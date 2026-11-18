@@ -62,7 +62,11 @@ checkout and records its exit status and log hash. `verify` checks every
 artifact against the supplied source SHA and records readiness per gate.
 `merge` combines independently collected records for the same SHA. A passed
 F3 stress result requires at least 3,600 continuous seconds and identified
-boards, instruments, firmware, conditions and operator. Trust in who
+boards, instruments, firmware, conditions and operator. A physical gate can
+contribute to release readiness only when the named board roles, installed
+image hashes, assembly and feature flags match a separately supplied candidate.
+See the [candidate record format](P8_HARDWARE_QUALIFICATION.md#evidence-and-sign-off).
+Trust in who
 conducted a test and the correctness of its oracle still require review.
 Artifact hashes detect changed contents and are not release signatures.
 
@@ -77,6 +81,9 @@ failure reproduction and the exact coverage report. Two seeds per shard, a
 concurrent CI shards bound the manual workflow. It builds one pinned host
 twin and aggregates every shard, including incomplete coverage. Ordinary
 PR CI checks the focused faults without scheduling the long soak.
+The release verifier checks the retained aggregate's binary and runner hashes,
+passing shard references and coverage. Recomputing that aggregate requires
+the original shard files.
 
 The [release and restore procedure](RELEASE_RECOVERY.md) requires a clean
 source checkout, matching exact build manifests and toolchains, artifact

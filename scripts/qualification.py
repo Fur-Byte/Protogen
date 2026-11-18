@@ -134,19 +134,62 @@ def artifact_identity(root, name):
 
 def validate_full_soak(path, source):
     aggregate = load_manifest(path)
+    if not isinstance(aggregate, dict):
+        raise ValueError("Release soak aggregate must be an object")
     duration = 86_400_000_000
     target = {"seed_start": 0, "seed_count": 100, "virtual_duration_us": duration}
     blockers = ("failed_seeds", "incomplete_seeds", "missing_seeds", "duplicate_seeds", "unexpected_seeds")
-    identity, coverage = aggregate.get("identity") or {}, aggregate.get("coverage") or {}
+    identity, coverage = aggregate.get("identity"), aggregate.get("coverage")
+    shards = aggregate.get("shards")
+    if not (isinstance(identity, dict) and isinstance(coverage, dict)
+            and isinstance(shards, list) and 1 <= len(shards) <= 100):
+        raise ValueError("Release soak aggregate requires run identity, coverage and passing shard references")
+    for field in ("program_sha256", "runner_sha256"):
+        check_schema(identity.get(field), SCHEMA["$defs"]["digest"], f"aggregate.identity.{field}")
+    for shard in shards:
+        if not isinstance(shard, dict) or shard.get("status") != "PASS":
+            raise ValueError("Release soak aggregate references an unfinished shard")
+        check_schema(shard.get("path"), SCHEMA["$defs"]["text"], "aggregate.shards.path")
+        check_schema(shard.get("sha256"), SCHEMA["$defs"]["digest"], "aggregate.shards.sha256")
+    if any(len({shard[key] for shard in shards}) != len(shards) for key in ("path", "sha256")):
+        raise ValueError("Release soak aggregate repeats a shard reference")
     if not (aggregate.get("version") == 1 and aggregate.get("status") == "PASS"
             and aggregate.get("evidence_level") == "F2" and aggregate.get("architecture_target_met") is True
-            and aggregate.get("request") == target and aggregate.get("errors") == []
+            and aggregate.get("request") == target and aggregate.get("errors") == [] and aggregate.get("unfinished_shards") == []
             and identity.get("source_sha") == source and identity.get("source_dirty") is False
             and coverage.get("passed_seed_ids") == list(range(100))
             and coverage.get("passed_seed_count") == 100
             and coverage.get("passed_virtual_duration_us") == 100 * duration
             and all(coverage.get(key) == [] for key in blockers)):
         raise ValueError("Release soak evidence must cover all 100 complete full-day seeds on this source")
+
+
+def require_identified(values):
+    placeholders = {"", "unknown", "n/a", "unassigned", "tbd", "not_applicable", "not applicable"}
+    if any(value.strip().casefold() in placeholders for value in values):
+        raise ValueError("physical candidate and executed evidence require identified hardware, roles and operator")
+
+
+def physical_identity(hardware, flags):
+    boards, images = hardware["boards"], hardware["firmware_sha256"]
+    if isinstance(boards, list) and isinstance(images, list):
+        if len(boards) != len(images):
+            raise ValueError("physical candidate requires one image per board")
+        # Historical lists pair by index. Keep board/image pairs together when comparing them.
+        pairs = tuple(sorted(zip(boards, images)))
+        board_ids = boards
+    elif isinstance(boards, dict) and isinstance(images, dict) and boards.keys() == images.keys():
+        require_identified(boards)
+        if any(not re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", role) for role in boards):
+            raise ValueError("physical candidate has an invalid board role")
+        pairs = tuple(sorted((role, board, images[role]) for role, board in boards.items()))
+        board_ids = boards.values()
+    else:
+        raise ValueError("physical candidate board and image roles must match")
+    require_identified([hardware["assembly_id"], *board_ids])
+    if len(set(board_ids)) != len(board_ids):
+        raise ValueError("physical candidate has duplicate board identifiers")
+    return hardware["assembly_id"], pairs, flags
 
 
 def validate(document, artifact_root, expected_source):
@@ -177,17 +220,9 @@ def validate(document, artifact_root, expected_source):
         if physical and executed:
             if not hardware:
                 raise ValueError(f"{name}: F3 executed evidence requires identified hardware")
-            identity_fields = hardware["boards"] + hardware["instruments"] + [hardware["operator"]]
-            if any(value.strip().lower() in {"", "unknown", "n/a", "unassigned"} for value in identity_fields):
-                raise ValueError(f"{name}: F3 executed evidence requires identified hardware and operator")
+            require_identified([*hardware["instruments"], hardware["operator"]])
             datetime.date.fromisoformat(hardware["date"])
-            # All executed physical results must describe one named assembly,
-            # one set of role image hashes, and one active feature profile.
-            # Operators, instruments and dates may legitimately differ.
-            candidate = (hardware["assembly_id"],
-                         tuple(sorted(hardware["boards"])),
-                         tuple(sorted(hardware["firmware_sha256"])),
-                         tuple(sorted(record["feature_flags"].items())))
+            candidate = physical_identity(hardware, record["feature_flags"])
             if physical_candidate is None:
                 physical_candidate = candidate
             elif candidate != physical_candidate:
@@ -200,18 +235,31 @@ def validate(document, artifact_root, expected_source):
             validate_full_soak(artifact_path(artifact_root, artifact["path"]), expected_source)
 
 
-def readiness(document):
+def readiness(document, candidate=None):
+    bound = False
+    if candidate is not None:
+        check_schema(candidate, SCHEMA["$defs"]["candidate"], "candidate")
+        if candidate["source_sha"] != document["source_sha"]:
+            raise ValueError("release candidate does not match manifest source SHA")
+        expected = physical_identity(candidate, candidate["feature_flags"])
+        for record in document["records"]:
+            if record["evidence_level"] == "F3" and record["result"] in {"PASS", "FAIL"}:
+                if physical_identity(record["hardware"], record["feature_flags"]) != expected:
+                    raise ValueError(f"{record['requirement_id']}: evidence differs from the named release candidate")
+                bound = True
     by_name = {record["requirement_id"]: record for record in document["records"]}
     gates = {}
     for name, minimum in GATES.items():
         record = by_name.get(name)
         status = record["result"] if record else "NOT_RUN"
         observed = record["evidence_level"] if record else None
-        if status == "PASS" and (observed < minimum or record["outstanding_gates"]):
+        if status == "PASS" and (observed < minimum or record["outstanding_gates"] or
+                                 (minimum == "F3" and not bound)):
             status = "UNQUALIFIED"
         gates[name] = {"status": status, "minimum_evidence": minimum, "observed_evidence": observed}
     result = "GATES_SATISFIED" if all(gate["status"] == "PASS" for gate in gates.values()) else "PRODUCTION_BLOCKED"
-    return {"schema_version": 1, "source_sha": document["source_sha"], "verdict": result, "gates": gates}
+    return {"schema_version": 1, "source_sha": document["source_sha"], "verdict": result,
+            "physical_candidate_matched": bound, "gates": gates}
 
 
 def pairs(items, convert=lambda x: x):
@@ -272,6 +320,7 @@ def main():
         check.add_argument("manifest", nargs=1 if name == "verify" else "+", type=Path)
         check.add_argument("--artifact-root", required=True, type=Path)
         check.add_argument("--source", required=True)
+        check.add_argument("--candidate", type=Path, help="independent release candidate identity for F3 readiness")
         check.add_argument("--output", type=Path, required=name == "merge")
     args = parser.parse_args()
     try:
@@ -284,10 +333,11 @@ def main():
             entries.extend(doc["records"])
         merged = {"schema_version": 1, "source_sha": args.source, "records": entries}
         validate(merged, args.artifact_root, args.source)
+        report = readiness(merged, load_manifest(args.candidate) if args.candidate else None)
         if args.operation == "merge":
             args.output.parent.mkdir(parents=True, exist_ok=True)
             write_json(args.output, merged)
-        print(json.dumps(readiness(merged), indent=2))
+        print(json.dumps(report, indent=2))
         return 0
     except (ValueError, OSError) as error:
         parser.exit(1, f"{error}\n")

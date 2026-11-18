@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import secrets
 import select
 import sys
 import subprocess
@@ -224,14 +225,41 @@ class Helmet:
             return self.state()
 
 
-def make_handler(helmet, port):
+class StudioServer(ThreadingHTTPServer):
+    """Bound the number of connections waiting for headers or serial access."""
+
+    def __init__(self, address, handler):
+        self.slots = threading.BoundedSemaphore(16)
+        super().__init__(address, handler)
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
+
+
+def make_handler(helmet, port, usb_token=None):
     class Handler(BaseHTTPRequestHandler):
+        timeout = 5
+
         def log_message(self, *_):
             pass
 
         def end_headers(self):
             self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
             self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
             super().end_headers()
 
         def respond(self, status, body, mime="application/json"):
@@ -247,14 +275,25 @@ def make_handler(helmet, port):
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
-        def local_request(self):
+        def allow_request(self):
             hosts = (f"127.0.0.1:{port}", f"localhost:{port}")
-            origin = self.headers.get("Origin")
-            return self.headers.get("Host") in hosts and (not origin or origin in tuple("http://" + host for host in hosts))
+            host = self.headers.get("Host")
+            origins = self.headers.get_all("Origin", [])
+            if (len(self.headers.get_all("Host", [])) != 1 or host not in hosts
+                    or (origins and origins != ["http://" + host])):
+                self.respond(403, {"error": "Local access only"})
+                return False
+            if not helmet.transport.simulation and self.path.startswith("/api/"):
+                values = self.headers.get_all("Authorization", [])
+                if (not usb_token or len(values) != 1 or not values[0].isascii()
+                        or not secrets.compare_digest(values[0], "Bearer " + usb_token)):
+                    self.respond(403, {"error": "Open the private USB controls link printed by Face Studio."})
+                    return False
+            return True
 
         def do_GET(self):
-            if not self.local_request():
-                self.respond(403, {"error": "Local access only"}); return
+            if not self.allow_request():
+                return
             try:
                 if self.path == "/":
                     self.respond(200, (ROOT / "tools/helmet/index.html").read_bytes(), "text/html; charset=utf-8")
@@ -275,8 +314,8 @@ def make_handler(helmet, port):
                 self.respond(503, {"error": str(error)})
 
         def do_POST(self):
-            if not self.local_request():
-                self.respond(403, {"error": "Local access only"}); return
+            if not self.allow_request():
+                return
             if self.path in ("/api/timeline/compile", "/api/timeline/seek"):
                 if not helmet.transport.simulation:
                     self.respond(403, {"error": "Timeline editing is simulator-only"})
@@ -286,10 +325,16 @@ def make_handler(helmet, port):
             if self.path != "/api/action":
                 self.respond(404, {"error": "Not found"}); return
             try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if not 0 < length <= 4096 or self.headers.get("Content-Type") != "application/json":
+                if (len(self.headers.get_all("Content-Length", [])) != 1 or self.headers.get("Transfer-Encoding")
+                        or self.headers.get("Content-Type") != "application/json"):
                     raise ValueError("Expected a small JSON request")
-                payload = json.loads(self.rfile.read(length))
+                length = int(self.headers["Content-Length"])
+                if not 0 < length <= 4096:
+                    raise ValueError("Expected a small JSON request")
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError("Incomplete request")
+                payload = json.loads(raw)
                 if not isinstance(payload, dict):
                     raise ValueError("Expected an object")
                 self.respond(200, helmet.action(payload))
@@ -298,11 +343,11 @@ def make_handler(helmet, port):
         def timeline_request(self):
             try:
                 length = int(self.headers.get("Content-Length", "0"))
-                if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type") != "application/json":
+                if (len(self.headers.get_all("Content-Length", [])) != 1 or self.headers.get("Transfer-Encoding")
+                        or self.headers.get("Content-Type") != "application/json"):
                     raise TimelineError("$", "expected fixed-length application/json")
                 if not 0 < length <= TIMELINE_MAX_BYTES:
                     raise TimelineError("$", "request exceeds the timeline size limit")
-                self.connection.settimeout(5)
                 raw = self.rfile.read(length)
                 if len(raw) != length:
                     raise TimelineError("$", "incomplete request")
@@ -331,6 +376,16 @@ def make_handler(helmet, port):
     return Handler
 
 
+def write_usb_launcher(directory, port, token):
+    # Only this local file contains the launch URL. Fragments do not go into HTTP requests.
+    path = Path(directory) / "open-helmet.html"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as output:
+        output.write('<!doctype html><title>Face Studio</title>'
+                     f'<a rel="noreferrer" href="http://127.0.0.1:{port}/#usb={token}">Open USB helmet controls</a>\n')
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", help="Teensy USB serial device; omit for desktop simulation")
@@ -347,15 +402,21 @@ def main():
     try:
         transport = SerialTransport(args.port) if args.port else PreviewTransport()
         helmet = Helmet(transport)
-        server = ThreadingHTTPServer(("127.0.0.1", args.http_port), make_handler(helmet, args.http_port))
-        print(f"{'Desktop preview' if transport.simulation else 'USB helmet controls'}: http://127.0.0.1:{args.http_port}", flush=True)
-        print("Press Ctrl-C to stop. Settings are saved only with the explicit Save action.", flush=True)
-        try:
-            server.serve_forever()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            server.server_close()
+        token = None if transport.simulation else secrets.token_urlsafe(32)
+        handler = make_handler(helmet, args.http_port, token)
+        with StudioServer(("127.0.0.1", args.http_port), handler) as server:
+            print("Press Ctrl-C to stop. Settings are saved only with the explicit Save action.", flush=True)
+            try:
+                if transport.simulation:
+                    print(f"Desktop preview: http://127.0.0.1:{args.http_port}", flush=True)
+                    server.serve_forever()
+                else:
+                    with tempfile.TemporaryDirectory(prefix="protogen-usb-") as directory:
+                        launcher = write_usb_launcher(directory, args.http_port, token)
+                        print(f"Open this private USB controls link in your browser: {launcher.as_uri()}", flush=True)
+                        server.serve_forever()
+            except KeyboardInterrupt:
+                pass
         return 0
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=os.sys.stderr)

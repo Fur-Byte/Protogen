@@ -29,16 +29,17 @@ class QualificationTests(unittest.TestCase):
         del original['psk'];original['config']['paired']=1
         with self.assertRaises(ValueError):validate_profile(original)
 
-    def fixture(self, folder, candidate=False, reaction=90000, complete=230000, hold=30000, action="navigation", edge="release"):
+    def fixture(self, folder, candidate=False, reaction=90000, complete=230000, hold=30000,
+                action="navigation", edge="release", trial=1, start=0):
         # Synthetic parser fixtures never ship as qualification records.
         run = {key: 'fixture' for key in analysis.MATCH}
-        run.update(measurement='physical', latency_schema=2, capture_method='photodiode', teensy_mhz=600, trial=1,
+        run.update(measurement='physical', latency_schema=2, capture_method='photodiode', teensy_mhz=600, trial=trial,
                    uncertainty_confidence=.95,energy_uncertainty_j=2,
                    flags=1 if candidate else 0, optimization='cache_face' if candidate else 'baseline',
                    checks={k: True for k in CHECKS}, energy_csv='energy.csv', latency_csv='latency.csv')
         folder.mkdir(exist_ok=True)
         (folder / 'run.json').write_text(json.dumps(run))
-        (folder / 'energy.csv').write_text('time_s,helmet_j,paw_j\n0,0,0\n600,' +
+        (folder / 'energy.csv').write_text(f'time_s,helmet_j,paw_j\n{start},0,0\n{start + 600},' +
                                          ('500' if candidate else '600') + ',60\n')
         with (folder / 'latency.csv').open('w', newline='') as stream:
             writer = csv.DictWriter(stream, fieldnames=analysis.LATENCY_FIELDS)
@@ -46,28 +47,39 @@ class QualificationTests(unittest.TestCase):
             for group in ('online', 'idle_wake'):
                 for _ in range(1000):
                     writer.writerow(dict(condition=group, action=action, trigger_edge=edge,
-                        press_us=0, action_edge_us=hold,
-                        first_reaction_us=hold + reaction if reaction is not None else '',
-                        complete_expression_us=hold + complete if complete is not None else ''))
+                        press_us=start, action_edge_us=start + hold,
+                        first_reaction_us=start + hold + reaction if reaction is not None else '',
+                        complete_expression_us=start + hold + complete if complete is not None else ''))
         return folder / 'run.json'
 
     def test_whole_system_and_latency(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
-            before = analysis.load_run(self.fixture(base / 'a'))
-            after = analysis.load_run(self.fixture(base / 'b', True))
+            baselines, candidates = [], []
+            for trial in range(3):
+                for candidate, destination in ((False, baselines), (True, candidates)):
+                    path = self.fixture(base / f'{trial}-{candidate}', candidate, trial=trial,
+                                        start=trial * 2 + int(candidate))
+                    destination.append(analysis.load_run(path))
+            before = baselines[0]
             self.assertEqual(before[1]['whole_system_j'], 660)
             self.assertEqual(before[1]['latency']['idle_wake']['press_to_complete']['p99_ms'], 260)
             self.assertEqual(before[1]['latency']['online']['action_to_first_reaction']['p99_ms'], 90)
-            baselines, candidates = [], []
-            for trial in range(3):
-                for source, destination in ((before, baselines), (after, candidates)):
-                    run = dict(source[0], trial=trial)
-                    destination.append((run, source[1].copy()))
             report = analysis.compare(baselines, candidates)
             self.assertTrue(report['candidate_passes_recorded_checks'])
             self.assertFalse(report['hardware_qualified'])
             self.assertAlmostEqual(report['mean_reduction_percent'], 100 * 100 / 660)
+            # Different metadata and filenames cannot turn a copied capture into another trial.
+            for field in ('energy_csv', 'latency_csv'):
+                run, _ = candidates[-1]
+                folder = base / '2-True'
+                capture = folder / run[field]
+                original = capture.read_bytes()
+                capture.write_bytes((base / '0-False' / run[field]).read_bytes())
+                duplicate = analysis.load_run(folder / 'run.json')
+                with self.subTest(capture=field), self.assertRaisesRegex(ValueError, 'Reused ' + field):
+                    analysis.compare(baselines, [*candidates[:-1], duplicate])
+                capture.write_bytes(original)
             candidates[0][1]['uncertainty_watts']=1
             self.assertFalse(analysis.compare(baselines,candidates)['candidate_passes_recorded_checks'])
             candidates[0][1]['uncertainty_watts']=2/600

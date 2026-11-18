@@ -203,6 +203,7 @@ def compare(baselines, candidates):
         raise ValueError('Need at least three matched baseline/candidate trials')
     reports = []
     trials = set()
+    seen_captures = {"energy_csv": set(), "latency_csv": set()}
     optimization = candidates[0][0]['optimization']
     candidate_clock = candidates[0][0]['teensy_mhz']
     for (base, before), (candidate, after) in zip(baselines, candidates):
@@ -211,6 +212,12 @@ def compare(baselines, candidates):
         if base['trial'] != candidate['trial'] or base['trial'] in trials:
             raise ValueError('Trial pairs must match and be unique')
         trials.add(base['trial'])
+        for metrics in (before, after):
+            for capture, seen in seen_captures.items():
+                digest = metrics['capture_sha256'][capture]
+                if digest in seen:
+                    raise ValueError(f'Reused {capture} capture in trial {base["trial"]}')
+                seen.add(digest)
         if base['optimization'] != 'baseline' or candidate['optimization'] != optimization:
             raise ValueError('Compare exactly one named independent optimization')
         if any(base[k] != candidate[k] for k in MATCH):

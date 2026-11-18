@@ -23,7 +23,7 @@ Device::Config settings;
 Status published;
 HelmetLink::Packet faceStatus;
 bool pawConnected=false;
-uint32_t faceAt=0;
+uint64_t faceAt=0;
 bool faceKnown=false;
 portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
 std::atomic<bool> fullRequested{false};
@@ -35,7 +35,7 @@ adc_oneshot_unit_handle_t adc=nullptr;
 adc_cali_handle_t calibration=nullptr;
 bool initAdc() {
   adc_oneshot_unit_init_cfg_t unit{};unit.unit_id=ADC_UNIT_1;
-  if(adc_oneshot_new_unit(&unit,&adc)!=ESP_OK)return false;
+  if(!adc && adc_oneshot_new_unit(&unit,&adc)!=ESP_OK)return false;
   adc_oneshot_chan_cfg_t channel{};channel.bitwidth=ADC_BITWIDTH_DEFAULT;channel.atten=ADC_ATTEN_DB_12;
   if(adc_oneshot_config_channel(adc,ADC_CHANNEL_3,&channel)!=ESP_OK)return false;
 #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
@@ -48,8 +48,18 @@ bool initAdc() {
   return false;
 #endif
 }
+// The worker owns the ADC unit and calibration handle. A failed calibration
+// keeps its allocated unit and retries without claiming a second ADC resource.
+HelmetLink::RetryDelay<5000> adcRetry;
+bool adcReady(uint32_t now) {
+  if(calibration)return true;
+  if(!adcRetry.ready(now))return false;
+  if(initAdc())return true;
+  adcRetry.start(now);
+  return false;
+}
 bool readMv(int &mv) {
-  if(!adc || !calibration)return false;
+  if(!adcReady(nowMs()))return false;
   int sum=0;
   for(unsigned i=0;i<8;++i){int raw;if(adc_oneshot_read(adc,ADC_CHANNEL_3,&raw)!=ESP_OK)return false;sum+=raw;}
   return adc_cali_raw_to_voltage(calibration,sum/8,&mv)==ESP_OK;
@@ -74,16 +84,13 @@ bool initBus() {
   i2c_master_bus_config_t b{};b.i2c_port=I2C_NUM_0;b.sda_io_num=static_cast<gpio_num_t>(Device::I2cSda);
   b.scl_io_num=static_cast<gpio_num_t>(Device::I2cScl);b.clk_source=I2C_CLK_SRC_DEFAULT;b.glitch_ignore_cnt=7;
   // External pullups to 3.3 V are mandatory; internal pullups aren't a substitute.
-  if(i2c_new_master_bus(&b,&bus)!=ESP_OK)return false;
-  bool okay=true;
-  if(settings.features&Device::Environment)okay=addDevice(0x44,sht)&&okay;
-  if(settings.features&Device::EnergyMonitor)okay=addDevice(0x40,ina)&&okay;
-  return okay;
+  return i2c_new_master_bus(&b,&bus)==ESP_OK;
 }
 bool regRead(uint8_t reg,uint8_t *b,size_t n) {return ina && i2c_master_transmit_receive(ina,&reg,1,b,n,10)==ESP_OK;}
 bool regWrite(uint8_t reg,uint16_t v) {const uint8_t b[]={reg,uint8_t(v>>8),uint8_t(v)};return ina && i2c_master_transmit(ina,b,3,10)==ESP_OK;}
 bool configureIna() {
   uint8_t b[2];inaFault=EnergyFault::Bus;
+  if(!ina && !addDevice(0x40,ina))return false;
   if(!regRead(0x3e,b,2))return false;
   if(SensorMath::bigEndian(b,2)!=0x5449){inaFault=EnergyFault::Identity;return false;}
   if(!regRead(0x3f,b,2))return false;
@@ -189,13 +196,31 @@ const char *faceMessage(const HelmetLink::Packet &face,bool fresh) {
   if(flags&HelmetLink::Booping)return "BOOP VWV";
   return "FACE READY";
 }
-bool showScreen(Status &s,uint32_t now) {
-  HelmetLink::Packet face;bool radio,known;uint32_t at;
-  portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;known=faceKnown;portEXIT_CRITICAL(&mux);
-  const bool fresh=known && now-at<2000;
+// Take one coherent snapshot for both urgent scheduling and the bytes drawn.
+// Sample the monotonic clock with the cache so a newly arrived packet cannot
+// appear to come from the future, or become fresh again after millis wraps.
+struct FaceView {
+  HelmetLink::Packet packet;
+  bool radio;
+  uint32_t sampledAt, validForMs;
+};
+FaceView readFace() {
+  portENTER_CRITICAL(&mux);
+  const uint64_t now=static_cast<uint64_t>(esp_timer_get_time())/1000;
+  const uint64_t age=now-faceAt;
+  const FaceView view{faceStatus,pawConnected,static_cast<uint32_t>(now),
+                      faceKnown && age<2000 ? static_cast<uint32_t>(2000-age) : 0};
+  portEXIT_CRITICAL(&mux);
+  return view;
+}
+bool showScreen(Status &s,const FaceView &view) {
+  const auto &face=view.packet;
+  const uint32_t now=view.sampledAt;
+  const bool fresh=view.validForMs!=0;
   screenOffset=PROTOGEN_OLED_PROTECTION?(now/60000)%2:0;
   char line[32];memset(frame,0,sizeof(frame));
-  if(s.remainingPercent>=0)snprintf(line,sizeof(line),"BAT ~%d%% %.1fV",s.remainingPercent,s.volts);
+  if(!s.energyValid)snprintf(line,sizeof(line),"BAT ?  ?V");
+  else if(s.remainingPercent>=0)snprintf(line,sizeof(line),"BAT ~%d%% %.1fV",s.remainingPercent,s.volts);
   else snprintf(line,sizeof(line),"BAT ?  %.1fV",s.volts);
   text(0,line);
   if(s.environmentValid)snprintf(line,sizeof(line),"HEAD %.1fC RH %.0f%%",s.temperature,s.humidity);
@@ -204,7 +229,7 @@ bool showScreen(Status &s,uint32_t now) {
   const char *names[]={"HAPPY","SURPRISED","ANGRY","VWV","SLEEPY","WINK"};
   snprintf(line,sizeof(line),"FACE %s",fresh && face.payload[4]<6?names[face.payload[4]]:"?");text(2,line);
   text(3,faceMessage(face,fresh));
-  text(4,radio?"PAW CONNECTED":"PAW OFFLINE");
+  text(4,view.radio?"PAW CONNECTED":"PAW OFFLINE");
   if(fresh)snprintf(line,sizeof(line),"MIC %s FAULT %u",face.payload[5]&HelmetLink::MicEnabled?"ON":"OFF",HelmetLink::u16(face.payload+10));
   else snprintf(line,sizeof(line),"MIC ? FAULT ?");
   text(5,line);
@@ -212,7 +237,7 @@ bool showScreen(Status &s,uint32_t now) {
   const char *warning=warningFor(s);
   text(7,warning);
   if(PROTOGEN_OLED_PROTECTION) {
-    const bool sleep=fresh && (face.payload[5]&HelmetLink::Sleeping) &&
+    const bool sleep=view.radio && fresh && (face.payload[5]&HelmetLink::Sleeping) &&
         !strcmp(warning,"STATUS OK") && !HelmetLink::u16(face.payload+10);
     if(!screenStateKnown || sleep!=screenSleeping) {
       const uint8_t command=sleep?0xae:0xaf;
@@ -259,13 +284,11 @@ void task(void*) {
 #ifdef HELMET_RECEIVER
   s.energyEnabled=(settings.features&Device::EnergyMonitor)!=0;
   bool energyWasFailed=false;
-  HelmetLink::RetryDelay<5000> screenRetry;
-  if((settings.features&(Device::Environment|Device::EnergyMonitor)) && !initBus()){
-    s.faults|=1;
-    if(s.energyEnabled){s.faults|=2;s.energyFault=EnergyFault::Bus;Efficiency::increment(s.energyFailures);energyWasFailed=true;}
-  }
+  const bool environmentEnabled=(settings.features&Device::Environment)!=0;
+  const bool usesBus=environmentEnabled || s.energyEnabled;
+  HelmetLink::RetryDelay<5000> screenRetry, busRetry, environmentRetry, energyRetry;
   if((settings.features&Device::Screen) && !initScreen()){s.faults|=4;screenRetry.start(nowMs());}
-  if((settings.features&Device::BatteryCaseTemperature) && !initAdc())s.faults|=8;
+  if((settings.features&Device::BatteryCaseTemperature) && !adcReady(nowMs()))s.faults|=8;
   nvs_handle_t energyStorage=0;nvs_open("energy",NVS_READWRITE,&energyStorage);
   uint32_t checkpoint=0;if(energyStorage && nvs_get_u32(energyStorage,"used_mwh",&checkpoint)==ESP_OK)s.usedMWh=checkpoint;
   // A reset leaves an unmeasured gap. Never present the old checkpoint as known SOC.
@@ -278,8 +301,6 @@ void task(void*) {
   HelmetLink::Packet previousFace{};bool previousRadio=false,previousStale=true;
   const char *previousWarning=nullptr;
   uint16_t previousFaults=0xffff;uint32_t previousScreenGeneration=UINT32_MAX;
-  uint32_t observedFaceAt=0;
-  HelmetLink::RetryDelay<5000> busRetry;
   bool shtPending=false,counterReady=false;uint64_t lastCounter=0;
   while(true) {
     const uint64_t workStarted=esp_timer_get_time();
@@ -288,20 +309,29 @@ void task(void*) {
     if((settings.features&Device::Screen) && !screenConfigured && screenRetry.ready(now)) {
       if(!initScreen()){s.faults|=4;screenRetry.start(nowMs());}
     }
-    if(busRetry.ready(now)) {
-      if(sht && settings.features&Device::Environment) {
+    if(usesBus && !bus && busRetry.ready(now) && !initBus()) {
+      if(environmentEnabled)s.faults|=1;
+      if(s.energyEnabled){
+        s.faults|=2;s.energyFault=EnergyFault::Bus;
+        Efficiency::increment(s.energyFailures);energyWasFailed=true;
+      }
+      busRetry.start(now);
+    }
+    // Each address has its own retry timer once the controller is available.
+    if(bus) {
+      if(environmentEnabled && environmentRetry.ready(now)) {
         if(!shtPending && now-shtAt>=1000) {
           const uint8_t command=0xfd;shtAt=now;
-          shtPending=i2c_master_transmit(sht,&command,1,10)==ESP_OK;
-          if(!shtPending){s.environmentValid=false;s.faults|=1;busRetry.start(now);}
+          shtPending=(sht || addDevice(0x44,sht)) && i2c_master_transmit(sht,&command,1,10)==ESP_OK;
+          if(!shtPending){s.environmentValid=false;s.faults|=1;environmentRetry.start(now);}
         } else if(shtPending && now-shtAt>=10) {
           uint8_t b[6];shtPending=false;Efficiency::increment(s.metrics.environmentReads);
           s.environmentValid=i2c_master_receive(sht,b,6,10)==ESP_OK && SensorMath::sht40(b,s.temperature,s.humidity);
           if(s.environmentValid)s.faults&=static_cast<uint16_t>(~1u);
-          else {s.faults|=1;busRetry.start(now);}
+          else {s.faults|=1;environmentRetry.start(now);}
         }
       }
-      if(ina && (settings.features&Device::EnergyMonitor) && now-energyAt>=1000) {
+      if(s.energyEnabled && energyRetry.ready(now) && now-energyAt>=1000) {
         const uint32_t elapsed=now-energyAt;energyAt=now;
         const bool configuredNow=!inaConfigured && (inaConfigured=configureIna());
         Efficiency::increment(s.metrics.energyReads);
@@ -338,7 +368,7 @@ void task(void*) {
             s.energyFault=inaFault;s.faults|=2;s.estimateQualified=false;counterReady=false;fullRequested.store(false);
             Efficiency::increment(s.energyFailures);energyWasFailed=true;
             if(inaFault!=EnergyFault::NotReady)inaConfigured=false;
-            busRetry.start(now);
+            energyRetry.start(now);
           }
         }
       }
@@ -363,22 +393,21 @@ void task(void*) {
       saving.attempted(now,used,okay);
       Efficiency::increment(okay?s.metrics.commits:s.metrics.commitFailures);
     }
-    HelmetLink::Packet face;bool radio,known;uint32_t at;
-    portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;known=faceKnown;portEXIT_CRITICAL(&mux);
-    observedFaceAt=at;
-    const bool stale=!known || now-at>=2000;
-    const bool urgent=warningFor(s)!=previousWarning || s.faults!=previousFaults || radio!=previousRadio || stale!=previousStale ||
+    const FaceView view=readFace();
+    const auto &face=view.packet;
+    const bool stale=view.validForMs==0;
+    const bool urgent=warningFor(s)!=previousWarning || s.faults!=previousFaults || view.radio!=previousRadio || stale!=previousStale ||
         memcmp(face.payload+4,previousFace.payload+4,2) || memcmp(face.payload+10,previousFace.payload+10,2) ||
-        (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=now/60000);
+        (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=view.sampledAt/60000);
     if(oled && screenConfigured && (now-screenAt>=screenInterval || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
       screenAt=now;
       const uint16_t displayedFaults=s.faults;
       const char *displayedWarning=warningFor(s);
-      if(!showScreen(s,now)) {
+      if(!showScreen(s,view)) {
         s.faults|=4;validPages=0;screenStateKnown=false;screenConfigured=false;screenRetry.start(nowMs());
       } else s.faults&=static_cast<uint16_t>(~4u);
-      previousFace=face;previousRadio=radio;previousStale=stale;previousFaults=displayedFaults;
-      previousScreenGeneration=now/60000;previousWarning=displayedWarning;
+      previousFace=face;previousRadio=view.radio;previousStale=stale;previousFaults=displayedFaults;
+      previousScreenGeneration=view.sampledAt/60000;previousWarning=displayedWarning;
     }
     const uint32_t work=static_cast<uint32_t>(esp_timer_get_time()-workStarted);
     s.metrics.workUs+=work;if(work>s.metrics.maxWorkUs)s.metrics.maxWorkUs=work;
@@ -393,14 +422,16 @@ void task(void*) {
         Efficiency::sooner(wait,screenRetry.remaining(end));
       } else if(oled) {
         Efficiency::sooner(wait,Efficiency::remaining(end,screenAt,screenInterval));
-        if(!stale)Efficiency::sooner(wait,Efficiency::remaining(end,observedFaceAt,2000));
+        if(!stale)Efficiency::sooner(wait,Efficiency::remaining(end,view.sampledAt,view.validForMs));
         if((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) &&
             (s.faults!=previousFaults || warningFor(s)!=previousWarning))Efficiency::sooner(wait,0);
       }
-      if(!busRetry.ready(end))Efficiency::sooner(wait,busRetry.remaining(end));
+      if(usesBus && !bus)Efficiency::sooner(wait,busRetry.remaining(end));
       else {
-        if(sht)Efficiency::sooner(wait,Efficiency::remaining(end,shtAt,shtPending?10:1000));
-        if(ina)Efficiency::sooner(wait,Efficiency::remaining(end,energyAt,1000));
+        if(environmentEnabled)Efficiency::sooner(wait,environmentRetry.ready(end)
+            ? Efficiency::remaining(end,shtAt,shtPending?10:1000) : environmentRetry.remaining(end));
+        if(s.energyEnabled)Efficiency::sooner(wait,energyRetry.ready(end)
+            ? Efficiency::remaining(end,energyAt,1000) : energyRetry.remaining(end));
       }
       const TickType_t ticks=pdMS_TO_TICKS(wait);
       if(ticks)ulTaskNotifyTake(pdTRUE,ticks);
@@ -408,7 +439,7 @@ void task(void*) {
     } else vTaskDelay(pdMS_TO_TICKS(20));
   }
 #else
-  if((settings.features&Device::EnergyMonitor) && !initAdc())s.faults|=2;
+  if((settings.features&Device::EnergyMonitor) && !adcReady(nowMs()))s.faults|=2;
   while(true) {
 #if PROTOGEN_FLIGHT_RECORDER
     const uint64_t p3Started = esp_timer_get_time();
@@ -436,8 +467,8 @@ void link(bool connected) {
   if(changed && (PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION || PROTOGEN_WEARER_DEADLINES))notifyWorker();
 }
 void face(const HelmetLink::Packet &s,bool connected) {
-  const uint32_t now=nowMs();
   portENTER_CRITICAL(&mux);
+  const uint64_t now=static_cast<uint64_t>(esp_timer_get_time())/1000;
   const bool changed=!faceKnown || pawConnected!=connected || faceStatus.epoch!=s.epoch || now-faceAt>=2000 ||
       memcmp(faceStatus.payload+4,s.payload+4,2) ||
       memcmp(faceStatus.payload+10,s.payload+10,2);

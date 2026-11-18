@@ -170,11 +170,14 @@ class PackagingTests(unittest.TestCase):
     def test_output_inode_is_private_under_ordinary_umask(self):
         original_umask = os.umask(0o022)
         try:
-            self.package_initial()
-            self.assertEqual(stat.S_IMODE(self.output.stat().st_mode), 0o600)
-            prior = self.output.with_name('previous-private.zip')
-            self.package_initial(output=prior)
+            self.bridge_builds(teensy_auth=True, esp_auth=True)
+            prior = self.prior()
             self.assertEqual(stat.S_IMODE(prior.stat().st_mode), 0o600)
+            result = self.run_packager(*self.prior_args(prior))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(stat.S_IMODE(self.output.stat().st_mode), 0o600)
+            with ZipFile(self.output) as archive:
+                self.assertEqual(archive.read('recovery/previous-release.zip'), prior.read_bytes())
         finally:
             os.umask(original_umask)
 

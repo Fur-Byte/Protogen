@@ -19,6 +19,10 @@ namespace FakeWearer {
 inline uint64_t us=0;
 inline unsigned waits=0, stopAfter=0, adcReads=0, commits=0;
 inline bool commitFail=false;
+inline unsigned busCreates=0, adcCreates=0, calibrations=0;
+inline int failI2cAddress=-1;
+inline bool failBus=false, failCalibration=false;
+inline std::function<int(void*,uint8_t*,size_t,int)> i2cReceive;
 inline uint32_t stored=0, staged=0;
 inline int mv=1320;
 inline std::vector<TickType_t> notifications;
@@ -50,9 +54,10 @@ constexpr int ADC_UNIT_1=1, ADC_BITWIDTH_DEFAULT=12, ADC_ATTEN_DB_12=12, ADC_CHA
 struct adc_oneshot_unit_init_cfg_t{int unit_id=0;};
 struct adc_oneshot_chan_cfg_t{int bitwidth=0,atten=0;};
 struct adc_cali_curve_fitting_config_t{int unit_id=0,chan=0,atten=0,bitwidth=0;};
-inline int adc_oneshot_new_unit(const adc_oneshot_unit_init_cfg_t*,void** p){*p=reinterpret_cast<void*>(1);return ESP_OK;}
+inline int adc_oneshot_new_unit(const adc_oneshot_unit_init_cfg_t*,void** p){++FakeWearer::adcCreates;*p=reinterpret_cast<void*>(1);return ESP_OK;}
 inline int adc_oneshot_config_channel(void*,int,const adc_oneshot_chan_cfg_t*){return ESP_OK;}
-inline int adc_cali_create_scheme_curve_fitting(const adc_cali_curve_fitting_config_t*,void** p){*p=reinterpret_cast<void*>(1);return ESP_OK;}
+inline int adc_cali_create_scheme_curve_fitting(const adc_cali_curve_fitting_config_t*,void** p){
+  ++FakeWearer::calibrations;if(FakeWearer::failCalibration)return -1;*p=reinterpret_cast<void*>(1);return ESP_OK;}
 inline int adc_oneshot_read(void*,int,int* raw){++FakeWearer::adcReads;*raw=FakeWearer::mv;return ESP_OK;}
 inline int adc_cali_raw_to_voltage(void*,int raw,int* mv){*mv=raw;return ESP_OK;}
 using gpio_num_t=int;
@@ -64,10 +69,12 @@ using i2c_master_dev_handle_t=void*;
 constexpr int I2C_ADDR_BIT_LEN_7=7,I2C_NUM_0=0,I2C_CLK_SRC_DEFAULT=0;
 struct i2c_device_config_t{int dev_addr_length=0,device_address=0,scl_speed_hz=0;};
 struct i2c_master_bus_config_t{int i2c_port=0,sda_io_num=0,scl_io_num=0,clk_source=0,glitch_ignore_cnt=0;};
-inline int i2c_new_master_bus(const i2c_master_bus_config_t*,void** p){*p=reinterpret_cast<void*>(1);return ESP_OK;}
-inline int i2c_master_bus_add_device(void*,const i2c_device_config_t* c,void** p){*p=reinterpret_cast<void*>(uintptr_t(c->device_address));return ESP_OK;}
+inline int i2c_new_master_bus(const i2c_master_bus_config_t*,void** p){++FakeWearer::busCreates;if(FakeWearer::failBus)return -1;*p=reinterpret_cast<void*>(1);return ESP_OK;}
+inline int i2c_master_bus_add_device(void*,const i2c_device_config_t* c,void** p){
+  if(c->device_address==FakeWearer::failI2cAddress)return -1;
+  *p=reinterpret_cast<void*>(uintptr_t(c->device_address));return ESP_OK;}
 inline int i2c_master_transmit(void* d,const uint8_t* b,size_t n,int timeout){return FakeWearer::i2cWrite?FakeWearer::i2cWrite(d,b,n,timeout):ESP_OK;}
-inline int i2c_master_receive(void*,uint8_t*,size_t,int){return -1;}
+inline int i2c_master_receive(void* d,uint8_t* rx,size_t n,int timeout){return FakeWearer::i2cReceive?FakeWearer::i2cReceive(d,rx,n,timeout):-1;}
 inline int i2c_master_transmit_receive(void* d,const uint8_t* tx,size_t tn,uint8_t* rx,size_t rn,int timeout){return FakeWearer::i2cRead?FakeWearer::i2cRead(d,tx,tn,rx,rn,timeout):-1;}
 using spi_device_handle_t=void*;
 constexpr int SPI2_HOST=2,SPI_DMA_CH_AUTO=0;

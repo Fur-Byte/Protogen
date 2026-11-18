@@ -30,9 +30,9 @@ bool Link::begin(bool isPaired, const uint8_t secret[32], uint32_t now) {
   paired = isPaired;
   if (paired)
     memcpy(psk, secret, 32);
-  started = true;
+  initialized = true;
   recover(now);
-  return started;
+  return true;
 }
 void Link::recover(uint32_t now) {
   recoveryRxSeen = false;
@@ -73,6 +73,7 @@ void Link::recover(uint32_t now) {
   increment(budget.diagnostics.identityRotations);
   currentChannel = PairChannel;
   lastBusy = now;
+  started = true;
 }
 bool Link::startPairing(uint32_t now) {
   if (!started)
@@ -158,10 +159,8 @@ void Link::tick(uint32_t now) {
   if (!started) {
     // A failed radio configuration is retryable; it is not an intentional
     // shutdown. Keep the previous pair in storage and rebuild fresh state.
-    if (due(now, retryAt)) {
-      started = true;
+    if (initialized && due(now, retryAt))
       recover(now);
-    }
     return;
   }
   assert(invariant());

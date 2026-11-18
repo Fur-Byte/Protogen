@@ -416,6 +416,7 @@ void wirelessPacket(void *, const HelmetLink::Packet &p) {
   if (helmetStatus.receive(p, now, changed)) {
     if (changed) {
       commandWaiting = buttonsArmed = false;
+      releaseGate.reset();
       commandSequence = 0;
       actions.clear();
     }
@@ -462,8 +463,9 @@ void serviceUnlock(uint32_t now) {
     unlockStarted = now;
   if (!held) {
     entryConsumed = eraseConsumed = false;
-    // Confirmation is armed below, only after the code has been fully shown.
   }
+  if (unlocked && now - unlockedAt >= Wireless::PairingMs)
+    unlocked = false;
   if (held && !unlocked && !entryConsumed && now - unlockStarted >= hold) {
     unlocked = true;
     unlockedAt = now;
@@ -499,8 +501,6 @@ void serviceUnlock(uint32_t now) {
     wirelessLink.confirmPairing();
     confirmationArmed = false;
   }
-  if (unlocked && now - unlockedAt >= Wireless::PairingMs)
-    unlocked = false;
   unlockHeld = held;
 }
 void consoleCommand(char *line) {

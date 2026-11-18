@@ -14,6 +14,23 @@
     "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "text": {"type": "string", "minLength": 1, "maxLength": 2048},
     "notes": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/text"}},
+    "boardsByRole": {"type": "object", "minProperties": 1, "maxProperties": 32,
+                     "additionalProperties": {"$ref": "#/$defs/text"}},
+    "imagesByRole": {"type": "object", "minProperties": 1, "maxProperties": 32,
+                     "additionalProperties": {"$ref": "#/$defs/digest"}},
+    "featureFlags": {"type": "object", "maxProperties": 128,
+                     "additionalProperties": {"type": ["integer", "string"]}},
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_sha", "assembly_id", "boards", "firmware_sha256", "feature_flags"],
+      "properties": {
+        "source_sha": {"$ref": "#/$defs/commit"},
+        "assembly_id": {"$ref": "#/$defs/text"},
+        "boards": {"$ref": "#/$defs/boardsByRole"},
+        "firmware_sha256": {"$ref": "#/$defs/imagesByRole"},
+        "feature_flags": {"$ref": "#/$defs/featureFlags"}
+      }
+    },
     "artifact": {
       "type": "object",
       "required": ["path", "sha256", "size_bytes"],
@@ -30,8 +47,10 @@
       "additionalProperties": false,
       "properties": {
         "assembly_id": {"$ref": "#/$defs/text"},
-        "boards": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/text"}},
-        "firmware_sha256": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/digest"}},
+        "boards": {"anyOf": [{"$ref": "#/$defs/boardsByRole"},
+                             {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/text"}}]},
+        "firmware_sha256": {"anyOf": [{"$ref": "#/$defs/imagesByRole"},
+                                      {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/digest"}}]},
         "instruments": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/text"}},
         "operator": {"$ref": "#/$defs/text"},
         "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
@@ -49,8 +68,7 @@
       "properties": {
         "requirement_id": {"type": "string", "pattern": "^[a-z][a-z0-9.-]{1,95}$"},
         "source_sha": {"$ref": "#/$defs/commit"},
-        "feature_flags": {"type": "object", "maxProperties": 128,
-                          "additionalProperties": {"type": ["integer", "string"]}},
+        "feature_flags": {"$ref": "#/$defs/featureFlags"},
         "toolchain": {"type": "object", "minProperties": 1, "maxProperties": 64,
                       "additionalProperties": {"$ref": "#/$defs/text"}},
         "command": {"type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/text"}},

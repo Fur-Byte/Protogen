@@ -515,6 +515,21 @@ void testReceiverHardExpiry() {
     assert(!r.h.link->online());
   }
 }
+void testRadioStartupConfigureRetry() {
+  for (uint32_t start : {100U, UINT32_MAX - 100U}) {
+    DeviceTest device(Helmet);
+    device.radio.failConfigurations = 2;
+    device.reset(start);
+    assert(!device.link->startPairing(start));
+    device.link->tick(start + InvalidBackoffMs - 1);
+    assert(device.radio.failConfigurations == 1);
+    device.link->tick(start + InvalidBackoffMs);
+    assert(device.radio.failConfigurations == 0);
+    assert(!device.link->startPairing(start + InvalidBackoffMs));
+    device.link->tick(start + InvalidBackoffMs * 2);
+    assert(device.link->startPairing(start + InvalidBackoffMs * 2));
+  }
+}
 void testRadioConfigureFaultRetries() {
   Rig r;
   r.connect();
@@ -994,6 +1009,10 @@ int main(int argc,char **argv) {
     testSession();
     return 0;
   }
+  if (argc == 2 && !strcmp(argv[1], "--startup-retry")) {
+    testRadioStartupConfigureRetry();
+    return 0;
+  }
   assert(argc==1);
   testVectors();
   testPairing();
@@ -1001,6 +1020,7 @@ int main(int argc,char **argv) {
   testInvalidPairingPointRecovery();
   testSession();
   testReceiverHardExpiry();
+  testRadioStartupConfigureRetry();
   testRadioConfigureFaultRetries();
   testRecovery();
   testIdentityAndActions();

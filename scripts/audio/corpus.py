@@ -10,7 +10,9 @@ SCENARIOS = (
 )
 
 
-def signal(name, seed):
+def signal(name, seed, *, carrier_hz=None):
+    if carrier_hz is None:
+        carrier_hz = (250, 500, 1000)[seed % 3]
     rng = random.Random(seed)
     samples, labels = [], []
     seconds = 10
@@ -52,7 +54,7 @@ def signal(name, seed):
             # Continuous voiced energy plus source-dependent syllabic modulation.
             modulation = 1 if name == "sustained_voiced" else 0.65+0.35*math.sin(t*2*math.pi*3.1 + seed)**2
             amplitude *= modulation
-            carrier = math.sin(2*math.pi*(250, 500, 1000)[seed % 3]*t)
+            carrier = math.sin(2*math.pi*carrier_hz*t)
             voiced = amplitude*carrier
         else:
             voiced = 0

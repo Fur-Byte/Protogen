@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import pty
+import stat
+import tempfile
 import threading
 import unittest
 from unittest.mock import Mock, patch
@@ -144,6 +146,7 @@ class PreviewChecks(unittest.TestCase):
 class HandlerChecks(unittest.TestCase):
     def setUp(self):
         self.helmet = Mock()
+        self.helmet.transport.simulation = True
         self.helmet.state.return_value = {"status": {"sleeping": False}}
         self.helmet.action.return_value = {"status": {"sleeping": True}}
         self.handler = tool.make_handler(self.helmet, 8765)
@@ -219,6 +222,32 @@ class HandlerChecks(unittest.TestCase):
                     self.assertEqual(json.loads(body), {"error": "Local access only"})
         self.helmet.action.assert_not_called()
         self.helmet.state.assert_not_called()
+
+    def test_usb_apis_require_the_launch_credential(self):
+        self.helmet.transport.simulation = False
+        token = 'A' * 43
+        self.handler = tool.make_handler(self.helmet, 8765, token)
+        payload = {"action": "sleep", "value": 1}
+        self.assertEqual(self.request("GET", "/")[0], 200)
+        self.assertEqual(self.request("GET", "/api/state")[0], 403)
+        self.assertEqual(self.request("POST", "/api/action", payload=payload)[0], 403)
+        self.helmet.state.assert_not_called()
+        self.helmet.action.assert_not_called()
+        headers = {"Authorization": "Bearer " + token}
+        self.assertEqual(self.request("GET", "/api/state", headers)[0], 200)
+        self.assertEqual(self.request("POST", "/api/action", headers, payload)[0], 200)
+        self.helmet.action.assert_called_once_with(payload)
+
+    def test_usb_launcher_is_private(self):
+        with tempfile.TemporaryDirectory() as directory:
+            previous_umask = os.umask(0o022)
+            try:
+                token = 'A' * 43
+                path = tool.write_usb_launcher(directory, 8765, token)
+            finally:
+                os.umask(previous_umask)
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertIn(f"http://127.0.0.1:8765/#usb={token}", path.read_text())
 
     def test_invalid_action_json_still_rejected(self):
         status, headers, body = self.request("POST", "/api/action", payload=[])

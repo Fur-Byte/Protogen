@@ -28,6 +28,62 @@ static void model() {
     return ESP_OK;
   };
 }
+// Exercise independent registration and transaction failures on one physical bus.
+static void testSharedBusRecovery() {
+  bus=nullptr;sht=nullptr;ina=nullptr;inaConfigured=false;
+  failedRegister=-1;counter=0;
+  FakeWearer::us=0;FakeWearer::busCreates=0;FakeWearer::failBus=true;
+  FakeWearer::failI2cAddress=0x40;
+  settings.features=Device::EnergyMonitor|Device::Environment;
+  const auto inaWrite=FakeWearer::i2cWrite;
+  bool failEnvironment=false;
+  FakeWearer::i2cWrite=[&](void* device,const uint8_t* data,size_t n,int timeout){
+    if(reinterpret_cast<uintptr_t>(device)==0x40)return inaWrite(device,data,n,timeout);
+    assert(reinterpret_cast<uintptr_t>(device)==0x44 && n==1 && *data==0xfd && timeout==10);
+    return ESP_OK;
+  };
+  FakeWearer::i2cReceive=[&](void* device,uint8_t* data,size_t n,int timeout){
+    assert(reinterpret_cast<uintptr_t>(device)==0x44 && n==6 && timeout==10);
+    if(failEnvironment)return -1;
+    // Valid SHT40 temperature and humidity, approximately 25 C and 56% RH.
+    data[0]=0x66;data[1]=0x66;data[2]=SensorMath::shtCrc(data,2);
+    data[3]=0x80;data[4]=0;data[5]=SensorMath::shtCrc(data+3,2);
+    return ESP_OK;
+  };
+  unsigned stage=0, baselineReads=0, baselineFailures=0;
+  uint32_t stageAt=0;
+  FakeWearer::beforeWait=[&](){
+    const uint32_t now=nowMs();
+    assert(now<40000);
+    counter=FakeWearer::us/1000000*2048;
+    const auto s=snapshot();
+    if(!stage && (s.faults&3)==3) {
+      FakeWearer::failBus=false;stage=1;
+    } else if(stage==1 && s.environmentValid && s.energyFault==EnergyFault::Bus) {
+      assert(FakeWearer::busCreates==2);
+      stageAt=now;baselineReads=s.metrics.environmentReads;stage=2;
+    } else if(stage==2 && now-stageAt>=5100) {
+      assert(s.environmentValid && s.metrics.environmentReads>=baselineReads+5 && !s.energyValid);
+      FakeWearer::failI2cAddress=-1;stage=3;
+    } else if(stage==3 && s.energyValid) {
+      assert(markFull());stage=4;
+    } else if(stage==4 && s.estimateQualified) {
+      baselineFailures=s.energyFailures;baselineReads=s.energySamples;
+      failEnvironment=true;stageAt=now;stage=5;
+    } else if(stage==5) {
+      assert(s.energyValid && s.estimateQualified && s.energyFailures==baselineFailures);
+      if(now-stageAt>=6000) {
+        assert(!s.environmentValid && (s.faults&1) && s.energySamples>=baselineReads+5);
+        failEnvironment=false;stage=6;
+      }
+    } else if(stage==6 && s.environmentValid) {
+      assert(s.estimateQualified && !s.faults && FakeWearer::busCreates==2);
+      stage=7;throw FakeWearer::Stop{};
+    }
+  };
+  try{task(nullptr);}catch(const FakeWearer::Stop&){}
+  assert(stage==7);
+}
 int main(int argc,char **argv) {
   model();
   const std::string mode=argc>1?argv[1]:"direct";
@@ -94,5 +150,6 @@ int main(int argc,char **argv) {
     assert(s.energyFailures>0 && s.energyRecoveries>0 && s.metrics.energyReads<25 && configurations<5);
     assert(s.volts==15 && s.amps>0.49 && s.amps<0.51);
   }
+  if(mode=="bus")testSharedBusRecovery();
   std::cout<<"PASS: optional INA task "<<mode<<", bounded polling/reconfiguration, fault/recovery diagnostics and valid-only input samples\n";
 }

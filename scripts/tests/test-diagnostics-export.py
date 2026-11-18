@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Contract regression for the firmware GET -> portable diagnostics backup."""
 import importlib.util
+import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest.mock import Mock, call, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -22,9 +25,10 @@ class DiagnosticsGetContract(unittest.TestCase):
         # and a blink interval longer than the jitter.
         config['boop_release'] = fields['boop_release'][1]
         config['blink_interval_ms'] = fields['blink_interval_ms'][1]
+        config['brightness'] = 15
         return {'ok': True, 'schema': 2, 'config': config,
-                'brightness': {'configured': 1, 'effective': 1,
-                               'maximum': 1, 'approved': 0}}
+                'brightness': {'configured': 15, 'effective': 0,
+                               'maximum': 1, 'approved': 1}}
 
     def test_successful_live_get_projects_only_portable_settings(self):
         reply = self.reply()
@@ -32,6 +36,30 @@ class DiagnosticsGetContract(unittest.TestCase):
         self.assertEqual(set(profile), {'schema', 'name', 'config'})
         self.assertEqual(profile['config'], reply['config'])
         self.assertNotIn('brightness', profile)
+
+    def test_complete_export_for_all_supported_schema2_get_forms(self):
+        for metadata in ('absent', 'ceiling', 'approval'):
+            with self.subTest(metadata=metadata), tempfile.TemporaryDirectory() as folder:
+                reply = self.reply()
+                if metadata == 'absent':
+                    del reply['brightness']
+                elif metadata == 'ceiling':
+                    del reply['brightness']['approved']
+                serial = Mock()
+                serial.command.side_effect = [
+                    reply, {'ok': True, 'sleeping': False, 'private_future_field': 12345},
+                    {'ok': True, 'render_attempts': 11, 'unknown_key': 'ignored'}]
+                output = Path(folder) / 'diagnostics.json'
+                argv = ['export-diagnostics.py', '--port', 'mock', '--output', str(output)]
+                with patch.object(sys, 'argv', argv), patch.object(export.helmet_tool, 'SerialTransport', return_value=serial):
+                    self.assertEqual(export.main(), 0)
+                self.assertEqual(serial.command.call_args_list, [call('GET'), call('STATUS'), call('PERF')])
+                serial.close.assert_called_once_with()
+                result = json.loads(output.read_text())
+                self.assertEqual(result['configuration'], {
+                    'schema': 2, 'name': 'Helmet configuration backup', 'config': reply['config']})
+                self.assertEqual(result['status'], {'ok': True, 'sleeping': False})
+                self.assertEqual(result['performance'], {'ok': True, 'render_attempts': 11})
 
     def test_unexpected_get_fields_fail_closed(self):
         for key, value in [('pairing_key', 'secret'), ('name', 'injected')]:
@@ -42,8 +70,10 @@ class DiagnosticsGetContract(unittest.TestCase):
                     export.portable_profile_from_get(reply)
 
     def test_invalid_brightness_metadata_fails_closed(self):
-        for payload in (None, {'configured': '1'}, {'configured': 1, 'effective': 1,
-                                                     'maximum': 1, 'approved': 0, 'key': 1}):
+        for payload in (None, {'configured': '1'}, {'configured': 15, 'effective': 1, 'maximum': 1, 'key': 1},
+                        {'configured': 15, 'effective': 0, 'maximum': 1, 'approved': True},
+                        {'configured': 15, 'effective': 12, 'maximum': 1},
+                        {'configured': 1, 'effective': 1, 'maximum': 1}):
             with self.subTest(payload=payload):
                 reply = self.reply()
                 reply['brightness'] = payload

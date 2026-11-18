@@ -57,7 +57,7 @@ python3 scripts/helmet-tool.py --list-ports
 python3 scripts/helmet-tool.py --port "<port from --list-ports>"
 ```
 
-USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It opens only the device explicitly supplied with `--port`; it never uploads firmware. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
+USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It opens the device supplied with `--port` for settings and diagnostics. Open the private launcher printed in the terminal, then select **Open USB helmet controls**. Its credential is valid for that Face Studio process. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
 
 **Apply settings** changes RAM. **Save to helmet** retains the applied settings after power-off. **Load saved** restores the latest valid saved record. **Restore defaults** changes RAM to Settings.h defaults; it does not erase EEPROM. The current expression and sleep state remain session-only; saved `startup_expression` selects the face on the next boot. Saved settings override Settings.h defaults on boot. To retain changed compiled defaults, restore defaults and explicitly save.
 

@@ -129,6 +129,8 @@ jobs:
           source build/toolchains/environment.sh
           export CMAKE=cmake CC=clang CXX=clang++
           python3 scripts/check-baseline.py
+          python3 scripts/tests/test-diagnostics-export.py
+          python3 scripts/tests/test-twin-build-profile.py
           python3 scripts/check-golden-frames.py
           python3 scripts/generate-config-metadata.py --check
           bash scripts/test-config-compatibility.sh

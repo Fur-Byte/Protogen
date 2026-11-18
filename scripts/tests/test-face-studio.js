@@ -12,9 +12,22 @@ function element(id) {
     addEventListener(type,fn){this.listeners[type]=fn;}});
   return elements.get(id);
 }
+const token = 'A'.repeat(43);
+const requests = [];
+const tabStorage = new Map();
 const context=vm.createContext({document:{getElementById:element,createElement:()=>element(Symbol()),querySelectorAll:()=>[]},
-  fetch:()=>new Promise(()=>{}),setTimeout(){},console});
+  location:{hash:'#usb='+token,pathname:'/'}, history:{replaceState(state,title,path){assert.equal(path,'/');context.location.hash='';}},
+  sessionStorage:{setItem:(key,value)=>tabStorage.set(key,value),getItem:key=>tabStorage.get(key)},
+  fetch:(path,options)=>{requests.push({path,options});return new Promise(()=>{});},setTimeout(){},console});
 vm.runInContext(html.split('<script>')[1].split('</script>')[0],context);
+vm.runInContext("api('/api/action', {action:'load'})",context);
+assert.equal(context.location.hash,'');
+assert.equal(vm.runInContext('usbCredential()',context),token,'refresh keeps this tab authorized');
+for(const {path,options} of requests){
+  assert.equal(path.includes(token),false);
+  assert.equal(options.headers.Authorization,'Bearer '+token);
+  assert.equal(options.redirect,'error');
+}
 const metadata=JSON.parse(fs.readFileSync(path.join(__dirname,'../../tools/helmet/config-metadata.json'),'utf8'));
 assert.deepEqual(Array.from(vm.runInContext('keys',context)),metadata.fields.map(field=>field.name));
 for(const field of metadata.fields){

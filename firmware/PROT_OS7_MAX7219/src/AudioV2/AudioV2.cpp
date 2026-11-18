@@ -32,11 +32,10 @@ bool Detector::sample(uint16_t raw, const Settings &config) {
   const float millis = average > envelope ? config.attackMs : config.releaseMs;
   envelope += (average - envelope) / (4.0f * (millis < 1 ? 1 : millis));
 
-  const unsigned lags[] = {4, 8, 16};
-  for (unsigned i = 0; i < 3; ++i)
-    correlation[i] += centered * history[(historyIndex + 16 - lags[i]) & 15];
+  for (unsigned i = 0; i < sizeof(Lags); ++i)
+    correlation[i] += centered * history[(historyIndex + HistorySize - Lags[i]) % HistorySize];
   history[historyIndex] = centered;
-  historyIndex = (historyIndex + 1) & 15;
+  historyIndex = (historyIndex + 1) % HistorySize;
   windowSum += amplitude;
   energySum += static_cast<uint32_t>(centered * centered);
   if (raw <= 2 || raw >= 1021) ++clipped;

@@ -79,9 +79,34 @@ measurements made on the identified physical assembly and retain the relevant
 `NOT_RUN` or `UNQUALIFIED` state for missing evidence. `experimental.approval`
 requires a separate decision after the affected measurements are reviewed.
 
+Before the trials, record the intended assembly ID and installed board IDs
+from inventory. Obtain the exact Git SHA, per-role image digests and feature
+flags from the independently verified release build and retain this candidate
+file separately from the measurement records. For example, the file shape for
+a Teensy and a helmet radio is shown below. Replace every illustrative value
+with the actual identity and include every installed role and active setting.
+
+```json
+{
+  "source_sha": "<full Git SHA>",
+  "assembly_id": "<assembly ID>",
+  "boards": {"teensy": "<Teensy board ID>", "helmet": "<helmet radio board ID>"},
+  "firmware_sha256": {"teensy": "<HEX SHA-256>", "helmet": "<helmet firmware.bin SHA-256>"},
+  "feature_flags": {"Microphone": 1, "WirelessPaw": 1, "PROTOGEN_AUDIO_V2": 0}
+}
+```
+
+Use the same role names in each F3 record's `hardware.boards` and
+`hardware.firmware_sha256`. Report the observed assembly ID and feature flags
+with each run. Legacy parallel arrays remain readable as board/image pairs
+in index order. Release readiness requires records with named roles and an
+independent candidate file. Omitting the file still verifies the evidence
+and leaves physical release gates unqualified.
+
 ```sh
 python3 scripts/qualification.py verify "$qualification_manifest" \
-  --artifact-root "$evidence_directory" --source "$exact_source_sha"
+  --artifact-root "$evidence_directory" --source "$exact_source_sha" \
+  --candidate "$candidate_file"
 ```
 
 Any physical gate required for the intended build remains open until its

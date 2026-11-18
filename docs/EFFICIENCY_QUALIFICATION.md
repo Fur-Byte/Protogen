@@ -234,7 +234,10 @@ python3 scripts/analyze-efficiency.py \
 The analyzer checks independent switches, matching metadata/durations, cumulative
 energy validity, sample counts, both kinds of missed endpoints, metric B in both
 conditions, and
-explicit validation checks. Its report hashes the raw CSVs and reports system
+explicit validation checks. Each energy and latency capture must have a distinct
+raw file digest across all baseline and candidate runs. Keep original acquisition
+timestamps when exporting measurements so repeated readings remain identifiable.
+The report hashes the raw CSVs and reports system
 joules/watts and measured reductions. Percentiles use nearest rank
 (`ceil(p * n)` in sorted completed observations); missed endpoints separately
 force failure, so omitting them cannot produce qualification. Metrics A and C

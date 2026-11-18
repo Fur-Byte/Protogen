@@ -20,10 +20,13 @@ struct Features {
 
 class Detector {
   float bias = 0, envelope = 0, noise = 0, rollingPeak = 0;
-  float history[16]{};
+  static constexpr unsigned HistorySize = 32;
+  float history[HistorySize]{};
   uint16_t amplitudes[10]{};
   uint32_t amplitudeSum = 0, windowSum = 0, energySum = 0;
-  float correlation[3]{};
+  // Cover intermediate half-periods as well as the original three taps.
+  static constexpr uint8_t Lags[] = {4, 6, 8, 9, 10, 12, 16, 18};
+  float correlation[sizeof(Lags)]{};
   uint16_t quietSamples = 0, stationaryLow = 1023, stationaryHigh = 0;
   uint8_t sampleIndex = 0, averageIndex = 0, historyIndex = 0;
   uint8_t credible = 0, stationarityCount = 0;

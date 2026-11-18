@@ -150,3 +150,16 @@ built P6 merge byte for byte. The 57 P1 checkpoints also matched with P3
 recording off and on, and 28 independently captured P3 traces matched with
 diagnostics included. The inherited Animation V2 tests, timeline compiler,
 timeline editor smoke and Face Studio HTTP round-trip were run locally.
+
+### Carrier sensitivity regression
+
+The audit varied the synthetic carrier while holding the labeled intervals,
+noise sequence and amplitude envelope fixed in the seed 78 mixed-background
+case. The updated opt-in detector adds intermediate correlation lags and
+uses the same activity thresholds. At 160 Hz the missed activity dropped
+from 3,824 ms to 256 ms, with zero false-open time in both runs.
+
+Today the held-out command also checks eight off-grid frequencies from
+110 to 675 Hz in this fixture. It reports those measurements separately
+from the frozen corpus. Physical validation still requires representative
+wearer speech, backgrounds, microphone mounting and timing measurements.

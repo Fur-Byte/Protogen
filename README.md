@@ -53,7 +53,8 @@ python3 scripts/helmet-tool.py
 ```
 
 Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teensy's
-serial device to configure the physical helmet. Changes apply temporarily until
+serial device to configure the physical helmet. Open the private launcher printed by
+Face Studio and select **Open USB helmet controls**. Changes apply temporarily until
 explicitly saved. Saved startup/settings override compiled defaults on reboot.
 
 The [engineering specification](docs/ENGINEERING_PLAN.md), [schematic/wiring package](docs/HARDWARE_WIRING.md),

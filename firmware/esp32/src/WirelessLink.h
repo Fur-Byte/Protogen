@@ -19,6 +19,7 @@ private:
   uint8_t role;
   uint8_t psk[32]{}, recoveryKey[32]{};
   bool paired = false, haveRecovery = false, fallback = false, started = false;
+  bool initialized = false;
   State phase = State::Unpaired;
   CryptoBudget budget;
   uint32_t sessionAt = 0, retryAt = 0, lastRecoveryRx = 0;
@@ -57,6 +58,7 @@ public:
     Crypto::wipe(psk, 32);
     Crypto::wipe(recoveryKey, 32);
   }
+  // Returns true when service may start, including if configuration is retrying.
   bool begin(bool isPaired, const uint8_t secret[32], uint32_t now);
   bool startPairing(uint32_t now);
   void confirmPairing() { pairing.confirm(); }
@@ -108,8 +110,8 @@ public:
       if (left < wait) wait = left;
     };
     deadline(lastAuthenticated + DisconnectMs);
+    deadline(renewAt + ActiveMs);
     if (role == Paw) {
-      deadline(renewAt + ActiveMs);
       if (!due(now, activeUntil)) deadline(nextPoll);
       deadline(nextKeepalive);
       if (!due(now, renewAt)) deadline(renewAt);

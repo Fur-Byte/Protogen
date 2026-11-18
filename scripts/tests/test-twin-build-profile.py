@@ -9,32 +9,26 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class TwinCompileProfile(unittest.TestCase):
-    def test_signature_changes_on_flag_switch_and_back(self):
-        with tempfile.TemporaryDirectory(prefix='protogen-twin-signature-') as tmp:
-            output = Path(tmp) / 'twin'
-            target = output / '.compile-settings'
+    def test_default_goal_rebuilds_the_executable_when_profile_changes(self):
+        with tempfile.TemporaryDirectory(prefix='protogen-twin-binary-') as tmp:
+            program = Path(tmp) / 'twin'
 
-            def signature(*options):
+            def build_and_observe(audio_v2):
                 subprocess.run(['make', '-s', '-C', str(ROOT / 'scripts/twin'),
-                                'BUILD=' + str(output),
-                                'ARDUINO_FFT_SRC=' + tmp, *options, str(target)],
-                               check=True, capture_output=True, text=True)
-                return target.read_bytes(), target.stat().st_mtime_ns
+                                f'BUILD={tmp}', f'EXTRA_FLAGS=-DPROTOGEN_AUDIO_V2={audio_v2}'],
+                               check=True)
+                result = subprocess.run([str(program), '--soak'], check=True,
+                                        input='0 3000 1000 7 1 0 - 0 0\n',
+                                        capture_output=True, text=True)
+                fields = next(row.split('\t') for row in result.stdout.splitlines()
+                              if '\tsoak\t' in row)
+                return bool(int(fields[4]) & (1 << 3)), program.stat().st_mtime_ns
 
-            standard, standard_at = signature('MICROPHONE=-DMicrophone')
-            same, same_at = signature('MICROPHONE=-DMicrophone')
-            self.assertEqual((standard, standard_at), (same, same_at))
-            muted, muted_at = signature('MICROPHONE=')
-            self.assertNotEqual(standard, muted)
-            self.assertIn(b'-DMicrophone', standard)
-            self.assertNotIn(b'-DMicrophone', muted)
-            restored, _ = signature('MICROPHONE=-DMicrophone')
-            self.assertEqual(restored, standard)
-            self.assertGreaterEqual(muted_at, standard_at)
-            changed, _ = signature('MICROPHONE=-DMicrophone',
-                                   'EXTRA_FLAGS=-DPROTOGEN_AUDIO_V2=1')
-            self.assertNotEqual(changed, standard)
-
+            enabled, built_at = build_and_observe(1)
+            self.assertTrue(enabled)
+            self.assertEqual(build_and_observe(1), (enabled, built_at))
+            self.assertFalse(build_and_observe(0)[0])
+            self.assertTrue(build_and_observe(1)[0])
 
 if __name__ == '__main__':
     unittest.main()

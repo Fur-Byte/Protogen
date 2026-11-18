@@ -7,6 +7,9 @@ from pathlib import Path
 from maintenance_support import validate_profile
 
 ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location('helmet_tool', ROOT / 'scripts/helmet-tool.py')
+helmet_tool = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(helmet_tool)
 
 
 def portable_profile_from_get(reply):
@@ -15,14 +18,20 @@ def portable_profile_from_get(reply):
     Brightness telemetry is part of GET, but is not portable profile content.
     Reject unexpected fields instead of accidentally exporting future secrets.
     """
-    if not isinstance(reply, dict) or set(reply) != {'ok', 'schema', 'config', 'brightness'} or reply.get('ok') is not True:
+    required = {'ok', 'schema', 'config'}
+    if (not isinstance(reply, dict) or set(reply) not in (required, required | {'brightness'})
+            or reply['ok'] is not True or type(reply['schema']) is not int):
         raise ValueError('Unexpected firmware GET response')
-    brightness = reply['brightness']
-    if (not isinstance(brightness, dict) or
-            set(brightness) != {'configured', 'effective', 'maximum', 'approved'} or
-            any(type(value) is not int or not 0 <= value <= 15 for value in brightness.values())):
-        raise ValueError('Unexpected firmware brightness metadata')
-    return validate_profile({'schema': reply['schema'], 'config': reply['config']})
+    profile = validate_profile({'schema': reply['schema'], 'config': reply['config']})
+    if 'brightness' in reply:
+        brightness = reply['brightness']
+        fields = {'configured', 'effective', 'maximum'}
+        if (not isinstance(brightness, dict) or set(brightness) not in (fields, fields | {'approved'})
+                or any(type(value) is not int or not 0 <= value <= 15 for value in brightness.values())
+                or brightness['configured'] != profile['config']['brightness']
+                or brightness['effective'] > brightness['maximum']):
+            raise ValueError('Unexpected firmware brightness metadata')
+    return profile
 
 
 def main():
@@ -30,9 +39,7 @@ def main():
     parser.add_argument('--port', required=True, help='Physical Teensy USB serial device')
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
-    spec = importlib.util.spec_from_file_location('helmet_tool', ROOT / 'scripts/helmet-tool.py')
-    module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-    serial = module.SerialTransport(args.port)
+    serial = helmet_tool.SerialTransport(args.port)
     try:
         profile = portable_profile_from_get(serial.command('GET'))
         status = serial.command('STATUS');performance = serial.command('PERF')
