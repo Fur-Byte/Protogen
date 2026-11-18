@@ -154,6 +154,7 @@ def validate(document, artifact_root, expected_source):
     if document["source_sha"] != expected_source:
         raise ValueError("manifest does not match expected source SHA")
     seen = set()
+    physical_candidate = None
     for record in document["records"]:
         name = record["requirement_id"]
         if name in seen:
@@ -180,6 +181,17 @@ def validate(document, artifact_root, expected_source):
             if any(value.strip().lower() in {"", "unknown", "n/a", "unassigned"} for value in identity_fields):
                 raise ValueError(f"{name}: F3 executed evidence requires identified hardware and operator")
             datetime.date.fromisoformat(hardware["date"])
+            # All executed physical results must describe one named assembly,
+            # one set of role image hashes, and one active feature profile.
+            # Operators, instruments and dates may legitimately differ.
+            candidate = (hardware["assembly_id"],
+                         tuple(sorted(hardware["boards"])),
+                         tuple(sorted(hardware["firmware_sha256"])),
+                         tuple(sorted(record["feature_flags"].items())))
+            if physical_candidate is None:
+                physical_candidate = candidate
+            elif candidate != physical_candidate:
+                raise ValueError(f"{name}: physical candidate differs from other executed F3 evidence")
             if name == "hardware.one-hour" and record["result"] == "PASS" and hardware["duration_seconds"] < 3600:
                 raise ValueError(f"{name}: successful stress run requires a continuous hour")
         if artifact and artifact_identity(artifact_root, artifact["path"]) != artifact:
