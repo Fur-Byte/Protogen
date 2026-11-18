@@ -2,6 +2,7 @@
 #include "ApplicationStatus.h"
 #include "EspNowTransport.h"
 #include "PairingIndicator.h"
+#include "ControlArming.h"
 #include "SecureStorage.h"
 #include "WearerIO.h"
 #include "Efficiency.h"
@@ -225,6 +226,7 @@ void serviceUart(uint32_t now) {
 Wireless::Actions actions;
 HelmetLink::Packet pendingCommand{};
 bool commandWaiting = false, buttonsArmed = false, comboUsed = false;
+Wireless::ReleaseGate releaseGate;
 uint32_t commandAt = 0, retriedAt = 0, commandSequence = 0, comboAt = 0;
 struct Button {
   int pin;
@@ -305,14 +307,22 @@ void serviceButtons(uint32_t now) {
   const bool any = buttons[0].down || buttons[1].down || buttons[2].down;
   if (!connected) {
     buttonsArmed = false;
+    releaseGate.reset();
     comboAt = 0;
     comboUsed = false;
     commandWaiting = false;
     actions.clear();
     return;
   }
-  if (!any) {
-    buttonsArmed = true;
+  if (!buttonsArmed) {
+    bool completelyReleased = true;
+    for (const auto &button : buttons)
+      completelyReleased = completelyReleased && !button.raw && !button.down &&
+                           now - button.changed >= Wireless::DebounceMs;
+    if (releaseGate.ready(now, completelyReleased))
+      buttonsArmed = true;
+  }
+  if (!any && buttonsArmed) {
     comboUsed = false;
     comboAt = 0;
   }
@@ -360,6 +370,7 @@ void connectionChanged(void *, bool online) {
   WearerIO::link(online);
 #else
   commandWaiting = buttonsArmed = false;
+  releaseGate.reset();
   commandSequence = 0;
   actions.clear();
   helmetStatus.available = false;
