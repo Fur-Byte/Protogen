@@ -22,7 +22,21 @@ int main() {
     }
   }
   HelmetLink::Packet p;p.payload[4]=0;
+  assert(!faceKnown);
+  assert(!strcmp(faceMessage(p,false),"FACE LINK LOST"));
+  p.payload[5]=HelmetLink::Visible|HelmetLink::DisplayReady;
   face(p,true);
+  const uint32_t uartAt=faceAt;
+  assert(faceKnown);
+  assert(!strcmp(faceMessage(p,true),"FACE READY"));
+  p.payload[5]=HelmetLink::Visible;
+  assert(!strcmp(faceMessage(p,true),"FACE UNAVAILABLE"));
+  p.payload[5]=HelmetLink::DisplayReady;
+  assert(!strcmp(faceMessage(p,true),"FACE HIDDEN"));
+  p.payload[5]=HelmetLink::Sleeping;
+  assert(!strcmp(faceMessage(p,true),"FACE ASLEEP"));
+  link(false);link(true);
+  assert(faceAt==uartAt); // Radio reconnect must not refresh UART status.
   Status panel;panel.remainingPercent=-1;
   assert(showScreen(panel,nowMs()));
   const unsigned before=FakeWearer::dataTransfers;
