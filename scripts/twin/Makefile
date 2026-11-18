@@ -17,19 +17,19 @@ COMPILER_ID := $(shell $(CXX) --version 2>/dev/null | head -n 1)
 .PHONY: FORCE all
 FORCE:
 $(BUILD)/.compile-settings: FORCE | $(BUILD)
-	@printf '%s\\n' '$(CXX)' '$(COMPILER_ID)' '$(FLAGS)' '$(ARDUINO_FFT_SRC)' > "$@.tmp"
+	@printf '%s\n' '$(CXX)' '$(COMPILER_ID)' '$(FLAGS)' '$(ARDUINO_FFT_SRC)' > "$@.tmp"
 	@if test -f "$@" && cmp -s "$@.tmp" "$@"; then rm -f "$@.tmp"; else mv -f "$@.tmp" "$@"; fi
 all: $(BUILD)/twin
 $(BUILD):
 	mkdir -p "$@"
-$(BUILD)/fft.o: $(ARDUINO_FFT_SRC)/arduinoFFT.cpp $(wildcard $(ARDUINO_FFT_SRC)/*.h) Makefile | $(BUILD) $(BUILD)/.compile-settings
+$(BUILD)/fft.o: $(ARDUINO_FFT_SRC)/arduinoFFT.cpp $(wildcard $(ARDUINO_FFT_SRC)/*.h) Makefile $(BUILD)/.compile-settings | $(BUILD)
 	bash -c 'source ../host-fft.sh; FLAGS=("$${@:3}"); compile_host_fft "$$1" "$$2"' _ "$(ARDUINO_FFT_SRC)" "$@" $(FLAGS)
 $(BUILD)/twin: twin.cpp Makefile $(BUILD)/fft.o $(wildcard $(SKETCH)/*.h $(SKETCH)/*.ino $(SKETCH)/src/*/*.h $(ROOT)/scripts/tests/stubs/*.h) ../tests/sketch.h $(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp $(CORE) $(BUILD)/.compile-settings
 	$(CXX) $(FLAGS) twin.cpp "$(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp" $(CORE) "$(BUILD)/fft.o" -o "$@"
 
 .PHONY: p3-tests
 p3-tests: $(BUILD)/flight-recorder-unit $(BUILD)/flight-recorder-integration
-$(BUILD)/flight-recorder-unit: ../tests/flight-recorder-unit.cpp $(SKETCH)/src/HelmetProtocol/FlightRecorder.h $(SKETCH)/FlightInstrumentation.h Makefile | $(BUILD) $(BUILD)/.compile-settings
+$(BUILD)/flight-recorder-unit: ../tests/flight-recorder-unit.cpp $(SKETCH)/src/HelmetProtocol/FlightRecorder.h $(SKETCH)/FlightInstrumentation.h Makefile $(BUILD)/.compile-settings | $(BUILD)
 	$(CXX) $(FLAGS) -pthread "$<" -o "$@"
 $(BUILD)/flight-recorder-integration: ../tests/flight-recorder-integration.cpp $(BUILD)/fft.o $(wildcard $(SKETCH)/*.ino $(SKETCH)/*.h $(SKETCH)/src/*/*.h $(ROOT)/scripts/tests/stubs/*.h) ../tests/sketch.h $(CORE) Makefile $(BUILD)/.compile-settings
 	$(CXX) $(FLAGS) "$<" "$(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp" $(CORE) "$(BUILD)/fft.o" -o "$@"
@@ -37,13 +37,13 @@ $(BUILD)/flight-recorder-integration: ../tests/flight-recorder-integration.cpp $
 .PHONY: behavior-core-test
 behavior-core-test: $(BUILD)/behavior-core-unit
 	"$<"
-$(BUILD)/behavior-core-unit: ../tests/behavior-core.cpp $(CORE) $(SKETCH)/src/BehaviorCore/BehaviorCore.h $(SKETCH)/BlinkTiming.h $(SKETCH)/Configuration.h $(SKETCH)/Settings.h Makefile | $(BUILD) $(BUILD)/.compile-settings
+$(BUILD)/behavior-core-unit: ../tests/behavior-core.cpp $(CORE) $(SKETCH)/src/BehaviorCore/BehaviorCore.h $(SKETCH)/BlinkTiming.h $(SKETCH)/Configuration.h $(SKETCH)/Settings.h Makefile $(BUILD)/.compile-settings | $(BUILD)
 	$(CXX) -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=$(PROTOGEN_HOST_SANITIZERS) \
 	  -fno-sanitize-recover=all -I"$(SKETCH)/src/BehaviorCore" "$<" $(CORE) -o "$@"
 
 .PHONY: animation-v2-tests
 animation-v2-tests: $(BUILD)/animation-v2-unit $(BUILD)/animation-v2-visual
-$(BUILD)/animation-v2-unit: ../tests/animation-v2.cpp $(CORE) $(wildcard $(SKETCH)/src/BehaviorCore/*.h) Makefile | $(BUILD) $(BUILD)/.compile-settings
+$(BUILD)/animation-v2-unit: ../tests/animation-v2.cpp $(CORE) $(wildcard $(SKETCH)/src/BehaviorCore/*.h) Makefile $(BUILD)/.compile-settings | $(BUILD)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -pedantic -DPROTOGEN_ANIMATION_V2=1 \
 	  -fsanitize=$(PROTOGEN_HOST_SANITIZERS) -fno-sanitize-recover=all \
 	  -I"$(SKETCH)/src/BehaviorCore" "$<" $(CORE) -o "$@"
@@ -58,7 +58,7 @@ $(BUILD)/audio-corpus: ../tests/audio-corpus.cpp $(BUILD)/fft.o $(wildcard $(SKE
 .PHONY: audio-v2-unit
 audio-v2-unit: $(BUILD)/audio-v2-unit
 	"$<"
-$(BUILD)/audio-v2-unit: ../tests/audio-v2-unit.cpp $(SKETCH)/src/AudioV2/AudioV2.cpp $(SKETCH)/src/AudioV2/AudioV2.h Makefile | $(BUILD) $(BUILD)/.compile-settings
+$(BUILD)/audio-v2-unit: ../tests/audio-v2-unit.cpp $(SKETCH)/src/AudioV2/AudioV2.cpp $(SKETCH)/src/AudioV2/AudioV2.h Makefile $(BUILD)/.compile-settings | $(BUILD)
 	$(CXX) $(FLAGS) -I"$(SKETCH)/src/AudioV2" "$<" "$(SKETCH)/src/AudioV2/AudioV2.cpp" -o "$@"
 
 AUDIO_TEST_SOURCES := $(BUILD)/fft.o $(wildcard $(SKETCH)/*.ino $(SKETCH)/*.h $(SKETCH)/src/*/*.h $(ROOT)/scripts/tests/stubs/*.h) ../tests/sketch.h $(SKETCH)/src/Max72xxPanel/Max72xxPanel.cpp $(CORE) Makefile
