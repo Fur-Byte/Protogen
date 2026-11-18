@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Exercise the release CLI in temporary Git repositories with synthetic images."""
 import hashlib
+import os
+import stat
 import json
 from pathlib import Path
 import shutil
@@ -164,6 +166,17 @@ class PackagingTests(unittest.TestCase):
             self.assertEqual(set(archive.namelist()), set(record["sha256"]) | {"release.json"})
             self.assertTrue(all(sha(archive.read(name)) == expected for name, expected in record["sha256"].items()))
             self.assertFalse(any("compile_commands" in name or "temporary-cache" in name for name in archive.namelist()))
+
+    def test_output_inode_is_private_under_ordinary_umask(self):
+        original_umask = os.umask(0o022)
+        try:
+            self.package_initial()
+            self.assertEqual(stat.S_IMODE(self.output.stat().st_mode), 0o600)
+            prior = self.output.with_name('previous-private.zip')
+            self.package_initial(output=prior)
+            self.assertEqual(stat.S_IMODE(prior.stat().st_mode), 0o600)
+        finally:
+            os.umask(original_umask)
 
     def test_output_under_ignored_build_directory(self):
         output = self.root / "build/releases/synthetic-release-fixture.zip"
