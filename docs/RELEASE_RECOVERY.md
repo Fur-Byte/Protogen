@@ -1,5 +1,10 @@
 # Matching firmware and USB recovery
 
+Keep recovery bundles private. Authenticated firmware images can contain the
+provisioned UART key even when the ZIP contains no standalone key file. Check
+[redistribution requirements](../THIRD_PARTY_NOTICES.md) before distributing
+any source or firmware build.
+
 Rebuild Teensy and both wireless roles from matching current sources with the
 pinned toolchain. Use a clean Git checkout and run `python3 scripts/build.py`
 and `python3 scripts/build-esp32.py` from the same commit. Keep generated outputs

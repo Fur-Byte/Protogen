@@ -89,15 +89,14 @@ unjammability, or immunity to compromise.
 
 ## Reporting a vulnerability
 
-Use a minimal public [issue in this repository](https://github.com/Fur-Byte/Protogen/issues/new)
-to request a private reporting channel from the maintainers. Include the affected
-version and component; withhold exploit instructions, pairing/UART keys, firmware
-images containing private keys, personal data and unredacted serial captures.
-This project does not currently publish a security email address or promise a
-response deadline. If GitHub offers **Report a vulnerability** in the repository's
-Security tab, use it; its availability has not been assumed or configured here.
-Do not use the original archive author's historical contact as this project's
-reporting address.
+Use **Security → Report a vulnerability** on GitHub when private vulnerability
+reporting is available. For the private development repository, contact the
+maintainer through an existing private channel. If you need a channel, request
+one with a short [repository issue](https://github.com/Fur-Byte/Protogen/issues/new).
+Use the issue only to identify the affected version and component. Share
+reproduction details and sanitized diagnostics privately. Keep credentials,
+key-bearing images, personal data and raw device captures out of GitHub issues,
+pull requests and Actions evidence.
 
 Private per-helmet `ProtogenUartKey.h` files are ignored by Git; the explicitly
 public placeholder fixture remains tracked for regressions. Diagnostics must
