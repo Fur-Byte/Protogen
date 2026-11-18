@@ -491,6 +491,28 @@ void testSession() {
                      PacketBytes - HeaderBytes));
   assert(!h.open(f.bytes, PacketBytes, decoded));
 }
+void testReceiverHardExpiry() {
+  // A noncooperating peer can leave a valid, authenticated command queued
+  // until after the hard session deadline. The helmet must expire *before*
+  // processing that record, even when no renewal request was sent.
+  for (uint32_t start : {100U, UINT32_MAX - 4000U}) {
+    Rig r;
+    if (start != 100U) {
+      r.now = start;
+      r.p.reset(r.now);
+      r.h.reset(r.now);
+    }
+    r.connect();
+    const unsigned before = r.h.actions;
+    assert(r.p.link->queue(command()));
+    r.p.link->tick(r.now);
+    assert(!r.h.radio.incoming.empty());
+    r.now += SessionLifetimeMs + SessionJitterMs + ActiveMs + 10;
+    r.h.link->tick(r.now);
+    assert(r.h.actions == before);
+    assert(!r.h.link->online());
+  }
+}
 void testRecovery() {
   Rig r;
   r.connect();
@@ -938,6 +960,7 @@ int main(int argc,char **argv) {
   testSasMismatchAndReplacement();
   testInvalidPairingPointRecovery();
   testSession();
+  testReceiverHardExpiry();
   testRecovery();
   testIdentityAndActions();
   testHandshakeAndForwardSecrecy();
