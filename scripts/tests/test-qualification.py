@@ -113,6 +113,32 @@ class Qualification(unittest.TestCase):
         record["artifact"] = self.soak_artifact()
         validate(self.manifest(record), self.root, SOURCE)
 
+    def test_mixed_physical_candidates_are_rejected(self):
+        def physical(name, instrument):
+            item = self.record(name, "F3")
+            item["hardware"] = {
+                "assembly_id": "helm-001", "boards": ["teensy-01", "c3-01"],
+                "firmware_sha256": ["a" * 64, "b" * 64],
+                "instruments": [instrument], "operator": "bench operator",
+                "date": "2026-11-18", "duration_seconds": 3600,
+                "conditions": "controlled bench", "measurements": {"value": 1}
+            }
+            return item
+
+        optical = physical("hardware.optical", "photodiode-01")
+        electrical = physical("hardware.electrical", "meter-02")
+        validate(self.manifest(optical, electrical), self.root, SOURCE)
+        for change in (
+            lambda r: r["hardware"].update(assembly_id="helm-002"),
+            lambda r: r["hardware"]["boards"].append("different-c3"),
+            lambda r: r["hardware"]["firmware_sha256"].__setitem__(0, "c" * 64),
+            lambda r: r["feature_flags"].update(PROTOGEN_AUDIO_V2=1)
+        ):
+            other = physical("hardware.electrical", "meter-02")
+            change(other)
+            with self.assertRaisesRegex(ValueError, "physical candidate"):
+                validate(self.manifest(optical, other), self.root, SOURCE)
+
     def test_gated_readiness(self):
         records = []
         for name, minimum in GATES.items():
@@ -120,7 +146,7 @@ class Qualification(unittest.TestCase):
             if name == "host.soak-100x24h":
                 record["artifact"] = self.soak_artifact()
             if minimum == "F3":
-                record["hardware"] = {"boards": ["fixture-board"], "firmware_sha256": ["a" * 64],
+                record["hardware"] = {"assembly_id": "fixture-helmet-1", "boards": ["fixture-board"], "firmware_sha256": ["a" * 64],
                                       "instruments": ["fixture-probe"], "operator": "fixture operator",
                                       "date": "2026-11-17", "duration_seconds": 3600,
                                       "conditions": "isolated fixture", "measurements": {"test": 1}}
