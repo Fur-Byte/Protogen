@@ -24,6 +24,7 @@ Status published;
 HelmetLink::Packet faceStatus;
 bool pawConnected=false;
 uint32_t faceAt=0;
+bool faceKnown=false;
 portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
 std::atomic<bool> fullRequested{false};
 std::atomic<uint32_t> fullFailureGeneration{0};
@@ -179,9 +180,19 @@ const char *warningFor(const Status &s) {
   if(s.faults && !strcmp(warning,"STATUS OK"))warning="CHECK SENSORS";
   return warning;
 }
+const char *faceMessage(const HelmetLink::Packet &face,bool fresh) {
+  if(!fresh)return "FACE LINK LOST";
+  const uint8_t flags=face.payload[5];
+  if(flags&HelmetLink::Sleeping)return "FACE ASLEEP";
+  if(!(flags&HelmetLink::Visible))return "FACE HIDDEN";
+  if(!(flags&HelmetLink::DisplayReady))return "FACE UNAVAILABLE";
+  if(flags&HelmetLink::Booping)return "BOOP VWV";
+  return "FACE READY";
+}
 bool showScreen(Status &s,uint32_t now) {
-  HelmetLink::Packet face;bool radio;uint32_t at;
-  portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;portEXIT_CRITICAL(&mux);
+  HelmetLink::Packet face;bool radio,known;uint32_t at;
+  portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;known=faceKnown;portEXIT_CRITICAL(&mux);
+  const bool fresh=known && now-at<2000;
   screenOffset=PROTOGEN_OLED_PROTECTION?(now/60000)%2:0;
   char line[32];memset(frame,0,sizeof(frame));
   if(s.remainingPercent>=0)snprintf(line,sizeof(line),"BAT ~%d%% %.1fV",s.remainingPercent,s.volts);
@@ -191,15 +202,17 @@ bool showScreen(Status &s,uint32_t now) {
   else snprintf(line,sizeof(line),"HEAD SENSOR ?");
   text(1,line);
   const char *names[]={"HAPPY","SURPRISED","ANGRY","VWV","SLEEPY","WINK"};
-  snprintf(line,sizeof(line),"FACE %s",face.payload[4]<6?names[face.payload[4]]:"?");text(2,line);
-  text(3,now-at>=2000?"FACE LINK LOST":face.payload[5]&HelmetLink::Sleeping?"FACE ASLEEP":face.payload[5]&HelmetLink::Booping?"BOOP VWV":"FACE READY");
-  text(4,radio && now-at<2000?"PAW CONNECTED":"PAW OFFLINE");
-  snprintf(line,sizeof(line),"MIC %s FAULT %u",face.payload[5]&HelmetLink::MicEnabled?"ON":"OFF",HelmetLink::u16(face.payload+10));text(5,line);
+  snprintf(line,sizeof(line),"FACE %s",fresh && face.payload[4]<6?names[face.payload[4]]:"?");text(2,line);
+  text(3,faceMessage(face,fresh));
+  text(4,radio?"PAW CONNECTED":"PAW OFFLINE");
+  if(fresh)snprintf(line,sizeof(line),"MIC %s FAULT %u",face.payload[5]&HelmetLink::MicEnabled?"ON":"OFF",HelmetLink::u16(face.payload+10));
+  else snprintf(line,sizeof(line),"MIC ? FAULT ?");
+  text(5,line);
   if(s.caseValid)snprintf(line,sizeof(line),"BAT CASE %.1fC",s.caseTemperature);else snprintf(line,sizeof(line),"STATUS FAULT %u",s.faults);text(6,line);
   const char *warning=warningFor(s);
   text(7,warning);
   if(PROTOGEN_OLED_PROTECTION) {
-    const bool sleep=now-at<2000 && (face.payload[5]&HelmetLink::Sleeping) &&
+    const bool sleep=fresh && (face.payload[5]&HelmetLink::Sleeping) &&
         !strcmp(warning,"STATUS OK") && !HelmetLink::u16(face.payload+10);
     if(!screenStateKnown || sleep!=screenSleeping) {
       const uint8_t command=sleep?0xae:0xaf;
@@ -353,7 +366,7 @@ void task(void*) {
     HelmetLink::Packet face;bool radio;uint32_t at;
     portENTER_CRITICAL(&mux);face=faceStatus;radio=pawConnected;at=faceAt;portEXIT_CRITICAL(&mux);
     observedFaceAt=at;
-    const bool stale=now-at>=2000;
+    const bool stale=!faceKnown || now-at>=2000;
     const bool urgent=warningFor(s)!=previousWarning || s.faults!=previousFaults || radio!=previousRadio || stale!=previousStale ||
         memcmp(face.payload+4,previousFace.payload+4,2) || memcmp(face.payload+10,previousFace.payload+10,2) ||
         (PROTOGEN_OLED_PROTECTION && previousScreenGeneration!=now/60000);
@@ -415,12 +428,20 @@ void start(const Device::Config &config) {
   if(xTaskCreate(task,"wearer_io",6144,nullptr,1,nullptr)!=pdPASS){portENTER_CRITICAL(&mux);published.faults=0xffff;portEXIT_CRITICAL(&mux);}
 }
 Status snapshot(){portENTER_CRITICAL(&mux);const Status s=published;portEXIT_CRITICAL(&mux);return s;}
-void face(const HelmetLink::Packet &s,bool connected) {
+void link(bool connected) {
   portENTER_CRITICAL(&mux);
-  const bool changed=pawConnected!=connected || faceStatus.epoch!=s.epoch || nowMs()-faceAt>=2000 ||
+  const bool changed=pawConnected!=connected;
+  pawConnected=connected;
+  portEXIT_CRITICAL(&mux);
+  if(changed && (PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION || PROTOGEN_WEARER_DEADLINES))notifyWorker();
+}
+void face(const HelmetLink::Packet &s,bool connected) {
+  const uint32_t now=nowMs();
+  portENTER_CRITICAL(&mux);
+  const bool changed=!faceKnown || pawConnected!=connected || faceStatus.epoch!=s.epoch || now-faceAt>=2000 ||
       memcmp(faceStatus.payload+4,s.payload+4,2) ||
       memcmp(faceStatus.payload+10,s.payload+10,2);
-  faceStatus=s;pawConnected=connected;faceAt=nowMs();portEXIT_CRITICAL(&mux);
+  faceStatus=s;pawConnected=connected;faceAt=now;faceKnown=true;portEXIT_CRITICAL(&mux);
   if(changed && (PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION || PROTOGEN_WEARER_DEADLINES))notifyWorker();
 }
 bool markFull(){
