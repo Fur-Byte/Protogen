@@ -345,10 +345,14 @@ def package(output, previous=None, initial=False, config_path=None, previous_sha
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".protogen-release-", dir=output.parent) as temp:
         staged = Path(temp) / "bundle.zip"
-        with zipfile.ZipFile(staged, "x", compression=zipfile.ZIP_DEFLATED) as archive:
-            for name, raw in sorted(content.items()):
-                archive.writestr(name, raw)
-            archive.writestr("release.json", manifest_bytes)
+        # The output is a hard link to this inode. Secure its permissions at
+        # creation, independent of a service workstation's ordinary umask.
+        fd = os.open(staged, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for name, raw in sorted(content.items()):
+                    archive.writestr(name, raw)
+                archive.writestr("release.json", manifest_bytes)
         valid(release_source(ROOT, DOCS) == identity, "Git source changed during packaging")
         os.link(staged, output)
     return manifest
