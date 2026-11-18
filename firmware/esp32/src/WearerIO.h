@@ -32,5 +32,7 @@ struct Status {
 void start(const Device::Config &config);
 Status snapshot();
 void face(const HelmetLink::Packet &status,bool radioConnected);
+// A radio transition is not a fresh Teensy UART observation.
+void link(bool radioConnected);
 bool markFull();
 }
