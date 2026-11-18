@@ -941,7 +941,19 @@ void testIdentityAndActions() {
   assert(led.level(0, true, false, 0));
   assert(!led.level(300, true, false, 0));
   assert(led.level(1000, true, true, 123456));
+  assert(!led.complete(1000, 123456));
   assert(!led.level(2500, true, true, 123456));
+  // Marker, six digit pulses, and all separator gaps total 12,500 ms.
+  assert(!led.complete(13499, 123456));
+  assert(led.complete(13500, 123456));
+  assert(!led.complete(13500, 123457));
+  led.level(13505, true, true, 123457);
+  assert(!led.complete(13505, 123457));
+  led.level(14000, false, false, 0);
+  assert(!led.complete(15000, 123457));
+  led.level(UINT32_MAX - 1000, true, true, 123456);
+  assert(!led.complete(0, 123456));
+  assert(led.complete(12000, 123456));
 }
 } // namespace
 int main(int argc,char **argv) {
