@@ -11,13 +11,14 @@ function openStudio() {
   const elements = new Map(), requests = [], timers = [], tabStorage = new Map();
   function element(id) {
     if(!elements.has(id))elements.set(id,{id,type:['natural_blinks','idle_motion'].includes(id)?'checkbox':'number',value:'1',checked:false,
-      listeners:{},style:{},append(){},setAttribute(){},checkValidity(){return true;},
+      listeners:{},style:{},attributes:{},append(){},setAttribute(name,value){this.attributes[name]=value;},checkValidity(){return true;},
       addEventListener(type,fn){this.listeners[type]=fn;}});
     return elements.get(id);
   }
   let draws = 0;
   element('face').getContext = () => ({clearRect(){draws++;},strokeRect(){},beginPath(){},arc(){},fill(){}});
-  const context=vm.createContext({document:{getElementById:element,createElement:()=>element(Symbol()),querySelectorAll:()=>[]},
+  const expressions = () => Array.from(elements.values()).filter(el => el.className === 'expression');
+  const context=vm.createContext({document:{getElementById:element,createElement:()=>element(Symbol()),querySelectorAll:selector=>selector === '.expression' ? expressions() : []},
     location:{hash:'#usb='+token,pathname:'/'}, history:{replaceState(state,title,path){assert.equal(path,'/');context.location.hash='';}},
     sessionStorage:{setItem:(key,value)=>tabStorage.set(key,value),getItem:key=>tabStorage.get(key)},
     fetch:(path,options)=>new Promise(resolve=>requests.push({
@@ -25,7 +26,7 @@ function openStudio() {
     })),
     setTimeout(fn,ms){timers.push({fn,ms});},console});
   vm.runInContext(html.split('<script>')[1].split('</script>')[0],context);
-  return {context, element, requests, timers, get draws(){return draws;}};
+  return {context, element, expressions, requests, timers, get draws(){return draws;}};
 }
 const {context, requests} = openStudio();
 vm.runInContext("api('/api/action', {action:'load'})",context);
@@ -67,6 +68,81 @@ function snapshot(expression, brightness=1) {
     config:{brightness, mouth_mode:1}, display:{frame:'00'.repeat(112)}};
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+
+test('connection, face controls and brightness report follow the accepted state', async () => {
+  const {element, expressions, requests} = openStudio();
+  const value = snapshot(5, 15);
+  value.simulation = true;
+  value.config.boop_trigger = 90;
+  Object.assign(value.status, {visible:false, sleeping:true, boop:true, boop_reading:90,
+    brightness:{configured:15, effective:1, maximum:2, approved:1}});
+  requests.find(request => request.path === '/api/state').reply(value);
+  await settle();
+  assert.equal(element('connection').textContent, 'Desktop simulation');
+  assert.equal(element('connection').className, 'tag online');
+  assert.equal(element('simulation').hidden, false);
+  assert.equal(element('save').textContent, 'Save in simulation');
+  assert.equal(element('display-label').textContent, 'Same firmware · simulated hardware');
+  assert.equal(element('reaction').textContent, 'Sleeping');
+  assert.equal(element('sleep').textContent, 'Wake display');
+  assert.equal(element('visor').textContent, 'Show visor');
+  assert.equal(element('boop').textContent, 'Release boop');
+  assert.deepEqual(expressions().map(el => el.attributes['aria-pressed']),
+    ['false', 'false', 'false', 'false', 'false', 'true']);
+  assert.match(element('brightness-report').textContent, /Configured 15 · Active 1 · Firmware ceiling 2 · Approved 1\./);
+
+  value.simulation = false;
+  value.status.sleeping = false;
+  delete value.status.brightness.approved;
+  const load = element('load').onclick();
+  requests.at(-1).reply(value);
+  await load;
+  assert.equal(element('connection').textContent, 'USB connected');
+  assert.equal(element('simulation').hidden, true);
+  assert.equal(element('save').textContent, 'Save to helmet');
+  assert.equal(element('display-label').textContent, 'Live helmet frame');
+  assert.equal(element('reaction').textContent, 'Visor hidden');
+  assert.match(element('brightness-report').textContent, /Firmware ceiling 2\. Set brightness/);
+});
+
+test('audio telemetry and controls reflect firmware capabilities and face state', async () => {
+  const studio = openStudio();
+  const {element, requests} = studio;
+  for (const [status, micDisabled, calibrateDisabled] of [
+    [{features:0}, true, true],
+    [{microphone_enabled:undefined}, true, true],
+    [{microphone_enabled:false}, false, true],
+    [{sleeping:true}, false, true],
+    [{visible:false}, false, true],
+    [{boop:true}, false, true],
+    [{}, false, false],
+  ]) {
+    const value = snapshot(0);
+    Object.assign(value.status, status);
+    const draws = studio.draws;
+    const action = element('load').onclick();
+    requests.at(-1).reply(value);
+    await action;
+    assert.equal(element('microphone').disabled, micDisabled, JSON.stringify(status));
+    assert.equal(element('calibrate').disabled, calibrateDisabled, JSON.stringify(status));
+    assert.equal(studio.draws, draws + 1);
+  }
+  assert.equal(element('audio-status').textContent, 'Quiet');
+  assert.equal(element('brightness-report').textContent, 'This firmware does not report its brightness ceiling.');
+
+  const active = snapshot(0);
+  Object.assign(active.status, {features:6, speaking:true, calibrating:true, envelope:300, audio_gate:42,
+    audio_drops:3, boop_reading:51, paw_connected:true, sensor_faults:2, spi_hz:4000000});
+  const load = element('load').onclick();
+  requests.at(-1).reply(active);
+  await load;
+  assert.equal(element('audio-status').textContent, 'Calibrating…');
+  assert.equal(element('microphone').textContent, 'Mute microphone');
+  assert.deepEqual([element('envelope').textContent, element('gate').textContent, element('drops').textContent], [300,42,3]);
+  assert.equal(element('level').style.width, '100%');
+  assert.equal(element('boop-reading').textContent, 'Boop sensor: 51 / 1023');
+  assert.equal(element('footer').textContent, 'USB settings · changes stay local · Paw connected · Faults 2 · SPI 4 MHz');
+});
 
 test('a successful action draws once and an earlier poll cannot replace it', async () => {
   const studio = openStudio();
