@@ -234,12 +234,11 @@ void handleUsbCommand(char *line, uint32_t now) {
       unsigned long number;
       if (!equals) { replyError("expected_key_value"); return; }
       *equals = '\0';
-      if (!parseNumber(equals + 1, number) || !setConfigField(candidate, token, number)) {
+      size_t fieldIndex;
+      if (!parseNumber(equals + 1, number) || !setConfigField(candidate, token, number, &fieldIndex)) {
         replyError("invalid_setting"); return;
       }
-      for (size_t i = 0; i < configFieldCount; ++i) if (strcmp(token, configFields[i].name) == 0) {
-        if (!seen.mark(i)) { replyError("duplicate_setting"); return; }
-      }
+      if (!seen.mark(fieldIndex)) { replyError("duplicate_setting"); return; }
       ++fields;
     }
     if (!fields || !validConfig(candidate)) { replyError("invalid_configuration"); return; }

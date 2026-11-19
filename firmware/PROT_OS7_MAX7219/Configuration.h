@@ -72,17 +72,19 @@ inline bool validConfig(const RuntimeConfig &value) {
   return value.brightnessApproval <= 15 && value.boopThreshold < value.boopRelease && value.blinkJitter < value.blinkInterval;
 }
 
-inline bool setConfigField(RuntimeConfig &value, const char *key, unsigned long number) {
-  for (const auto &field : configFields) {
-    if (strcmp(key, field.name) == 0) {
-      if (number < field.minimum || number > field.maximum) return false;
-      value.*(field.member) = static_cast<uint16_t>(number);
-      // Only an explicit brightness request authorizes the current qualified
-      // compile-time ceiling. Unrelated SET fields retain the saved approval.
-      if (field.member == &RuntimeConfig::brightness)
-        value.brightnessApproval = Settings::effectiveBrightness(number);
-      return true;
-    }
+inline bool setConfigField(RuntimeConfig &value, const char *key, unsigned long number,
+                           size_t *fieldIndex = nullptr) {
+  for (size_t i = 0; i < configFieldCount; ++i) {
+    const auto &field = configFields[i];
+    if (strcmp(key, field.name) != 0) continue;
+    if (number < field.minimum || number > field.maximum) return false;
+    value.*(field.member) = static_cast<uint16_t>(number);
+    // Only an explicit brightness request authorizes the current qualified
+    // compile-time ceiling. Unrelated SET fields retain the saved approval.
+    if (field.member == &RuntimeConfig::brightness)
+      value.brightnessApproval = Settings::effectiveBrightness(number);
+    if (fieldIndex) *fieldIndex = i;
+    return true;
   }
   return false;
 }
