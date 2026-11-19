@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Compile both pinned ESP32 targets; record source identity and artifact hashes."""
 import datetime
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,7 +8,7 @@ import subprocess
 import re
 import configparser
 import struct
-from build_support import git_identity,source_identity,write_json
+from build_support import file_sha256, git_identity, source_identity, write_json
 from uart_key import validate_uart_key_directory
 
 def main():
@@ -95,7 +94,8 @@ def main():
                 "binary_bytes":(build/"esp32"/role/"firmware.bin").stat().st_size,"sdk_settings":required}
             for name in ("firmware.bin","firmware.elf","bootloader.bin","partitions.bin"):
                 path=build/"esp32"/role/name
-                if path.is_file():record["artifacts"][str(path.relative_to(root))]=hashlib.sha256(path.read_bytes()).hexdigest()
+                if path.is_file():
+                    record["artifacts"][str(path.relative_to(root))] = file_sha256(path)
         if source_identity(root)!=record["source"] or git_identity(root)!=git:
             raise RuntimeError("Sources changed during the run.")
         record["state"]="success" if run.returncode==0 and record["warnings"]==0 else "failed"

@@ -13,6 +13,15 @@ from uart_key import compiler_options, validate_uart_key_flags
 
 FQBN = "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std"
 SOURCE_DIRECTORIES = ("firmware", "scripts", "tools", "profiles")
+HASH_CHUNK_BYTES = 64 * 1024
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(HASH_CHUNK_BYTES):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def find_cli():
