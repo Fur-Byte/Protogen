@@ -17,10 +17,21 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 import sketch_features as features
-from build_support import BuildRun, find_cli
+from build_support import HASH_CHUNK_BYTES, BuildRun, file_sha256, find_cli
 
 
 class FeatureChecks(unittest.TestCase):
+    def test_artifact_hash_matches_whole_file_across_chunk_boundaries(self):
+        sizes = (0, 1, HASH_CHUNK_BYTES - 1, HASH_CHUNK_BYTES, HASH_CHUNK_BYTES + 1, 3 * HASH_CHUNK_BYTES + 17)
+        pattern = bytes(range(251))
+        data = pattern * (max(sizes) // len(pattern) + 1)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "firmware.bin"
+            for size in sizes:
+                with self.subTest(size=size):
+                    path.write_bytes(data[:size])
+                    self.assertEqual(file_sha256(path), hashlib.sha256(path.read_bytes()).hexdigest())
+
     def test_platformio_mcp_outputs_do_not_change_source_identity(self):
         from build_support import source_identity
         with tempfile.TemporaryDirectory() as tmp:
@@ -220,7 +231,8 @@ class FeatureChecks(unittest.TestCase):
                 self.assertEqual(published["state"], "success")
                 self.assertEqual(published["results"][0]["features"], list(enabled))
                 self.assertEqual(published, json.loads((root / "build/latest-successful-build.json").read_text()))
-                self.assertIn("fixture.hex", published["artifacts"])
+                self.assertEqual(published["artifacts"],
+                                 {"fixture.hex": hashlib.sha256(b"synthetic build output").hexdigest()})
 
     def test_connector_only_build_requires_selected_pinned_adc(self):
         with tempfile.TemporaryDirectory(prefix="protogen-connector-adc-") as tmp:

@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
-from build_support import BuildRun, check_toolchain, find_cli, write_json
+from build_support import BuildRun, check_toolchain, file_sha256, find_cli, write_json
 from sketch_features import enabled_features
 
 
@@ -25,8 +25,7 @@ def main():
         hex_files = sorted(output.glob("*.hex"))
         if not hex_files:
             raise RuntimeError("Compiler returned success without exporting a HEX")
-        run.record["artifacts"] = {p.name: __import__('hashlib').sha256(p.read_bytes()).hexdigest()
-                                   for p in output.iterdir() if p.is_file()}
+        run.record["artifacts"] = {p.name: file_sha256(p) for p in output.iterdir() if p.is_file()}
         run.publish()
         # Publish the compatibility directory as a whole, including its source manifest.
         staging = Path(tempfile.mkdtemp(prefix="protogen-export-", dir=run.build))
