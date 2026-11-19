@@ -165,13 +165,20 @@
   }
 
   function renderEvents() {
+    const groups = new Map();
+    clip.events.forEach((event, index) => {
+      const key = `${event.region}/${event.channel}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({event, index});
+    });
+
     const container = element("events");
     container.replaceChildren();
     for (const [region, name] of Object.entries(regions)) {
       for (const [channel, label] of Object.entries(channels)) {
-        const group = clip.events.map((event, index) => ({event,index})).filter(({event}) =>
-          event.region === region && event.channel === channel).sort((a,b) => a.event.at_ms-b.event.at_ms);
-        if (!group.length) continue;
+        const group = groups.get(`${region}/${channel}`);
+        if (!group) continue;
+        group.sort((a, b) => a.event.at_ms - b.event.at_ms);
         const heading = document.createElement("strong");
         heading.textContent = name + " · " + label;
         container.append(heading);
