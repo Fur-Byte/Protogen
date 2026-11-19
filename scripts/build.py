@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Build the selected features; publish a HEX only after zero-warning validation."""
-import importlib.util
 import os
 from pathlib import Path
 import shutil
 import sys
 import tempfile
 from build_support import BuildRun, check_toolchain, find_cli, write_json
+from sketch_features import enabled_features
 
 
 def main():
@@ -14,11 +14,8 @@ def main():
     run = BuildRun(root, "build")
     try:
         sketch = run.snapshot()
-        spec = importlib.util.spec_from_file_location("feature_checks", root / "scripts/check-features.py")
-        feature_checks = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(feature_checks)
         source = (sketch / "PROT_OS7_MAX7219.ino").read_text()
-        enabled = feature_checks.enabled_features(source)
+        enabled = enabled_features(source)
         cli = find_cli()
         run.record["toolchain"] = check_toolchain(root, cli)
         output = run.compile(cli, sketch, enabled)

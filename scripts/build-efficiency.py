@@ -6,10 +6,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import runpy
 import shutil
 import subprocess
 from build_support import BuildRun, FQBN, check_toolchain, find_cli
+from sketch_features import ALL_FEATURES, configure_features
 
 ROOT = Path(__file__).resolve().parents[1]
 NAMES = ('cache_face', 'case_2hz', 'oled_1hz', 'oled_pages', 'checkpoint_5min',
@@ -36,10 +36,8 @@ def main():
     evidence = BuildRun(ROOT, 'efficiency')
     try:
         sketch = evidence.snapshot()
-        features = runpy.run_path(str(ROOT / 'scripts/check-features.py'))
         main = sketch / 'PROT_OS7_MAX7219.ino'
-        enabled = features['ALL_FEATURES']
-        main.write_text(features['configure_features'](main.read_text(), enabled, enabled))
+        main.write_text(configure_features(main.read_text(), ALL_FEATURES, ALL_FEATURES))
         flag = ''.join(' -DPROTOGEN_' + name.upper() + '=1' for name in names)
         mask = sum(1 << NAMES.index(name) for name in names)
         optimization = '+'.join(names) if args.combined else args.optimization
@@ -48,7 +46,7 @@ def main():
                                status='bench only; physical qualification pending')
         cli = find_cli();evidence.record['toolchain'] = check_toolchain(ROOT, cli)
         fqbn = FQBN.replace('speed=600', 'speed=' + str(args.teensy_mhz))
-        evidence.compile(cli, sketch, list(enabled), extra_flags='-Werror' + flag, fqbn=fqbn)
+        evidence.compile(cli, sketch, list(ALL_FEATURES), extra_flags='-Werror' + flag, fqbn=fqbn)
         if args.optimization != 'teensy_clock':
             project = evidence.path / 'esp32'
             shutil.copytree(ROOT / 'firmware/esp32', project)

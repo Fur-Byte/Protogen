@@ -11,6 +11,7 @@ import sys
 import tempfile
 
 from build_support import BuildRun, check_toolchain, find_cli, write_json
+from sketch_features import ALL_FEATURES, configure_features
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "f298f3bbf2e07f9a4a4054e1d722123d0d50f34c"
@@ -31,7 +32,13 @@ def main():
         status = subprocess.check_output(["git", "status", "--porcelain"], cwd=source)
         if head != BASE or status or source == ROOT:
             parser.error("baseline measurement requires the clean P3 worktree")
-    features = runpy.run_path(str(source / "scripts/check-features.py"))
+        # P3 predates sketch_features. Measure it with the parser from that revision.
+        historical = runpy.run_path(str(source / "scripts/check-features.py"))
+        all_features = historical["ALL_FEATURES"]
+        configure = historical["configure_features"]
+    else:
+        all_features = ALL_FEATURES
+        configure = configure_features
     run = BuildRun(source, "behavior-footprint")
     private = None
     try:
@@ -42,7 +49,7 @@ def main():
         run.record["toolchain"] = check_toolchain(source, cli)
         profiles = [
             ("default", (), ""),
-            ("all-recorder", features["ALL_FEATURES"], "-DPROTOGEN_FLIGHT_RECORDER=1"),
+            ("all-recorder", all_features, "-DPROTOGEN_FLIGHT_RECORDER=1"),
         ]
         if args.animation_v2:
             private = tempfile.TemporaryDirectory(prefix="protogen-v2-uart-")
@@ -53,12 +60,11 @@ def main():
                             "-DPROTOGEN_CACHE_FACE=1 -DPROTOGEN_UART_AUTH=1 " + shlex.quote("-I" + str(key)))
             profiles.extend([
                 ("v2-default", (), "-DPROTOGEN_ANIMATION_V2=1"),
-                ("all-interactions-off", features["ALL_FEATURES"], interactions),
-                ("v2-all-interactions", features["ALL_FEATURES"], "-DPROTOGEN_ANIMATION_V2=1 " + interactions),
+                ("all-interactions-off", all_features, interactions),
+                ("v2-all-interactions", all_features, "-DPROTOGEN_ANIMATION_V2=1 " + interactions),
             ])
         for profile, enabled, flags in profiles:
-            main_source.write_text(features["configure_features"](original, enabled, features["ALL_FEATURES"])
-                                   if enabled else original)
+            main_source.write_text(configure(original, enabled, all_features) if enabled else original)
             artifact = run.compile(cli, sketch, enabled, jobs=4, extra_flags=f"-Werror -fstack-usage {flags}")
             result = run.record["results"][-1]
             result["profile"] = profile

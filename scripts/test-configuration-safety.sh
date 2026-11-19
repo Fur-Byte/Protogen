@@ -6,14 +6,15 @@ trap 'rm -rf "$CONFIG_TEMP"' EXIT
 for maximum in 0 1 15; do
   PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT" "$CONFIG_TEMP" "$maximum" <<'PY'
 from pathlib import Path
-import runpy, shutil, sys
+import shutil, sys
 root, temporary = map(Path, sys.argv[1:3]); maximum = int(sys.argv[3])
-features = runpy.run_path(str(root / 'scripts/check-features.py'))
+sys.path.insert(0, str(root / "scripts"))
+from sketch_features import ALL_FEATURES, configure_features
 sketch = temporary / 'PROT_OS7_MAX7219'
 shutil.rmtree(sketch, ignore_errors=True)
 shutil.copytree(root / 'firmware/PROT_OS7_MAX7219', sketch)
 main = sketch / 'PROT_OS7_MAX7219.ino'
-main.write_text(features['configure_features'](main.read_text(), (), features['ALL_FEATURES']))
+main.write_text(configure_features(main.read_text(), (), ALL_FEATURES))
 settings = sketch / 'Settings.h'
 settings.write_text(settings.read_text().replace('MaxBrightness = 1;', f'MaxBrightness = {maximum};'))
 PY

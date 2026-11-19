@@ -5,10 +5,10 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import runpy
 import subprocess
 
 from build_support import BuildRun, check_toolchain, find_cli, write_json
+from sketch_features import ALL_FEATURES, configure_features
 from timelines.compiler import MAX_BYTES, compile_document, load_json
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,13 +22,11 @@ def main():
     with args.document.open("rb") as stream:
         asset = compile_document(load_json(stream.read(MAX_BYTES + 1)))
     run = BuildRun(ROOT, "timeline-footprint")
-    metadata = runpy.run_path(str(ROOT / "scripts/check-features.py"))
     try:
         sketch = run.snapshot()
         (sketch / "TimelineAsset.h").write_text(asset.header())
         source = sketch / "PROT_OS7_MAX7219.ino"
-        source.write_text(metadata["configure_features"](source.read_text(), metadata["ALL_FEATURES"],
-                                                        metadata["ALL_FEATURES"]))
+        source.write_text(configure_features(source.read_text(), ALL_FEATURES, ALL_FEATURES))
         cli = find_cli()
         run.record["toolchain"] = check_toolchain(ROOT, cli)
         common = ("-Werror -fstack-usage -DPROTOGEN_ANIMATION_V2=1 -DPROTOGEN_FLIGHT_RECORDER=1 "
@@ -39,7 +37,7 @@ def main():
         for enabled in (False, True):
             flags = common + (" -DPROTOGEN_ANIMATION_TIMELINES=1 -DPROTOGEN_LINK_TIMELINE_ASSET=1" if enabled else "")
             keep = ("build.flags.ld=" + link + " -Wl,--undefined=protogenStartLinkedTimeline",) if enabled else ()
-            build = run.compile(cli, sketch, metadata["ALL_FEATURES"], jobs=4, extra_flags=flags,
+            build = run.compile(cli, sketch, ALL_FEATURES, jobs=4, extra_flags=flags,
                                 build_properties=keep)
             result = run.record["results"][-1]
             result["timeline_enabled"] = enabled

@@ -6,13 +6,14 @@ TEST_TEMP="$(mktemp -d "${TMPDIR:-/tmp}/protogen-adc-sleep.XXXXXX")"
 trap 'rm -rf "$TEST_TEMP"' EXIT
 PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT" "$TEST_TEMP" <<'PY'
 from pathlib import Path
-import runpy,shutil,sys
+import shutil, sys
 root,temporary=map(Path,sys.argv[1:])
-features=runpy.run_path(str(root/'scripts/check-features.py'))
+sys.path.insert(0, str(root / "scripts"))
+from sketch_features import ALL_FEATURES, configure_features
 sketch=temporary/'PROT_OS7_MAX7219'
 shutil.copytree(root/'firmware/PROT_OS7_MAX7219',sketch)
 main=sketch/'PROT_OS7_MAX7219.ino'
-main.write_text(features['configure_features'](main.read_text(),(),features['ALL_FEATURES']))
+main.write_text(configure_features(main.read_text(), (), ALL_FEATURES))
 PY
 FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="${PROTOGEN_HOST_SANITIZERS:-address,undefined}"
   -fno-sanitize-recover=all -DARDUINO=10819 -DARDUINO_TEENSY40

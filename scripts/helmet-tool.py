@@ -2,7 +2,6 @@
 """Local face preview and USB settings tool. Python stdlib only; no cloud services."""
 import argparse
 import glob
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -18,18 +17,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 scripts_directory = str(Path(__file__).resolve().parent)
 if scripts_directory not in sys.path:
     sys.path.insert(0, scripts_directory)
+from sketch_features import SENSOR_FEATURES, configure_features
 from timelines.compiler import MAX_BYTES as TIMELINE_MAX_BYTES, TimelineError, compile_document, fields, load_json
 from timelines.simulator import replay_asset
 
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def configure_preview(source):
-    spec = importlib.util.spec_from_file_location("feature_checks", ROOT / "scripts/check-features.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.configure_features(source, module.FEATURES)
 
 
 class PreviewTransport:
@@ -42,7 +35,7 @@ class PreviewTransport:
         import shutil
         shutil.copytree(ROOT / "firmware/PROT_OS7_MAX7219", sketch)
         main = sketch / "PROT_OS7_MAX7219.ino"
-        main.write_text(configure_preview(main.read_text()))
+        main.write_text(configure_features(main.read_text(), SENSOR_FEATURES))
         fft = Path(os.environ.get("ARDUINO_FFT_SRC", str(Path.home() / "Documents/Arduino/libraries/arduinoFFT/src")))
         if not (fft / "arduinoFFT.cpp").is_file():
             self.temporary.cleanup()

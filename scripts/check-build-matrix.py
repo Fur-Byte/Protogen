@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Build isolated Teensy variants and both C3 roles; never flash or provision hardware."""
 import argparse
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -11,20 +10,11 @@ import sys
 import tempfile
 
 from build_support import BuildRun, check_toolchain, find_cli, git_identity, write_json
+from sketch_features import ALL_FEATURES, configure_features, enabled_features
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def load(script):
-    spec = importlib.util.spec_from_file_location(script, ROOT / "scripts" / (script + ".py"))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-FEATURES = load("check-features")
-ALL = (1 << len(FEATURES.ALL_FEATURES)) - 1
-PAW = 1 << FEATURES.ALL_FEATURES.index("WirelessPaw")
+ALL = (1 << len(ALL_FEATURES)) - 1
+PAW = 1 << ALL_FEATURES.index("WirelessPaw")
 # All sensors, each extension alone, plus the feature interactions at full mask.
 FAST = {False: (0, 7, PAW, 16, ALL), True: (PAW, ALL)}
 
@@ -59,7 +49,7 @@ def teensy(mode, group, jobs):
         sketch = run.snapshot()
         main = sketch / "PROT_OS7_MAX7219.ino"
         original = main.read_text()
-        if FEATURES.enabled_features(original):
+        if enabled_features(original):
             raise RuntimeError("The pinned production sketch must have all five optional features off")
         cli = find_cli()
         run.record["toolchain"] = check_toolchain(ROOT, cli)
@@ -68,9 +58,9 @@ def teensy(mode, group, jobs):
             if any(auth for _, auth, _, _ in cases):
                 temporary_key(key)
             for mask, auth, profile, flags in cases:
-                enabled = [name for bit, name in enumerate(FEATURES.ALL_FEATURES) if mask & (1 << bit)]
+                enabled = [name for bit, name in enumerate(ALL_FEATURES) if mask & (1 << bit)]
                 if mask:
-                    main.write_text(FEATURES.configure_features(original, enabled, FEATURES.ALL_FEATURES))
+                    main.write_text(configure_features(original, enabled, ALL_FEATURES))
                 elif main.read_text() != original:
                     raise RuntimeError("Compile the untouched default before configuring any feature mask")
                 definitions = ["-Werror", *("-DPROTOGEN_" + flag + "=1" for flag in flags)]
