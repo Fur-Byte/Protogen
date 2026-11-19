@@ -51,7 +51,7 @@ class DiagnosticsGetContract(unittest.TestCase):
                     {'ok': True, 'render_attempts': 11, 'unknown_key': 'ignored'}]
                 output = Path(folder) / 'diagnostics.json'
                 argv = ['export-diagnostics.py', '--port', 'mock', '--output', str(output)]
-                with patch.object(sys, 'argv', argv), patch.object(export.helmet_tool, 'SerialTransport', return_value=serial):
+                with patch.object(sys, 'argv', argv), patch.object(export, 'SerialTransport', return_value=serial):
                     self.assertEqual(export.main(), 0)
                 self.assertEqual(serial.command.call_args_list, [call('GET'), call('STATUS'), call('PERF')])
                 serial.close.assert_called_once_with()

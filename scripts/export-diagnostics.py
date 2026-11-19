@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 """Read local Teensy diagnostics and configuration; never access pairing storage."""
 import argparse
-import importlib.util
 import json
 from pathlib import Path
 from maintenance_support import validate_profile
-
-ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('helmet_tool', ROOT / 'scripts/helmet-tool.py')
-helmet_tool = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(helmet_tool)
+from serial_transport import SerialTransport
 
 
 def portable_profile_from_get(reply):
@@ -39,7 +34,7 @@ def main():
     parser.add_argument('--port', required=True, help='Physical Teensy USB serial device')
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
-    serial = helmet_tool.SerialTransport(args.port)
+    serial = SerialTransport(args.port)
     try:
         profile = portable_profile_from_get(serial.command('GET'))
         status = serial.command('STATUS');performance = serial.command('PERF')
