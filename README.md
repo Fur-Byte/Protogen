@@ -214,10 +214,18 @@ python3 scripts/build-esp32.py     # Helmet and paw ESP32 builds
 ```
 
 Build scripts check the pinned dependencies in `toolchain.lock.json` and require
-zero compiler warnings. Every run records its sources, selected dependencies,
-commands, status, and memory metrics in `build/runs/`. The latest attempt is in
-`build/current-build.json` or `build/feature-results.json`; previous exported
-firmware retains its own manifest. No check uploads firmware.
+zero compiler warnings. No check uploads firmware.
+
+- **Teensy build attempts.** Each selected-feature build, sensor check, or extension
+  check writes `manifest.json` and `compile.log` under `build/runs/<run-id>/`.
+  The latest attempt for each is also recorded in `build/current-build.json`,
+  `build/feature-results.json`, or `build/extensions-results.json`, respectively.
+- **Successful Teensy export.** `build/latest-successful-build.json` identifies
+  the last successful export. Its HEX is `build/teensy40/PROT_OS7_MAX7219.ino.hex`,
+  alongside its own `build/teensy40/manifest.json`.
+- **ESP32 helmet and paw.** `scripts/build-esp32.py` records the build in
+  `build/esp32-build.json` and writes the combined PlatformIO output to
+  `build/esp32-build.log`.
 
 Host tests and preview require Clang/C++17, Python 3, and the installed arduinoFFT
 source; set `ARDUINO_FFT_SRC` if it is outside

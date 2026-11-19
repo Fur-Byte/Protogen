@@ -21,7 +21,9 @@ Local checks passed for all 57 frozen logical-frame and simulated SPI checkpoint
 
 ## Implementation order
 
-Units 1–4 merged in PRs #14–17. Unit 5 is implemented in open PR #18. Unit 6 is complete on this documentation branch, stacked on Unit 5. Compare each change with its baseline and stop on unexpected changes to replies, frozen traces, defaults or evidence verdicts.
+All six units are integrated into `main`. PRs #14–17 merged Units 1–4 directly. PR #18 merged Unit 5 into `codex/teensy-set-field`, and PR #19 merged Unit 6 into `codex/wearer-oled-cache`. PR #20 integrated both units into `main`. [Unit 5](https://github.com/Fur-Byte/Protogen/pull/18) · [Unit 6](https://github.com/Fur-Byte/Protogen/pull/19) · [Integration PR](https://github.com/Fur-Byte/Protogen/pull/20)
+
+Compare each change with its baseline and stop on unexpected changes to replies, frozen traces, defaults or evidence verdicts.
 
 1. **Merged. Fix stale host binaries.** Integrated builds now share the sketch inputs. FFT, recorder and core unit builds track their own headers. Six changed-input cases went from falsely current to requiring a rebuild. Unrelated targets stayed current, and the A→B→A profile regression passed. An incremental build executed a changed SPI stub and preserved the 64-sample mouth trace. Run `python3 scripts/tests/test-twin-build-profile.py` to check the build rules. [Shared inputs](../scripts/twin/Makefile#L9-L14) · [Regression](../scripts/tests/test-twin-build-profile.py#L12-L35)
 
@@ -31,9 +33,9 @@ Units 1–4 merged in PRs #14–17. Unit 5 is implemented in open PR #18. Unit 6
 
 4. **Merged. Resolve each Teensy SET field once.** The setter supplies the matched index after validating the value. USB reuses it for duplicate detection and commits the candidate only after the batch passes. All 380 replies to paired SET and GET commands matched the PR #16 baseline byte for byte. Run `bash scripts/test-configuration-safety.sh` for error precedence and brightness approval, and `bash scripts/test-config-compatibility.sh` for frozen EEPROM records and interrupted writes. [SET handler](../firmware/PROT_OS7_MAX7219/UsbControl.ino#L228-L245) · [Setter](../firmware/PROT_OS7_MAX7219/Configuration.h#L75-L90)
 
-5. **Completed on branch. Store the OLED's face fields once.** The wearer caches expression, flags and faults. An epoch change wakes the worker, and the worker uses one locked snapshot for redraw and expiry decisions. Six before/after profiles produced identical SPI bytes, wake notifications and wait traces. Run `bash scripts/test-efficiency.sh` for rendered labels, concurrent UART/radio updates, rollover and independent sensor recovery. [Snapshot](../firmware/esp32/src/WearerIO.cpp#L210-L223) · [UART and radio updates](../firmware/esp32/src/WearerIO.cpp#L469-L486)
+5. **Merged. Store the OLED's face fields once.** The wearer caches expression, flags and faults. An epoch change wakes the worker, and the worker uses one locked snapshot for redraw and expiry decisions. Six before/after profiles produced identical SPI bytes, wake notifications and wait traces. Run `bash scripts/test-efficiency.sh` for rendered labels, concurrent UART/radio updates, rollover and independent sensor recovery. [Snapshot](../firmware/esp32/src/WearerIO.cpp#L210-L223) · [UART and radio updates](../firmware/esp32/src/WearerIO.cpp#L469-L486)
 
-6. **Completed on branch. Put the completed soak result above the pilot.** The P8 readiness guide links to the 100-seed campaign, and the two-seed pilot is labeled as historical. The retained evidence verified as F2 for `aa37fdac93fa484a9092025eb5eec0540d405477`. The overall verdict remains `PRODUCTION_BLOCKED`. [Campaign and verification command](P8_VIRTUAL_SOAK.md#completed-qualification-run) · [Historical pilot](P8_VIRTUAL_SOAK.md#historical-two-seed-pilot)
+6. **Merged. Put the completed soak result above the pilot.** The P8 readiness guide links to the 100-seed campaign, and the two-seed pilot is labeled as historical. The retained evidence verified as F2 for `aa37fdac93fa484a9092025eb5eec0540d405477`. The overall verdict remains `PRODUCTION_BLOCKED`. [Campaign and verification command](P8_VIRTUAL_SOAK.md#completed-qualification-run) · [Historical pilot](P8_VIRTUAL_SOAK.md#historical-two-seed-pilot)
 
 ## Boundaries for later work
 
