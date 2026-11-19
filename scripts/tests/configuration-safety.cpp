@@ -13,6 +13,25 @@ int main(int argc, char **argv) {
   const std::string mode = argc > 1 ? argv[1] : "brightness";
   if (mode == "errors") {
     setup();
+    command("SET brightness=0");
+    assert(success());
+    command("GET");
+    const std::string before = usbReply;
+    const struct { const char *request; const char *error; } rejected[] = {
+      {"SET brightness=15 brightness=10", "duplicate_setting"},
+      {"SET brightness=15 brightness=16", "invalid_setting"},
+      {"SET brightness=15 brightness=no", "invalid_setting"},
+      {"SET brightness=15 brightness=65536", "invalid_setting"},
+      {"SET brightness=15 unknown=1", "invalid_setting"},
+      {"SET brightness=15 brightness", "expected_key_value"},
+      {"SET brightness=15 boop_trigger=900 boop_release=100", "invalid_configuration"},
+    };
+    for (const auto &test : rejected) {
+      command(test.request);
+      assert(usbReply == std::string("{\"ok\":false,\"error\":\"") + test.error + "\"}\n");
+      command("GET");
+      assert(before == usbReply);
+    }
     const std::string longError(2048, 'x');
     replyError(longError.c_str());
     assert(std::string(usbReply).find("\"}\n") != std::string::npos);
