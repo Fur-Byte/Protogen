@@ -48,13 +48,13 @@ for candidate in BASELINE CASE_2HZ OLED_1HZ OLED_PAGES CHECKPOINT_5MIN WEARER_DE
   elif [[ "$candidate" != BASELINE ]]; then
     WORKER_FLAGS=("-DPROTOGEN_${candidate}=1")
   fi
-  "${CXX:-clang++}" "${FLAGS[@]}" ${WORKER_FLAGS[@]+"${WORKER_FLAGS[@]}"} -DHELMET_RECEIVER \
+  "${CXX:-clang++}" "${FLAGS[@]}" ${WORKER_FLAGS[@]+"${WORKER_FLAGS[@]}"} -pthread -DHELMET_RECEIVER \
     -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
     "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer"
   "$EFF_TEMP/wearer"
 done
 # Retain the old coarse-tick deadline stress as well as production1000Hz.
-"${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES=1 -DPROTOGEN_TEST_TICK_HZ=100 \
+"${CXX:-clang++}" "${FLAGS[@]}" -pthread -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES=1 -DPROTOGEN_TEST_TICK_HZ=100 \
   -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
   "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer-coarse"
 "$EFF_TEMP/wearer-coarse"
