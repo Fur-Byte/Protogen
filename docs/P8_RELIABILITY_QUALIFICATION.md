@@ -3,8 +3,9 @@
 P8 starts from the verified P7 merge
 `2741065bf2ff01a1ca25f9094bce54938a8acd01`. The release verdict is
 **production blocked** pending physical evidence and release approval.
-A host simulation, target build, or synthetic recovery archive can establish
-only its own gate.
+The default host twin passed the F2 soak gate for
+`aa37fdac93fa484a9092025eb5eec0540d405477` across 100 seeds at 24 virtual
+hours each. That result applies only to the tested source. [Completed qualification run](P8_VIRTUAL_SOAK.md#completed-qualification-run)
 
 ## Recovery and supervision
 
