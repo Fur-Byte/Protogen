@@ -4,10 +4,10 @@ import argparse
 import json
 from pathlib import Path
 import re
-import runpy
 import subprocess
 
 from build_support import BuildRun, check_toolchain, find_cli, write_json
+from sketch_features import ALL_FEATURES, configure_features
 from timelines.compiler import compile_document
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,7 +67,6 @@ def host():
 
 
 def target():
-    metadata = runpy.run_path(str(ROOT / "scripts/check-features.py"))
     run = BuildRun(ROOT, "audio-footprint")
     try:
         sketch = run.snapshot()
@@ -78,8 +77,8 @@ def target():
         for profile in PROFILES:
             name = profile_name(profile)
             flags = defines(profile)
-            enabled = tuple(flag for flag in metadata["ALL_FEATURES"] if profile[3] or flag != "Microphone")
-            source.write_text(metadata["configure_features"](original, enabled, metadata["ALL_FEATURES"]))
+            enabled = tuple(flag for flag in ALL_FEATURES if profile[3] or flag != "Microphone")
+            source.write_text(configure_features(original, enabled, ALL_FEATURES))
             artifact = run.compile(cli, sketch, enabled, extra_flags=f"-Werror -fstack-usage {flags}", jobs=4)
             result = run.record["results"][-1]
             result["profile"], result["defines"] = name, flags

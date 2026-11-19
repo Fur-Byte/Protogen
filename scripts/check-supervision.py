@@ -7,10 +7,10 @@ import json
 import os
 from pathlib import Path
 import re
-import runpy
 import subprocess
 
 from build_support import BuildRun, check_toolchain, find_cli, write_json
+from sketch_features import ALL_FEATURES, configure_features
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build/p8"
@@ -55,17 +55,15 @@ def host():
 
 def target():
     run = BuildRun(ROOT, "p8-supervision")
-    feature = runpy.run_path(str(ROOT / "scripts/check-features.py"))
     try:
         sketch = run.snapshot()
         source = sketch / "PROT_OS7_MAX7219.ino"
-        enabled = feature["ALL_FEATURES"]
-        source.write_text(feature["configure_features"](source.read_text(), enabled, enabled))
+        source.write_text(configure_features(source.read_text(), ALL_FEATURES, ALL_FEATURES))
         cli = find_cli()
         run.record["toolchain"] = check_toolchain(ROOT, cli)
         for observer, recorder in profiles():
             case = f"{observer}{recorder}"
-            artifact = run.compile(cli, sketch, enabled, extra_flags="-Werror -fstack-usage " +
+            artifact = run.compile(cli, sketch, ALL_FEATURES, extra_flags="-Werror -fstack-usage " +
                                    defines(observer, recorder), jobs=4)
             row = run.record["results"][-1]
             row["profile"] = case

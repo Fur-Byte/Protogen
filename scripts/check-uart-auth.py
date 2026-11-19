@@ -2,15 +2,13 @@
 """Build actual Teensy auth-enabled variants with a unique temporary dev key."""
 from pathlib import Path
 import json
-import runpy
 import shutil
 import subprocess
 import tempfile
 from build_support import BuildRun, check_toolchain, find_cli
+from sketch_features import ALL_FEATURES, SENSOR_FEATURES, configure_features
 
 root=Path(__file__).resolve().parents[1]
-feature_checks=runpy.run_path(str(root/'scripts/check-features.py'))
-configure=feature_checks['configure_features']
 evidence=BuildRun(root,'uart-auth')
 try:
     snapshot=evidence.snapshot();source=(snapshot/'PROT_OS7_MAX7219.ino').read_text()
@@ -18,12 +16,12 @@ try:
     with tempfile.TemporaryDirectory(prefix='protogen-private-uart-') as tmp:
         directory=Path(tmp);private=directory/'private'
         subprocess.run(['python3',str(root/'scripts/provision-uart-auth.py'),'--output',str(private)],check=True)
-        for sensors,connector in [((),False),(('VisorSensor','BoopSensor','Microphone'),False),(('VisorSensor','BoopSensor','Microphone'),True)]:
+        for sensors,connector in [((),False),(SENSOR_FEATURES,False),(SENSOR_FEATURES,True)]:
             sketch=directory/'PROT_OS7_MAX7219'
             if sketch.exists():shutil.rmtree(sketch)
             shutil.copytree(snapshot,sketch)
             extras=('WirelessPaw',)+(('VisorConnector',) if connector else ())
-            changed=configure(source,sensors+extras,feature_checks['ALL_FEATURES'])
+            changed=configure_features(source,sensors+extras,ALL_FEATURES)
             (sketch/'PROT_OS7_MAX7219.ino').write_text(changed)
             features=list(sensors)+['WirelessPaw','PROTOGEN_UART_AUTH']+(['VisorConnector'] if connector else [])
             artifact=evidence.compile(cli,sketch,features,extra_flags='-DPROTOGEN_UART_AUTH=1 -I'+str(private)+' -Werror')

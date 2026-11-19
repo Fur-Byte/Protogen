@@ -7,7 +7,6 @@ import json
 import os
 from pathlib import Path
 import re
-import runpy
 import shlex
 import stat
 import sys
@@ -16,6 +15,7 @@ import zipfile
 
 from build_support import FQBN, locked_library_versions, release_source, source_digest
 from maintenance_support import validate_profile
+from sketch_features import ALL_FEATURES, enabled_features
 
 ROOT = Path(__file__).resolve().parents[1]
 STATUS = "development; physical qualification pending"
@@ -34,7 +34,6 @@ RADIO_ELFS = {f"build/esp32/{role}/firmware.elf" for role in ROLES}
 VENDORED = ("firmware/PROT_OS7_MAX7219/src/Max72xxPanel/", "firmware/PROT_OS7_MAX7219/src/UartCrypto/",
             "firmware/esp32/protocol_v4/vendor/")
 TOOLCHAIN_DEPENDENCIES = ("build/toolchains/user/libraries/", "build/toolchains/data/packages/teensy/hardware/")
-FEATURES = ("VisorSensor", "BoopSensor", "Microphone", "WirelessPaw", "VisorConnector")
 MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 
 
@@ -138,7 +137,7 @@ def teensy_authentication(command):
         if macro == "PROTOGEN_UART_AUTH":
             auth_flags.append(token)
         else:
-            valid(macro not in FEATURES and not macro.startswith("PROTOGEN_"),
+            valid(macro not in ALL_FEATURES and not macro.startswith("PROTOGEN_"),
                   "Teensy compiler feature mask overrides the tracked configuration")
     valid(auth_flags in ([], ["-DPROTOGEN_UART_AUTH=1"], ["-DPROTOGEN_UART_AUTH"]),
           "Invalid Teensy UART authentication mode")
@@ -155,7 +154,7 @@ def compatibility(teensy, esp, lock, expected_features=None, legacy=False):
           and not selected.get("dependency_error") and not teensy.get("error"),
           "Release requires a successful warning-free Teensy export")
     features = selected["features"]
-    valid(isinstance(features, list) and features == [name for name in FEATURES if name in features]
+    valid(isinstance(features, list) and features == [name for name in ALL_FEATURES if name in features]
           and (expected_features is None or features == expected_features)
           and selected["configured_source_sha256"] == teensy["source"]["files"][SKETCH],
           "Teensy feature mask or configured sketch hash differs from the source")
@@ -301,7 +300,6 @@ def package(output, previous=None, initial=False, config_path=None, previous_sha
     source_commit(teensy, esp, lock_bytes, identity)
     sketch = local_file(SKETCH)
     valid(digest(sketch) == source["files"][SKETCH], "Teensy sketch changed during packaging")
-    enabled_features = runpy.run_path(str(ROOT / "scripts/check-features.py"))["enabled_features"]
     compatible = compatibility(teensy, esp, checked_json(lock_bytes, "toolchain lock"), enabled_features(sketch.decode()))
     checksums = artifact_checksums(teensy, esp)
     content = {}

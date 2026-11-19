@@ -10,14 +10,14 @@ if [[ ! -f "$FFT_SRC/arduinoFFT.cpp" ]]; then
 fi
 PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT" "$TEST_TEMP" <<'PY'
 from pathlib import Path
-import runpy, shutil, sys
+import shutil, sys
 root, temporary = map(Path, sys.argv[1:])
-feature_checks = runpy.run_path(str(root / 'scripts/check-features.py'))
-configure = feature_checks['configure_features']
+sys.path.insert(0, str(root / "scripts"))
+from sketch_features import ALL_FEATURES, configure_features
 sketch = temporary / 'PROT_OS7_MAX7219'
 shutil.copytree(root / 'firmware/PROT_OS7_MAX7219', sketch)
 main = sketch / 'PROT_OS7_MAX7219.ino'
-main.write_text(configure(main.read_text(), (), feature_checks['ALL_FEATURES']))
+main.write_text(configure_features(main.read_text(), (), ALL_FEATURES))
 PY
 SANITIZERS="${PROTOGEN_HOST_SANITIZERS:-address,undefined}"
 FLAGS=(-std=c++17 -g -Wall -Wextra -Werror -fsanitize="$SANITIZERS"

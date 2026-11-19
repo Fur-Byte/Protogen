@@ -9,14 +9,15 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location("feature_checks", ROOT / "scripts/check-features.py")
-features = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(features)
+sys.path.insert(0, str(ROOT / "scripts"))
+import sketch_features as features
+from build_support import BuildRun, find_cli
 
 
 class FeatureChecks(unittest.TestCase):
@@ -40,7 +41,7 @@ class FeatureChecks(unittest.TestCase):
 
     def test_all_initial_and_requested_combinations(self):
         original = (ROOT / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino").read_text()
-        combinations = [tuple(name for name, flag in zip(features.FEATURES, flags) if flag)
+        combinations = [tuple(name for name, flag in zip(features.SENSOR_FEATURES, flags) if flag)
                         for flags in itertools.product((False, True), repeat=3)]
         for initial in combinations:
             source = features.configure_features(original, initial)
@@ -52,7 +53,7 @@ class FeatureChecks(unittest.TestCase):
                     self.assertEqual(active, set(enabled))
 
     def test_missing_and_duplicate_flags_fail(self):
-        source = "\n".join("// #define " + name for name in features.FEATURES)
+        source = "\n".join("// #define " + name for name in features.SENSOR_FEATURES)
         for malformed in (source.replace("// #define Microphone", ""), source + "\n#define Microphone"):
             with self.assertRaises(ValueError):
                 features.configure_features(malformed, ())
@@ -68,9 +69,9 @@ class FeatureChecks(unittest.TestCase):
                     configured = features.configure_features(source, enabled, features.ALL_FEATURES)
                     self.assertEqual(features.enabled_features(configured), list(enabled))
             # Preview callers configure sensors without silently enabling extensions.
-            configured = features.configure_features(source, features.FEATURES)
+            configured = features.configure_features(source, features.SENSOR_FEATURES)
             self.assertEqual(features.enabled_features(configured),
-                             list(features.FEATURES) + [n for n in initial if n not in features.FEATURES])
+                             list(features.SENSOR_FEATURES) + [n for n in initial if n not in features.SENSOR_FEATURES])
 
     def test_all_feature_declarations_are_validated(self):
         source = "\n".join("\t//\t# define\t" + name + " // optional" for name in features.ALL_FEATURES)
@@ -113,7 +114,7 @@ class FeatureChecks(unittest.TestCase):
     def test_explicit_missing_cli_does_not_fall_back(self):
         with patch.dict(os.environ, {"ARDUINO_CLI": "/missing/protogen/arduino-cli"}):
             with self.assertRaises(RuntimeError):
-                features.find_cli()
+                find_cli()
 
     def test_cli_override_accepts_path_commands(self):
         with tempfile.TemporaryDirectory(prefix="protogen-cli-test-") as tmp:
@@ -121,7 +122,7 @@ class FeatureChecks(unittest.TestCase):
             executable.write_text("#!/bin/sh\nexit 0\n")
             executable.chmod(0o755)
             with patch.dict(os.environ, {"PATH": tmp, "ARDUINO_CLI": "custom-cli"}):
-                self.assertEqual(features.find_cli(), str(executable))
+                self.assertEqual(find_cli(), str(executable))
 
     def make_project(self, root):
         source = root / "firmware/PROT_OS7_MAX7219"
@@ -129,7 +130,7 @@ class FeatureChecks(unittest.TestCase):
         (source / "PROT_OS7_MAX7219.ino").write_text(
             "\n".join("// #define " + name for name in features.ALL_FEATURES))
         (root / "scripts").mkdir()
-        for name in ("check-features.py", "build_support.py", "build.py", "uart_key.py"):
+        for name in ("check-features.py", "sketch_features.py", "build_support.py", "build.py", "uart_key.py"):
             shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
         shutil.copy2(ROOT / "toolchain.lock.json", root / "toolchain.lock.json")
 
@@ -205,6 +206,7 @@ class FeatureChecks(unittest.TestCase):
             with self.subTest(enabled=enabled), tempfile.TemporaryDirectory(prefix="protogen-manifest-") as tmp:
                 root = Path(tmp)
                 self.make_project(root)
+                (root / "scripts/check-features.py").unlink()
                 source = root / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
                 source.write_text(features.configure_features(source.read_text(), enabled, features.ALL_FEATURES))
                 spec = importlib.util.spec_from_file_location("build_fixture", root / "scripts/build.py")
@@ -227,7 +229,7 @@ class FeatureChecks(unittest.TestCase):
             source = root / "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
             source.write_text(features.configure_features(source.read_text(), ("VisorConnector",), features.ALL_FEATURES))
             enabled = features.enabled_features(source.read_text())
-            run = features.BuildRun(root, "build")
+            run = BuildRun(root, "build")
             sketch = run.snapshot()
             locked = json.loads((root / "toolchain.lock.json").read_text())
             run.record["toolchain"] = {"libraries": {}, "bundled_libraries": locked["bundled_libraries"]}
@@ -257,7 +259,7 @@ class FeatureChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="protogen-source-change-") as tmp:
             root = Path(tmp)
             self.make_project(root)
-            run = features.BuildRun(root, "build")
+            run = BuildRun(root, "build")
             run.snapshot()
             run.record["results"] = [{"exit_code": 0, "warnings": 0}]
             (root / "firmware/PROT_OS7_MAX7219/Settings.h").write_text("// Changed during build\n")
@@ -274,7 +276,7 @@ class FeatureChecks(unittest.TestCase):
             sources = {"Entropy.h": b"header", "Entropy.cpp": b"hardware implementation"}
             for name, content in sources.items():
                 (library / name).write_bytes(content)
-            run = features.BuildRun(root, "build")
+            run = BuildRun(root, "build")
             sketch = run.snapshot()
             run.record["toolchain"] = {"libraries": {}, "bundled_libraries": {},
                 "bundled_source_libraries": {"Entropy": {
@@ -296,7 +298,7 @@ class FeatureChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="protogen-security-flags-") as tmp:
             root = Path(tmp)
             self.make_project(root)
-            run = features.BuildRun(root, "build")
+            run = BuildRun(root, "build")
             sketch = run.snapshot()
             run.record["toolchain"] = {"libraries": {}, "bundled_libraries": {}}
             output = root / "output"

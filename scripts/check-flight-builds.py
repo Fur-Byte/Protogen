@@ -5,12 +5,12 @@ import json
 import os
 from pathlib import Path
 import re
-import runpy
 import shutil
 import subprocess
 import sys
 
 from build_support import BuildRun, check_toolchain, find_cli, write_json
+from sketch_features import ALL_FEATURES, configure_features
 
 ROOT = Path(__file__).resolve().parents[1]
 FLAG = "-DPROTOGEN_FLIGHT_RECORDER=1"
@@ -27,17 +27,15 @@ def deltas(disabled, enabled):
 
 
 def teensy(evidence):
-    feature_checks = runpy.run_path(str(ROOT / "scripts/check-features.py"))
     run = BuildRun(ROOT, "flight-recorder")
     sketch = run.snapshot()
     main = sketch / "PROT_OS7_MAX7219.ino"
-    features = feature_checks["ALL_FEATURES"]
-    main.write_text(feature_checks["configure_features"](main.read_text(), features, features))
+    main.write_text(configure_features(main.read_text(), ALL_FEATURES, ALL_FEATURES))
     cli = find_cli()
     run.record["toolchain"] = check_toolchain(ROOT, cli)
     for enabled in (False, True):
         flags = "-Werror" + (" " + FLAG if enabled else "")
-        artifact = run.compile(cli, sketch, features, extra_flags=flags, jobs=4)
+        artifact = run.compile(cli, sketch, ALL_FEATURES, extra_flags=flags, jobs=4)
         item = run.record["results"][-1]
         if item["exit_code"] or item.get("dependency_error") or item["warnings"]:
             run.finish("Target compilation failed")
