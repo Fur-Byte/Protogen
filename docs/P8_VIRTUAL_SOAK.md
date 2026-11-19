@@ -1,5 +1,36 @@
 # P8 deterministic recovery and virtual soak
 
+## Completed qualification run
+
+**Host soak passed at F2. Production remains blocked.** The default-feature
+host twin completed 100 seeds at 24 virtual hours (86,400,000 ms) each on
+clean source `aa37fdac93fa484a9092025eb5eec0540d405477`. All 50 shards
+passed on GitHub Actions ubuntu-24.04. The aggregate reports no failed,
+incomplete, missing, duplicate or unexpected seeds. [Campaign run 44225128810](https://github.com/Fur-Byte/Protogen/actions/runs/44225128810)
+
+The verifier accepts this result for the tested commit only. A later firmware
+candidate needs evidence tied to its own source. All seven F3 hardware trials
+remain `NOT_RUN`. [Physical trial matrix](P8_HARDWARE_QUALIFICATION.md#trial-matrix)
+
+The original aggregate has SHA-256
+`ff0f93108121136c7f5112a0a98ee22193e921c6fafcc54c6e310241454d608d`.
+GitHub reports artifact 14394150401 with archive digest
+`a1b95b43ac8613d969001c85b97edc9284e8ce4b0c1c869a3e6f813f682589f5`.
+[Aggregate](validation/p8-soak-44225128810/aggregate.json) · [Evidence record](validation/p8-soak-44225128810/evidence.json)
+
+```sh
+python3 scripts/qualification.py verify docs/validation/p8-soak-44225128810/evidence.json \
+  --source aa37fdac93fa484a9092025eb5eec0540d405477 --artifact-root docs/validation/p8-soak-44225128810
+```
+
+The later commit `5044678157b2fa5690b8d3174ec8fc04a8762f0c` added
+public-readiness documentation, credential ignore rules and CI artifact
+upload restrictions. Firmware, twin, soak invariants, build definitions and
+the soak workflow were unchanged in that commit. Review the security and
+artifact-retention policies and run targeted validation on a release candidate.
+
+## Modeled workload
+
 The P8 runner uses the P2 host sketch, serial wire and ADC model. Each seed
 boots once and carries its firmware, queue and timer state through the entire
 requested duration. ADC conversions, UART bytes and file-ordered inputs
@@ -91,20 +122,21 @@ bash scripts/test-config-compatibility.sh
 bash scripts/test-uart-admission.sh
 ```
 
-## Pilot and campaign status
+## Historical two-seed pilot
 
 A local Apple Silicon ASan/UBSan pilot completed seeds 0 and 1 at 910
-virtual seconds each. Each seed processed 126 injected inputs across two
+virtual seconds each (910,000 ms). The pilot completed 2/2 short seeds and
+0/100 full-day seeds. Each seed processed 126 injected inputs across two
 fault sequences, about 909,000 foreground loops and 3.63 million ADC
 conversions. The measured child times were 0.316 and 0.310 seconds,
 approximately 0.000344 wall seconds per virtual second. On this host the
-linear estimate is about 30 seconds per full-day seed and 50 minutes of
-aggregate execution for 100 seeds. These measurements include long
-intervals of ordinary modeled operation. GitHub runners still need their
-own rate measurement.
+linear estimate was about 30 seconds per full-day seed and 50 minutes of
+aggregate execution for 100 seeds. These measurements included long
+intervals of ordinary modeled operation.
 
 The pilot's two-seed summary occupied about 3.6 KB. At that size,
-50 passing shard manifests occupy about 180 KB before archive overhead.
+50 passing shard manifests were projected to occupy about 180 KB before
+archive overhead.
 The manual workflow plans two seeds per shard with up to four concurrent
 shards, a 300-second wall budget and a 120-second seed timeout. Each shard
 job has an eight-minute job limit for checkout, artifact transfer, execution
@@ -112,30 +144,3 @@ and upload. A full run requests seed start 0, count 100 and duration
 86400000 milliseconds. The focused suite demonstrates timed-out seeds,
 no-artifact and partially completed aggregation, duplicate rejection and
 child output overflow.
-
-**Architecture target incomplete.** The pilot completed 2/2 seeds at
-910,000 ms each. It completed **0/100 full-day seeds**. Run the bounded
-manual workflow against the release candidate and aggregate the matching
-shard artifacts before claiming the full virtual-soak target.
-
-## Completed qualification run
-
-Run [44225128810](https://github.com/Fur-Byte/Protogen/actions/runs/44225128810) completed
-100 seeds, each for 86,400,000 virtual milliseconds, across 50 passing shards.
-The F2 aggregate reports no failed, incomplete, missing, duplicate or unexpected
-seeds and identifies clean source `aa37fdac93fa484a9092025eb5eec0540d405477`.
-The original [aggregate](validation/p8-soak-44225128810/aggregate.json) has SHA-256
-`ff0f93108121136c7f5112a0a98ee22193e921c6fafcc54c6e310241454d608d`.
-GitHub reports artifact 14394150401 with archive digest
-`a1b95b43ac8613d969001c85b97edc9284e8ce4b0c1c869a3e6f813f682589f5`.
-The [evidence record](validation/p8-soak-44225128810/evidence.json) validates
-against that tested commit. The runner used GitHub Actions ubuntu-24.04 and
-the default-feature host twin. Physical and opt-in hardware behavior remain
-separate qualification gates.
-
-Main at `5044678157b2fa5690b8d3174ec8fc04a8762f0c` adds public-readiness
-documentation, credential ignore rules, and CI artifact upload restrictions.
-It changes neither firmware, twin, soak invariants, build definitions nor the
-soak workflow. The security documentation and artifact-retention policy
-changed, so review those policies and run targeted validation on a release
-candidate. The historical evidence remains bound to its tested commit.

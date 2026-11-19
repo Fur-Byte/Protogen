@@ -5,17 +5,21 @@
 #include <functional>
 #include <vector>
 #include <cassert>
+#include <atomic>
+#include <mutex>
 using TickType_t=uint32_t;
 using TaskHandle_t=void*;
-using portMUX_TYPE=int;
-constexpr int portMUX_INITIALIZER_UNLOCKED=0, pdTRUE=1, pdPASS=1, ESP_OK=0;
+using portMUX_TYPE=std::mutex;
+#define portMUX_INITIALIZER_UNLOCKED {}
+constexpr int pdTRUE=1, pdPASS=1, ESP_OK=0;
 #ifndef PROTOGEN_TEST_TICK_HZ
 #define PROTOGEN_TEST_TICK_HZ 1000
 #endif
 #define pdMS_TO_TICKS(ms) ((ms)*PROTOGEN_TEST_TICK_HZ/1000)
-inline void portENTER_CRITICAL(portMUX_TYPE*) {}
-inline void portEXIT_CRITICAL(portMUX_TYPE*) {}
+inline void portENTER_CRITICAL(portMUX_TYPE* mux) {mux->lock();}
+inline void portEXIT_CRITICAL(portMUX_TYPE* mux) {mux->unlock();}
 namespace FakeWearer {
+inline std::atomic<unsigned> wakes{0};
 inline uint64_t us=0;
 inline unsigned waits=0, stopAfter=0, adcReads=0, commits=0;
 inline bool commitFail=false;
@@ -43,7 +47,7 @@ inline void wait(TickType_t ticks) {
 }
 inline int64_t esp_timer_get_time(){return FakeWearer::us;}
 inline TaskHandle_t xTaskGetCurrentTaskHandle(){return reinterpret_cast<void*>(1);}
-inline void xTaskNotifyGive(TaskHandle_t){}
+inline void xTaskNotifyGive(TaskHandle_t){++FakeWearer::wakes;}
 inline int xTaskCreate(void(*)(void*),const char*,unsigned,void*,unsigned,void*){return pdPASS;}
 inline uint32_t ulTaskNotifyTake(int,TickType_t ticks){FakeWearer::notifications.push_back(ticks);if(ticks)FakeWearer::wait(ticks);return 0;}
 inline void vTaskDelay(TickType_t ticks){FakeWearer::wait(ticks);}
