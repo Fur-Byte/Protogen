@@ -162,7 +162,69 @@ async function api(path, body) {
   return value;
 }
 function draw(display){const canvas=$('face'),ctx=canvas.getContext('2d'),bytes=display.frame.match(/.{2}/g).map(n=>parseInt(n,16));ctx.clearRect(0,0,canvas.width,canvas.height);for(let tile=0;tile<14;tile++){ctx.strokeStyle='#1c2a1b';ctx.lineWidth=1;ctx.strokeRect(tile*80+1,9,78,82)}for(let y=0;y<8;y++)for(let x=0;x<112;x++){const lit=(bytes[y*14+(x>>3)]&(128>>(x&7)))!==0;ctx.beginPath();ctx.arc(x*10+5,y*10+20,2.8,0,Math.PI*2);ctx.fillStyle=lit?'#b6f597':'#1c291b';ctx.shadowColor='#83e965';ctx.shadowBlur=lit?7:0;ctx.fill()}ctx.shadowBlur=0}
-function update(value){state=value;const s=value.status;const brightness=s.brightness;$('brightness-report').textContent=brightness?'Configured '+brightness.configured+' · Active '+brightness.effective+' · Firmware ceiling '+brightness.maximum+(typeof brightness.approved==='number'?' · Approved '+brightness.approved:'')+'. Set brightness explicitly to approve a new level; Save records the approved base level.':'This firmware does not report its brightness ceiling.';booping=s.boop_reading<=value.config.boop_trigger;visorHidden=!s.visible;$('boop').textContent=booping?'Release boop':'Boop';$('visor').textContent=visorHidden?'Show visor':'Hide visor';$('connection').textContent=value.simulation?'Desktop simulation':'USB connected';$('connection').className='tag online';$('simulation').hidden=!value.simulation;$('display-label').textContent=value.simulation?'Same firmware · simulated hardware':'Live helmet frame';$('save').textContent=value.simulation?'Save in simulation':'Save to helmet';$('reaction').textContent=s.sleeping?'Sleeping':!s.visible?'Visor hidden':s.boop?'Booped':names[s.expression];$('sleep').textContent=s.sleeping?'Wake display':'Sleep display';document.querySelectorAll('.expression').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===s.expression)));$('audio-status').textContent=s.calibrating?'Calibrating…':s.speaking?'Speaking':'Quiet';$('envelope').textContent=s.envelope;$('gate').textContent=s.audio_gate;$('drops').textContent=s.audio_drops;$('level').style.width=Math.min(100,s.envelope/255*100)+'%';$('audio-help').textContent=s.features&4?'Calibrate while quiet for half a second. Save to keep the measured floor.':'Enable the connected microphone in the sketch to use audio.';$('microphone').disabled=busy||!(s.features&4)||typeof s.microphone_enabled!=='boolean';$('microphone').textContent=s.microphone_enabled?'Mute microphone':'Enable microphone';$('calibrate').disabled=busy||!s.microphone_enabled||!(s.features&4)||s.sleeping||!s.visible||s.boop;$('boop-reading').textContent=s.features&2?'Boop sensor: '+s.boop_reading+' / 1023':'';$('footer').textContent=(value.simulation?'Preview only · no helmet connected':'USB settings · changes stay local')+' · Paw '+(s.paw_connected?'connected':'offline')+' · Faults '+s.sensor_faults+' · SPI '+(s.spi_hz/1000000)+' MHz';if(!pendingEdits)fill(value.config);draw(value.display)}
+function renderConnectionAndFaceControls({simulation, status, config}) {
+  $('connection').textContent = simulation ? 'Desktop simulation' : 'USB connected';
+  $('connection').className = 'tag online';
+  $('simulation').hidden = !simulation;
+  $('display-label').textContent = simulation ? 'Same firmware · simulated hardware' : 'Live helmet frame';
+  $('save').textContent = simulation ? 'Save in simulation' : 'Save to helmet';
+
+  const brightness = status.brightness;
+  if (brightness) {
+    const approval = typeof brightness.approved === 'number' ? ` · Approved ${brightness.approved}` : '';
+    $('brightness-report').textContent =
+      `Configured ${brightness.configured} · Active ${brightness.effective} · Firmware ceiling ${brightness.maximum}${approval}` +
+      '. Set brightness explicitly to approve a new level; Save records the approved base level.';
+  } else {
+    $('brightness-report').textContent = 'This firmware does not report its brightness ceiling.';
+  }
+
+  booping = status.boop_reading <= config.boop_trigger;
+  visorHidden = !status.visible;
+  $('boop').textContent = booping ? 'Release boop' : 'Boop';
+  $('visor').textContent = visorHidden ? 'Show visor' : 'Hide visor';
+  $('sleep').textContent = status.sleeping ? 'Wake display' : 'Sleep display';
+
+  let reaction = names[status.expression];
+  if (status.sleeping) reaction = 'Sleeping';
+  else if (visorHidden) reaction = 'Visor hidden';
+  else if (status.boop) reaction = 'Booped';
+  $('reaction').textContent = reaction;
+  document.querySelectorAll('.expression').forEach((button, index) => {
+    button.setAttribute('aria-pressed', String(index === status.expression));
+  });
+}
+
+function renderAudioAndTelemetry({simulation, status}) {
+  const hasMicrophone = Boolean(status.features & 4);
+  $('audio-status').textContent = status.calibrating ? 'Calibrating…' : status.speaking ? 'Speaking' : 'Quiet';
+  $('audio-help').textContent = hasMicrophone
+    ? 'Calibrate while quiet for half a second. Save to keep the measured floor.'
+    : 'Enable the connected microphone in the sketch to use audio.';
+  $('microphone').disabled = busy || !hasMicrophone || typeof status.microphone_enabled !== 'boolean';
+  $('microphone').textContent = status.microphone_enabled ? 'Mute microphone' : 'Enable microphone';
+  $('calibrate').disabled = busy || !hasMicrophone || !status.microphone_enabled ||
+    status.sleeping || !status.visible || status.boop;
+
+  $('envelope').textContent = status.envelope;
+  $('gate').textContent = status.audio_gate;
+  $('drops').textContent = status.audio_drops;
+  $('level').style.width = Math.min(100, status.envelope / 255 * 100) + '%';
+  $('boop-reading').textContent = (status.features & 2) ? `Boop sensor: ${status.boop_reading} / 1023` : '';
+
+  const source = simulation ? 'Preview only · no helmet connected' : 'USB settings · changes stay local';
+  const paw = status.paw_connected ? 'connected' : 'offline';
+  $('footer').textContent = `${source} · Paw ${paw} · Faults ${status.sensor_faults} · SPI ${status.spi_hz / 1000000} MHz`;
+}
+
+function update(value) {
+  state = value;
+  renderConnectionAndFaceControls(value);
+  renderAudioAndTelemetry(value);
+  if (!pendingEdits) fill(value.config);
+  draw(value.display);
+}
+
 async function action(payload, notice) {
   if (busy) return;
   actionVersion++;
