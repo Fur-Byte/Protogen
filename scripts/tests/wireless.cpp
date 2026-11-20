@@ -803,8 +803,8 @@ void testStatusRefreshLatency() {
   while(rig.h.statusRequests==initial)rig.step(5);
   rig.step(10);
   const unsigned before=rig.h.statusRequests;
-  // A fresh status is required after command ACK; waiting for the next100ms
-  // active poll alone can consume the entire response budget for queued input.
+  // Request fresh status after a command ACK. Waiting for the next 100 ms
+  // active poll can consume the response budget for queued input.
   for(unsigned i=0;i<10;++i)assert(rig.p.link->refreshStatus(rig.now));
   assert(!rig.h.link->refreshStatus(rig.now));
   rig.step(10);

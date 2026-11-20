@@ -59,9 +59,9 @@ int main() {
   run(120);assert(latest.epoch&&latest.ticket);
   Packet hello;hello.kind=HelmetLink::Hello;hello.epoch=latest.epoch;hello.ticket=latest.ticket;hello.length=4;HelmetLink::put32(hello.payload,100);send(hello);run(120);
   config.naturalBlinks=0;uint32_t maximum=0,maxOnset=0,maxCompletion=0;
-  // Physical action edge means boop press or navigation release. The fixture
-  // charges30ms debounce plus four2ms C3 service opportunities and three
-  // one-ms RF deliveries (status request/reply/command after idle) before UART.
+  // The action starts at boop press or navigation release. Before UART, the
+  // fixture charges 30 ms for debounce, four 2 ms C3 service opportunities,
+  // and three 1 ms RF deliveries after idle (status request, reply, command).
   constexpr uint32_t upstreamUs=(Wireless::DebounceMs+4*Wireless::ServicePollMs+3)*1000;
   for(uint16_t duration:{uint16_t(Settings::TransitionMs),uint16_t(1000)})
   for(unsigned source=0;source<ExpressionCount;++source)for(unsigned mode=0;mode<4;++mode) {

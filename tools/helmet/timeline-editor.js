@@ -1,4 +1,4 @@
-/* Face Studio timeline UI. Only the local compiler and firmware twin decide validity or pixels. */
+/* The local compiler validates timeline edits. The firmware twin renders the preview frames. */
 (() => {
   "use strict";
   const element = name => document.getElementById("timeline-" + name);

@@ -378,8 +378,8 @@ void protocolChecks() {
     return s.paw.port.installs > oldInstalls && s.paw.core.online() &&
            s.helmet.core.online();
   }));
-  // Real lossy/reordered/duplicating radio; transient loss is followed by
-  // recovery.
+  // The simulated radio drops, delays, reorders and duplicates frames.
+  // The peers must reconnect despite these transient faults.
   s.radio.loss = 10;
   s.radio.duplicate = 15;
   s.radio.delay = 15;
