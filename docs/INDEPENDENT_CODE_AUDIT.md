@@ -2,7 +2,7 @@
 
 Date: **2026-10-03, America/Phoenix**. Target: **Teensy 4.0, 600 MHz, Serial USB, Faster optimization, 14 MAX7219 modules**.
 
-This is a report-only review. The firmware, scripts, original archive, earlier reports, and pre-existing build artifacts were preserved. Fresh builds and diagnostic code are in an isolated copy under [the audit evidence directory](../build/independent-audit/20261003-214127/snapshot-info.json). No firmware was uploaded.
+This is a report-only review. The firmware, scripts, original archive, earlier reports, and pre-existing build artifacts were preserved. Fresh builds and diagnostic code are retained locally in an isolated copy outside repository checkouts (see `build/independent-audit/20261003-214127/snapshot-info.json`). No firmware was uploaded.
 
 ## Verdict
 
@@ -38,7 +38,7 @@ Impact: short valid stimuli can produce no mouth response, depending on their al
 
 Recommendation: latch threshold activity during collection and consume that flag when processing the completed frame. Clear the latch on pause, discarded frames, and completion. Preserve the DC-bias reset and cooperative sampling. Promote the early/late burst pair into the permanent regression suite when fixing this.
 
-Evidence: [early burst](../build/independent-audit/20261003-214127/probes/early-burst.log), [late burst control case](../build/independent-audit/20261003-214127/probes/late-burst.log), [diagnostic source](../build/independent-audit/20261003-214127/probes/behavior.cpp). Existing tests use sustained loud input or already active speech; they do not test this alignment difference.
+Evidence: early burst (`build/independent-audit/20261003-214127/probes/early-burst.log`), late burst control case (`build/independent-audit/20261003-214127/probes/late-burst.log`), diagnostic source (`build/independent-audit/20261003-214127/probes/behavior.cpp`). Existing tests use sustained loud input or already active speech; they do not test this alignment difference.
 
 ### F2 — Display restoration starts a new boop timer for a continuous obstruction
 
@@ -52,7 +52,7 @@ Impact: the documented six-second duration and release-before-retrigger rule are
 
 Recommendation: keep the reaction lifetime separate from whether its frame is currently displayed. Preserve the original start time across hiding, check expiry before restoring the reaction, and require a released reading after expiry. Retain the existing complete-frame redraw on wake.
 
-Evidence: [hidden-timeout reproduction](../build/independent-audit/20261003-214127/probes/boop-hidden-timeout.log). The existing suite tests brief visor restoration during a boop and ordinary timeout separately, leaving this combination uncovered.
+Evidence: hidden-timeout reproduction (`build/independent-audit/20261003-214127/probes/boop-hidden-timeout.log`). The existing suite tests brief visor restoration during a boop and ordinary timeout separately, leaving this combination uncovered.
 
 ### F3 — The faster default is electrically unverified, and the nominal test cost is independent of configuration
 
@@ -68,7 +68,7 @@ Recommendation: use **4 MHz as the conservative helmet setting until the assembl
 
 At nominal continuous-clock rates, one changed register takes 28 µs at 8 MHz versus 56 µs at 4 MHz; all eight take 224 µs versus 448 µs. These are wire-time calculations. Idle display traffic is already zero, and no measured user benefit from doubling the clock is available.
 
-Evidence: [nominal 8 MHz probe](../build/independent-audit/20261003-214127/probes/timing-8mhz.log), [nominal 4 MHz probe](../build/independent-audit/20261003-214127/probes/timing-4mhz.log). No physical clock measurement or display failure was observed.
+Evidence: nominal 8 MHz probe (`build/independent-audit/20261003-214127/probes/timing-8mhz.log`), nominal 4 MHz probe (`build/independent-audit/20261003-214127/probes/timing-4mhz.log`). No physical clock measurement or display failure was observed.
 
 ### F4 — Some “verified” report statements still disagree with the current project
 
@@ -84,11 +84,11 @@ The same report's instruction to “raise” byte duration from two to one micro
 
 Recommendation: update the actively maintained overview from fresh source-bound measurements and clearly label older documents as historical. Keep this independent report and its evidence intact. Avoid interpreting equal total flash size as proof of equal behavior.
 
-Evidence: [fresh build metrics](../build/independent-audit/20261003-214127/build-metrics.json) and the source snapshot. Historical statements explicitly restricted to an earlier pass were not treated as current defects.
+Evidence: fresh build metrics (`build/independent-audit/20261003-214127/build-metrics.json`) and the source snapshot. Historical statements explicitly restricted to an earlier pass were not treated as current defects.
 
 ### F5 — A failed new check can leave an older success record at the normal path
 
-Source: [feature preflight:53](../scripts/check-features.py#L53), [result publication:73](../scripts/check-features.py#L73), and [build export:15](../scripts/build.sh#L15).
+Source: [feature preflight:53](https://github.com/Fur-Byte/Protogen/blob/96db7c430e9e1ab57eb9daa50d70370251fb49bd/scripts/check-features.py#L53), [result publication:73](https://github.com/Fur-Byte/Protogen/blob/96db7c430e9e1ab57eb9daa50d70370251fb49bd/scripts/check-features.py#L73), and [build export:15](https://github.com/Fur-Byte/Protogen/blob/96db7c430e9e1ab57eb9daa50d70370251fb49bd/scripts/build.sh#L15).
 
 The feature checker resolves its CLI and validates source declarations before refreshing its report. A duplicate feature declaration makes the new run fail while an older eight-success JSON report remains unchanged. A failed default build likewise preserves an older HEX. The scripts return failure correctly; a reader inspecting only the retained artifacts cannot determine which source or invocation they describe.
 
@@ -98,7 +98,7 @@ Impact: especially in this unversioned workspace, old success files can be reuse
 
 Recommendation: keep outputs per run and record source fingerprint, feature flags, toolchain versions, command exit status, and completion state. Publish a “current successful build” reference only after successful validation. Preserve previous outputs with their identity. Apply the zero-warning policy consistently if it is intended to gate exported firmware.
 
-Evidence: [tool probe results](../build/independent-audit/20261003-214127/tool-probe-results.json), [preflight failure log](../build/independent-audit/20261003-214127/probes/feature-preflight-failure.log), [failed-build log](../build/independent-audit/20261003-214127/probes/build-failure.log), and [probe implementation](../build/independent-audit/20261003-214127/probes/tools.py). Mock compiler cases ran only in disposable projects.
+Evidence: tool probe results (`build/independent-audit/20261003-214127/tool-probe-results.json`), preflight failure log (`build/independent-audit/20261003-214127/probes/feature-preflight-failure.log`), failed-build log (`build/independent-audit/20261003-214127/probes/build-failure.log`), and probe implementation (`build/independent-audit/20261003-214127/probes/tools.py`). Mock compiler cases ran only in disposable projects.
 
 ## Which changes are worth keeping?
 
@@ -127,7 +127,7 @@ The archive comparison parsed **20 current array initializers**: 16 static artwo
 
 Current `Icons.h` SHA-256:
 `b977dbde17338799f8cdf658e13e08c91e20d7a67e68f255ac0c24f60e5bb645`.
-Evidence: [archive comparison with array hashes](../build/independent-audit/20261003-214127/archive-comparison.json).
+Evidence: archive comparison with array hashes (`build/independent-audit/20261003-214127/archive-comparison.json`).
 
 The driver allocates one checked block of **140 B** for this layout, plus allocator overhead. Drawing clips signed logical coordinates before indexing; dimensions and tile setters are bounded; copies are prohibited; destruction frees storage. Current application FFT inputs are bounded by the ten-bit ADC range. Its rolling sum and rendered magnitude mapping fit the target's integer types. No memory violation was reproduced in current valid application paths.
 
@@ -173,13 +173,13 @@ Validation completed:
 - The unchanged host suite passed with AddressSanitizer, UndefinedBehaviorSanitizer, `-Wall -Wextra -Werror`, and nonrecovering sanitizer failures. It includes 3,584 pixel/rotation cases, driver layouts, eight sensor masks, and seven Python test groups.
 - All eight real target feature builds and a separate default export succeeded with zero warnings.
 - Eleven independent behavior scenarios checked startup-held/hidden/obstructed inputs, early/late audio bursts, combined controls, boop/blink rollover, and nominal SPI costs. Two scenarios explicitly reproduced F1/F2.
-- A separate direct mathematical DFT checked 15 synthetic ADC frames across all 32 rendered bins, with a largest magnitude difference of **0.00926174**. Thirty-two asymmetric bar spectra also matched the intended physical order and left/right mirror. This avoids relying solely on the existing float/double comparison within the same FFT library. Evidence: [independent DSP output](../build/independent-audit/20261003-214127/probes/independent-dsp.log).
+- A separate direct mathematical DFT checked 15 synthetic ADC frames across all 32 rendered bins, with a largest magnitude difference of **0.00926174**. Thirty-two asymmetric bar spectra also matched the intended physical order and left/right mirror. This avoids relying solely on the existing float/double comparison within the same FFT library. Evidence: independent DSP output (`build/independent-audit/20261003-214127/probes/independent-dsp.log`).
 - Four archived-code scenarios reproduced two heap overflows, wrapped off-screen drawing, and a negative FFT shift. The old driver source/header were extracted unchanged. A permissive SPI stub allowed its constructor I/O solely to reach those memory paths. The old FFT renderer was isolated without changing its body. These are targeted defect comparisons, not a historical whole-firmware benchmark.
 - Twelve additional configuration boundary cases and build/report failure probes behaved as recorded.
 
 The existing default HEX and isolated clean export both hash to
 `180b747d706e348bdc0f1e999475297f698a83deaa18a2990b4b0e5c7e200503`
-and are byte-identical. Evidence: [artifact comparison](../build/independent-audit/20261003-214127/artifact-comparison.json).
+and are byte-identical. Evidence: artifact comparison (`build/independent-audit/20261003-214127/artifact-comparison.json`).
 
 Test model limitations were examined against the installed dependency source. GFX bitmap bit order and transparency agree for the used primitives, and target builds exercise real headers/prototypes. The simplified model does not establish physical scan behavior, rendering speed, resistor/pull-up behavior, voltage, interrupt load, SPI clock quantization, or actual ADC/FFT duration. Host `long` is 64 bits whereas target `long` is 32; the bounded application mapping arithmetic fits both.
 
@@ -239,11 +239,11 @@ The fingerprint is SHA-256 of sorted relative path, space, file SHA-256, and new
 
 Fresh evidence:
 
-- [original source/artifact manifest](../build/independent-audit/20261003-214127/source-manifest.json), [active fingerprint](../build/independent-audit/20261003-214127/active-source-fingerprint.json), and [final preservation check](../build/independent-audit/20261003-214127/preservation-check.json).
-- [toolchain inventory](../build/independent-audit/20261003-214127/toolchain.txt), [dependency hashes](../build/independent-audit/20261003-214127/dependency-hashes.json), and [platform hashes](../build/independent-audit/20261003-214127/platform-hashes.json).
-- [host suite output](../build/independent-audit/20261003-214127/host-tests.log), [all eight target build outputs](../build/independent-audit/20261003-214127/snapshot/build/feature-checks.log), [default build output](../build/independent-audit/20261003-214127/default-build-run.log), and [parsed memory measurements](../build/independent-audit/20261003-214127/build-metrics.json).
-- [default image symbol inspection](../build/independent-audit/20261003-214127/default-symbol-check.txt), including the distinction between FFT buffers and an autogenerated matrix-initializer label.
-- [diagnostic observations and exact compiler commands](../build/independent-audit/20261003-214127/diagnostic-results.json), [tool probe results](../build/independent-audit/20261003-214127/tool-probe-results.json), and [archive comparison](../build/independent-audit/20261003-214127/archive-comparison.json).
+- original source/artifact manifest (`build/independent-audit/20261003-214127/source-manifest.json`), active fingerprint (`build/independent-audit/20261003-214127/active-source-fingerprint.json`), and final preservation check (`build/independent-audit/20261003-214127/preservation-check.json`).
+- toolchain inventory (`build/independent-audit/20261003-214127/toolchain.txt`), dependency hashes (`build/independent-audit/20261003-214127/dependency-hashes.json`), and platform hashes (`build/independent-audit/20261003-214127/platform-hashes.json`).
+- host suite output (`build/independent-audit/20261003-214127/host-tests.log`), all eight target build outputs (`build/independent-audit/20261003-214127/snapshot/build/feature-checks.log`), default build output (`build/independent-audit/20261003-214127/default-build-run.log`), and parsed memory measurements (`build/independent-audit/20261003-214127/build-metrics.json`).
+- default image symbol inspection (`build/independent-audit/20261003-214127/default-symbol-check.txt`), including the distinction between FFT buffers and an autogenerated matrix-initializer label.
+- diagnostic observations and exact compiler commands (`build/independent-audit/20261003-214127/diagnostic-results.json`), tool probe results (`build/independent-audit/20261003-214127/tool-probe-results.json`), and archive comparison (`build/independent-audit/20261003-214127/archive-comparison.json`).
 
 Preserve this evidence directory if cleaning generated build files.
 
@@ -265,4 +265,4 @@ PYTHONDONTWRITEBYTECODE=1 python3 probes/tools.py
 
 The diagnostic runner deliberately expects sanitizer failures from archived defective code and labels reproduced current defects in their case logs. Its successful exit means those observations were verified. The audit probes share the project's host stubs; their scenarios and expectations are new, while physical-model limits remain.
 
-**Completion:** every active subsystem listed above was reviewed; material claims are backed by the linked evidence or explicitly marked unverified. Firmware changes and physical helmet validation remain separate follow-up work.
+**Completion:** every active subsystem listed above was reviewed; material claims are backed by the cited evidence or explicitly marked unverified. Firmware changes and physical helmet validation remain separate follow-up work.
