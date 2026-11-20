@@ -9,10 +9,10 @@ operating instructions were reviewed. Fixes are applied in place. The target is
 14-panel layout. All optional sensors remain disabled in the supplied sketch.
 
 The workspace has no Git repository; the 2026-09-28 review is recorded as a
-patch in [`build/audit-changes.patch`](../build/audit-changes.patch). A second
+patch in `build/audit-changes.patch`. A second
 pass on 2026-10-03 audited the evidence trail rather than the sketch logic, and
 found that later edits had invalidated parts of that record. Those results are
-in [Evidence-integrity pass](#evidence-integrity-pass-2026-10-03).
+in [Evidence-integrity pass](#evidence-integrity-pass-2026-10-03). The historical artifacts cited below are retained locally outside repository checkouts.
 
 `archive/PROT_OS7_original.zip` was read for comparison only, to confirm that
 the `Icons.h` bitmap data still matches the original; nothing was copied out of
@@ -34,7 +34,7 @@ outside the active firmware audit.
 
 The first four baseline probes confirmed both heap overflows under AddressSanitizer,
 the wrapped pixel, and the false speech trigger before editing. Their output is in
-[`audit-baseline-regressions.log`](../build/audit-baseline-regressions.log).
+`build/audit-baseline-regressions.log`.
 The timing simulation subsequently exposed the catch-up burst; its regression now
 asserts the minimum spacing between every recorded microphone read.
 
@@ -107,12 +107,12 @@ startup, plus allocator overhead. These are compiler measurements, not runtime
 stack high-water measurements. Default flash usage is unchanged from the audit
 baseline; default RAM1 variables increased by 416 bytes.
 
-Evidence:
+Evidence (original paths). The local `build/independent-audit/20261003-214127/snapshot/` holds copies of the feature results, feature log, compile log and HEX at the same relative paths, with SHA-256 hashes matching the historical source/artifact manifest.
 
-- [`audit-host-tests.log`](../build/audit-host-tests.log)
-- [`feature-results.json`](../build/feature-results.json) and [`feature-checks.log`](../build/feature-checks.log)
-- [`compile.log`](../build/compile.log) and [`audit-toolchain.txt`](../build/audit-toolchain.txt)
-- Upload image: [`PROT_OS7_MAX7219.ino.hex`](../build/teensy40/PROT_OS7_MAX7219.ino.hex)
+- `build/audit-host-tests.log`
+- `build/feature-results.json` and `build/feature-checks.log`
+- `build/compile.log` and `build/audit-toolchain.txt`
+- Upload image: `build/teensy40/PROT_OS7_MAX7219.ino.hex`
 
 The face artwork, expressions, pin assignments, physical tile rotations, low
 brightness, startup selection, and optional-feature defaults are preserved.
@@ -122,7 +122,7 @@ Every bitmap initializer in `Icons.h` is unchanged from
 lines and the removal of the unused `buffer0L`/`buffer0R` all-zero transition
 buffers. The file itself is therefore not byte-for-byte identical to the
 original, so record its actual digest rather than an inherited one. Current
-SHA-256, also written to [`icons-sha256.txt`](../build/icons-sha256.txt):
+SHA-256, also written to `build/icons-sha256.txt`:
 `b977dbde17338799f8cdf658e13e08c91e20d7a67e68f255ac0c24f60e5bb645`.
 
 ## Evidence-integrity pass (2026-10-03)

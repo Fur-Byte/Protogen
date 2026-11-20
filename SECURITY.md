@@ -12,14 +12,14 @@
 
 ## Reporting a vulnerability
 
-Use **Security → Report a vulnerability** on GitHub when private vulnerability
-reporting is available. For the private development repository, contact the
-maintainer through an existing private channel. If you need a channel, request
-one with a short [repository issue](https://github.com/Fur-Byte/Protogen/issues/new).
-Use the issue only to identify the affected version and component. Share
-reproduction details and sanitized diagnostics privately. Keep credentials,
-key-bearing images, personal data and raw device captures out of GitHub issues,
-pull requests and Actions evidence.
+Use **Security → Advisories → Report a vulnerability** on GitHub if the button
+is available. Otherwise, contact the maintainer through an existing private
+channel. If you have no private channel and can open a
+[repository issue](https://github.com/Fur-Byte/Protogen/issues/new), use it only
+to ask for a private reporting channel. Share vulnerability details, reproduction
+steps and sanitized diagnostics privately. Keep keys, credentials, key-bearing
+images, personal data, raw device captures and sensitive diagnostics out of
+GitHub issues, pull requests and Actions evidence.
 
 ## Wireless trust boundary
 

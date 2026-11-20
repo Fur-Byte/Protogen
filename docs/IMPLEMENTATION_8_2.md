@@ -88,7 +88,7 @@ Current source fingerprint: `5da83eba4c8847decdb2928992e5de1762436d441b15e565276
 
 ESP static-memory reports do not include all runtime heaps, DTLS allocations, RTOS stacks or radio memory. Peak heap/latency measurements remain part of the two-board test.
 
-Evidence is generated in `build/tests-8.2.log`, `build/dtls-test.log`, `build/feature-results.json`, `build/extensions-results.json`, `build/current-build.json` and `build/esp32-build.json`. The final cross-check is recorded in [build/upgrade-8.2-validation.json](../build/upgrade-8.2-validation.json): matching source identities, all 13 exported artifact hashes and preserved artwork/blink/renderer sources. Default Teensy artifacts are in `build/teensy40/`; ESP role artifacts are in `build/esp32/{helmet,paw}/`. Build/test scripts do not upload either platform. [ESP32 setup/provisioning instructions](../firmware/esp32/README.md).
+Evidence is generated in `build/tests-8.2.log`, `build/dtls-test.log`, `build/feature-results.json`, `build/extensions-results.json`, `build/current-build.json` and `build/esp32-build.json`. The final cross-check is recorded in `build/upgrade-8.2-validation.json`, which is retained locally outside repository checkouts. It covers matching source identities, all 13 exported artifact hashes and preserved artwork/blink/renderer sources. Default Teensy artifacts are in `build/teensy40/`; ESP role artifacts are in `build/esp32/{helmet,paw}/`. Build/test scripts do not upload either platform. [ESP32 setup/provisioning instructions](../firmware/esp32/README.md).
 
 ## Remaining physical prototype work
 
