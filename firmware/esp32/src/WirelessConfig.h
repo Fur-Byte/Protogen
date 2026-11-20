@@ -12,7 +12,7 @@ constexpr uint32_t PairingMs = 60000, PairRetryMs = 400, HandshakeMs = 4000,
                    HandshakeRetryMs = 250;
 constexpr uint32_t KeepaliveMinMs = 3000, KeepaliveMaxMs = 5000,
                    DisconnectMs = 12000;
-constexpr uint32_t ServicePollMs = 2; // Representable by the pinned1kHz scheduler.
+constexpr uint32_t ServicePollMs = 2; // Two ticks at the configured 1 kHz.
 // Production v3 data/pairing stay unchanged; both roles require this explicit
 // handshake revision. Legacy Hello has no live receiver freshness and is denied.
 constexpr uint8_t HandshakeRevision = 2;

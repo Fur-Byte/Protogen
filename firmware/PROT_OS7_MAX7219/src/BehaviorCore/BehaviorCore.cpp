@@ -188,7 +188,7 @@ Pose Core::poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint
       const uint32_t elapsed = now - transitionStarted;
       const bool sourceArt = !earlyReveal && elapsed < config.transitionMs / 2;
       const auto closure = [&](uint8_t floor) -> uint8_t {
-        if (floor <= transitionStartClosure) return 0; // The shared P4 closure suffices.
+        if (floor <= transitionStartClosure) return 0; // The shared eyelid closure already covers this eye.
         return transitionPose(elapsed, config.transitionMs, transitionFrom, expression, floor, earlyReveal).closure;
       };
       pose.leftEye = transitionLeftOrigin;

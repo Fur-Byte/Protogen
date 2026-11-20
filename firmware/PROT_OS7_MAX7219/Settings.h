@@ -1,8 +1,8 @@
 #pragma once
 #include <stdint.h>
 
-// User adjustments. Pin assignments, panel rotations, and artwork stay in the sketch.
-// Optional hardware is still enabled by the three #define lines in the main .ino.
+// Compile-time settings and protected-dock pin assignments.
+// Enable connected hardware with the feature defines in the main sketch.
 namespace Settings {
 // Existing protected-visor wiring; MAX7219 has no MISO connection.
 constexpr int DockPowerEnablePin = 6, DockBufferEnablePin = 4;
