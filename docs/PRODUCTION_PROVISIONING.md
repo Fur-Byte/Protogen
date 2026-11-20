@@ -11,20 +11,22 @@
 
 **Irreversible operations are deliberately outside firmware, build and test
 scripts.** Do not burn eFuses on the development units used by this repository.
-This document is the factory procedure specification; actual locking requires a
+Factory lockdown requires a
 reviewed board-specific manufacturing station, secure key custody and recovery
 qualification. No connected hardware was provisioned here.
 
 ## Recoverable development
 
 Default `CONFIG_PROTOGEN_PRODUCTION=n`, `CONFIG_SECURE_BOOT=n`,
-`CONFIG_SECURE_FLASH_ENC_ENABLED=n`, `CONFIG_NVS_ENCRYPTION=n`. Pair secrets are
-in ordinary NVS and a physically obtained flash dump can recover them. Do not
-use development units to promise physical key protection. Prototype upload and
-reflash remain possible. There is no automatic security-key or eFuse generation
-in the application. Do not copy production sdkconfigs into development builds.
+`CONFIG_SECURE_FLASH_ENC_ENABLED=n`, `CONFIG_NVS_ENCRYPTION=n`.
 
-The development build wrapper refuses irreversible production settings and records SDK settings and hashes. Production artifacts must be built through the separately reviewed signing/provisioning workflow, not the development wrapper. After changing sdkconfig
+Development units store pairing secrets in ordinary NVS. Anyone with a physical
+flash dump can recover those secrets. The prototype supports upload and reflash.
+The application does not automatically generate security keys or program eFuses. Do not copy production sdkconfigs into development builds.
+
+The development build wrapper records SDK settings and hashes and rejects
+irreversible production settings. Build production artifacts through the separately
+reviewed signing and provisioning workflow. After changing sdkconfig
 defaults, archive the generated `build/sdkconfig.{helmet,paw}` and regenerate;
 PlatformIO otherwise retains existing selections.
 
