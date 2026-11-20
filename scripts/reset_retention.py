@@ -105,7 +105,7 @@ def start_boot(previous):
 
 
 def plan_publish(image, revision, snapshot):
-    """Return ordered writes for the alternate slot. Apply them in order."""
+    """Return alternate-slot writes in application order, with the commit marker last."""
     _check_revision(revision)
     if len(image) != IMAGE_BYTES:
         raise ValueError("invalid retention image length")

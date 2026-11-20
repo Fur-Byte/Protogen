@@ -229,8 +229,8 @@ def build_demo(args):
     hidden = check_hidden(OUT)
     speech = check_speech(OUT)
     retarget = check_retarget_handoff(OUT)
-    # Run the interaction build twice with recorder enabled, early reveal and cache;
-    # its intentionally different early transitions are allowed, SPI stability is not.
+    # Each build must reproduce its own trace. Early reveal can change frames
+    # across builds, but track admission must match.
     replay.PROGRAM = mixed / "twin"
     interaction, interaction_stats = execute(data, OUT / "demo-interactions.tsv")
     if [r[3:] for r in rows(interaction, "v2-track")] != [r[3:] for r in rows(trace, "v2-track")]:

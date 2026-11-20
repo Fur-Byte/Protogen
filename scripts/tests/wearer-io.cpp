@@ -77,8 +77,8 @@ int main() {
   settings.features=Device::Screen|Device::BatteryCaseTemperature;
   settings.usableEnergyMWh=1000;
   FakeWearer::stopAfter=220;
-  // Offset work completion by3ms to exercise fractional/coarse tick deadlines
-  // and the production1ms tick. Also exercise temperature warnings.
+  // Offset completion by 3 ms to exercise fractional deadlines with coarse
+  // ticks and the production 1 ms tick. Also check temperature warnings.
   FakeWearer::beforeWait=[](){FakeWearer::us+=3000;};
   try {task(nullptr);} catch(const FakeWearer::Stop&) {}
   const auto status=snapshot();
