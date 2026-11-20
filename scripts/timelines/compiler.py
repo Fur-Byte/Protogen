@@ -148,57 +148,62 @@ def compile_document(doc):
 
     if type(doc["events"]) is not list or len(doc["events"]) > MAX_EVENTS:
         raise TimelineError("events", "expected at most 32 events")
-    normalized = []
+    source_events = []
     expanded = []
-    names = list(CHANNELS)
+    channel_names = tuple(CHANNELS)
     for index, item in enumerate(doc["events"]):
         path = f"events[{index}]"
         fields(item, ("at_ms", "duration_ms", "from", "to", "region", "channel", "priority", "easing"),
                path, ("repeat",))
-        at = integer(item["at_ms"], 0, duration, path+".at_ms")
-        length = integer(item["duration_ms"], 0, 5000, path+".duration_ms")
-        region = choice(item["region"], REGIONS, path+".region")
-        channel = choice(item["channel"], CHANNELS, path+".channel")
+        start = integer(item["at_ms"], 0, duration, f"{path}.at_ms")
+        event_duration = integer(item["duration_ms"], 0, 5000, f"{path}.duration_ms")
+        region = choice(item["region"], REGIONS, f"{path}.region")
+        channel = choice(item["channel"], CHANNELS, f"{path}.channel")
         if region != "full" and ((region == "mouth") != (channel == "aperture")):
-            raise TimelineError(path+".channel", "property does not address this region")
+            raise TimelineError(f"{path}.channel", "property does not address this region")
         lo, hi = CHANNELS[channel]
-        first = integer(item["from"], lo, hi, path+".from")
-        last = integer(item["to"], lo, hi, path+".to")
+        first = integer(item["from"], lo, hi, f"{path}.from")
+        last = integer(item["to"], lo, hi, f"{path}.to")
         if channel == "sprite" and first != last:
-            raise TimelineError(path+".to", "sprite events must hold one existing glyph")
-        priority = integer(item["priority"], 0, 7, path+".priority")
-        easing = choice(item["easing"], EASING, path+".easing")
-        count, period = 1, 1
-        if "repeat" in item:
-            fields(item["repeat"], ("count", "period_ms"), path+".repeat")
-            count = integer(item["repeat"]["count"], 2, 8, path+".repeat.count")
-            period = integer(item["repeat"]["period_ms"], 1, 60000, path+".repeat.period_ms")
-        if at + (count-1)*period + length > duration:
+            raise TimelineError(f"{path}.to", "sprite events must hold one existing glyph")
+        priority = integer(item["priority"], 0, 7, f"{path}.priority")
+        easing = choice(item["easing"], EASING, f"{path}.easing")
+
+        source_event = {key: item[key] for key in sorted(item)}
+        repeat_count, repeat_period = 1, 1
+        if "repeat" in source_event:
+            repeat = source_event["repeat"]
+            fields(repeat, ("count", "period_ms"), f"{path}.repeat")
+            repeat_count = integer(repeat["count"], 2, 8, f"{path}.repeat.count")
+            repeat_period = integer(repeat["period_ms"], 1, 60000, f"{path}.repeat.period_ms")
+            source_event["repeat"] = {"count": repeat_count, "period_ms": repeat_period}
+        if start + (repeat_count - 1) * repeat_period + event_duration > duration:
             raise TimelineError(path, "event extends past clip duration")
-        if len(expanded) + count > MAX_EVENTS:
+        if len(expanded) + repeat_count > MAX_EVENTS:
             raise TimelineError(path, "expanded event count exceeds 32")
-        canonical = {k: item[k] for k in sorted(item)}
-        if "repeat" in item:
-            canonical["repeat"] = {"count": count, "period_ms": period}
-        normalized.append(canonical)
-        for n in range(count):
-            expanded.append((at+n*period, at, index, length, REGIONS.index(region),
-                             names.index(channel), priority, EASING.index(easing), first, last))
+        source_events.append(source_event)
+        region_code = REGIONS.index(region)
+        channel_code = channel_names.index(channel)
+        easing_code = EASING.index(easing)
+        for occurrence in range(repeat_count):
+            at = start + occurrence * repeat_period
+            expanded.append((at, start, index, event_duration, region_code, channel_code,
+                             priority, easing_code, first, last))
     # Equal expanded timestamps sort by canonical source order: original
     # base time, then original declaration index. This survives re-import.
     expanded.sort()
-    end = []
+    active_until = []
     data = bytearray(HEADER.pack(VERSION, len(expanded), audio >> 8, duration, seed, expression,
                                  blink, idle, audio & 255))
-    for at, _, index, length, region, channel, priority, easing, first, last in expanded:
-        end = [t for t in end if t >= at]  # P5 includes the last millisecond.
-        if len(end) == 8:
+    for at, _, index, event_duration, region, channel, priority, easing, first, last in expanded:
+        active_until = [end for end in active_until if end >= at]  # P5 includes the last millisecond.
+        if len(active_until) == 8:
             raise TimelineError(f"events[{index}]", f"global capacity exceeded at {at} ms")
-        end.append(at+length)
-        data.extend(EVENT.pack(at, length, region, channel, priority, easing, first, last))
+        active_until.append(at + event_duration)
+        data.extend(EVENT.pack(at, event_duration, region, channel, priority, easing, first, last))
     data.extend(bytes((MAX_EVENTS-len(expanded))*EVENT.size))
     canonical = {"version": VERSION, "id": identifier, "name": name, "duration_ms": duration,
-                 "initial": dict(initial), "events": sorted(normalized, key=lambda item: item["at_ms"]),
+                 "initial": dict(initial), "events": sorted(source_events, key=lambda item: item["at_ms"]),
                  "cancel": cancel, "completion": completion}
     return Compiled(canonical, bytes(data))
 

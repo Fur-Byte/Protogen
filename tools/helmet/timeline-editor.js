@@ -5,6 +5,8 @@
   const regions = {left:"Left eye", right:"Right eye", mouth:"Mouth", full:"Full face"};
   const channels = {x:"Horizontal", y:"Vertical", lid:"Lid closure", squint:"Squint", sprite:"Sprite", aperture:"Aperture"};
   const curves = {linear:"Linear", in:"Ease in", out:"Ease out", "in-out":"Ease in/out", settle:"Settle"};
+  const frameStepMs = 16;
+  const playbackBatchSize = 12;
   let clip, position = 0, selected = -1, playing = false, timer = null;
   let revision = 0, snapshot = 0, importOrder = 0, busy = false, queued = false, batch = [];
 
@@ -82,7 +84,11 @@
     const ticket = snapshot, version = revision;
     const locations = [position];
     if (playing) {
-      for (let i=1; i<12 && position+i*16<=duration(); ++i) locations.push(position+i*16);
+      for (let frameIndex = 1; frameIndex < playbackBatchSize; ++frameIndex) {
+        const at = position + frameIndex * frameStepMs;
+        if (at > duration()) break;
+        locations.push(at);
+      }
     }
     try {
       const result = await request("seek", {document:clip, positions_ms:locations});
@@ -114,10 +120,10 @@
         draw(frame);
         tick();
       } else if (position < duration()) {
-        move(position + 16);
+        move(position + frameStepMs);
         queueSeek();
       } else pause();
-    }, 16);
+    }, frameStepMs);
   }
 
   function seek(at) {
@@ -236,7 +242,7 @@
       queueSeek();
     };
     element("restart").onclick = () => seek(0);
-    element("step").onclick = () => seek(position+16);
+    element("step").onclick = () => seek(position + frameStepMs);
     element("scrub").oninput = () => seek(Number(element("scrub").value));
     element("add").onclick = () => {
       if (clip.events.length >= 32) { status("The clip already has 32 events."); return; }
@@ -300,7 +306,8 @@
       if (e.key === " ") { e.preventDefault(); element("play").click(); }
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         e.preventDefault();
-        seek(position + (e.key === "ArrowRight" ? 16 : -16));
+        const step = e.key === "ArrowRight" ? frameStepMs : -frameStepMs;
+        seek(position + step);
       }
       if (e.key === "Home") { e.preventDefault(); seek(0); }
     });

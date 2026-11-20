@@ -70,7 +70,7 @@ class Player {
   Animation::Handle owned[Animation::Capacity]{};
   Progress status;
 
-  void release(Animation::Table &table);
+  void cancelTracks(Animation::Table &table);
 
 public:
   bool start(Animation::Table &table, const uint8_t *data, size_t size, uint32_t now);

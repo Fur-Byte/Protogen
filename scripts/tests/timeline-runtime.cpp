@@ -96,6 +96,23 @@ int main() {
   player.advance(collision, origin+40);
   assert(player.progress().next == EventsPerLoop && player.progress().skipped == EventsPerLoop);
 
+  backlog[HeaderBytes + 2] = 100;
+  Table draining;
+  Player drainingPlayer;
+  const auto unrelated = draining.start(origin, {Region::RightEye, Motion::Lid, 0, Easing::Linear,
+                                                250, 1, 1});
+  assert(drainingPlayer.start(draining, backlog.data(), backlog.size(), origin));
+  drainingPlayer.advance(draining, origin);
+  assert(draining.count() == 2);
+  drainingPlayer.advance(draining, origin + 101);
+  assert(drainingPlayer.progress().state == State::Running);
+  assert(drainingPlayer.progress().next == 1 + EventsPerLoop);
+  assert(draining.count() == 1);
+  for (unsigned loop = 0; loop < 3; ++loop)
+    drainingPlayer.advance(draining, origin + 102 + loop);
+  assert(drainingPlayer.progress().state == State::Complete && drainingPlayer.progress().skipped == 31);
+  assert(draining.cancel(unrelated.handle));
+
   // Numerical conformance stream. Python's independent rational oracle
   // checks signed division at all integer ticks and every easing endpoint.
   for (unsigned curve = 0; curve < 5; ++curve)
