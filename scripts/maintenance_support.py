@@ -1,20 +1,48 @@
 """Allowlisted, secret-free helmet configuration backups."""
+import hashlib
+import json
 from pathlib import Path
-import re
 
-ROOT = Path(__file__).resolve().parents[1]
+METADATA_PATH = Path(__file__).resolve().parents[1] / 'tools/helmet/config-metadata.json'
+EXPORT_FIELDS = frozenset({
+    'brightness', 'startup_expression', 'mouth_mode', 'sensitivity', 'noise_margin',
+    'noise_floor', 'boop_trigger', 'boop_release', 'blink_interval_ms', 'blink_jitter_ms',
+    'transition_ms', 'attack_ms', 'release_ms', 'natural_blinks', 'idle_motion',
+    'boop_mode', 'boop_duration_ms',
+})
+# Revisit this pin after reviewing generator changes, including otherwise valid range changes.
+REVIEWED_METADATA_SHA256 = 'f89f3eb087116e155d7845f12373b058de962baaba296854d42392c21c693876'
 
 
 def config_ranges():
-    header = (ROOT / 'firmware/PROT_OS7_MAX7219/Configuration.h').read_text()
-    entries = re.findall(r'\{"([a-z_]+)", &RuntimeConfig::\w+, (\d+), (\d+|ExpressionCount - 1)\}', header)
-    if len(entries) != 17:
-        raise ValueError('Configuration schema changed; review the export allowlist')
-    return {key: (int(low), 5 if high == 'ExpressionCount - 1' else int(high)) for key, low, high in entries}
+    raw = METADATA_PATH.read_bytes()
+    metadata = json.loads(raw)
+    if (not isinstance(metadata, dict) or set(metadata) != {'schema', 'fields', 'storage', 'brightness'}
+            or type(metadata['schema']) is not int or metadata['schema'] != 2
+            or not isinstance(metadata['fields'], list)):
+        raise ValueError('Expected schema-2 configuration metadata and a field list')
+    ranges = {}
+    for field in metadata['fields']:
+        if (not isinstance(field, dict) or set(field) != {'name', 'minimum', 'maximum', 'default', 'eeprom_offset'}
+                or not isinstance(field['name'], str)):
+            raise ValueError('Invalid configuration field declaration')
+        name = field['name']
+        if name not in EXPORT_FIELDS or name in ranges:
+            raise ValueError('Unknown or duplicate configuration field in metadata')
+        low, high = field['minimum'], field['maximum']
+        if type(low) is not int or type(high) is not int or not 0 <= low <= high <= 65535:
+            raise ValueError('Invalid configuration range for ' + name)
+        ranges[name] = (low, high)
+    if ranges.keys() != EXPORT_FIELDS:
+        raise ValueError('Configuration metadata is missing an exportable field')
+    if hashlib.sha256(raw).hexdigest() != REVIEWED_METADATA_SHA256:
+        raise ValueError('Configuration metadata changed; check the generated file and review it for export')
+    return ranges
 
 
 def validate_profile(value):
-    if not isinstance(value, dict) or set(value) - {'ok', 'schema', 'name', 'config'} or value.get('schema') != 2:
+    if (not isinstance(value, dict) or set(value) - {'ok', 'schema', 'name', 'config'}
+            or type(value.get('schema')) is not int or value['schema'] != 2):
         raise ValueError('Expected schema-2 helmet configuration only; pairing exports are not supported')
     fields = config_ranges()
     config = value.get('config')

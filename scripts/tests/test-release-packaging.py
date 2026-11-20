@@ -38,7 +38,7 @@ class PackagingTests(unittest.TestCase):
         self.output = Path(temporary.name) / "synthetic-release-fixture.zip"
         for name in (".gitignore", "toolchain.lock.json", "scripts/build_support.py", "scripts/uart_key.py",
                      "scripts/package-release.py", "scripts/sketch_features.py", "scripts/maintenance_support.py",
-                     "firmware/PROT_OS7_MAX7219/Configuration.h"):
+                     "tools/helmet/config-metadata.json"):
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
