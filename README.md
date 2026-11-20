@@ -19,6 +19,21 @@ This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work
 without them. The firmware retains the original facial bitmaps.
 
+## Preview and USB configuration
+
+Preview the actual firmware without connecting a helmet:
+
+```sh
+python3 scripts/helmet-tool.py
+```
+
+Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teensy's
+serial device to configure the physical helmet. Open the private launcher printed by
+Face Studio and select **Open USB helmet controls**. Changes apply temporarily until
+explicitly saved. On reboot, the helmet uses the saved startup expression and settings in place of the compiled defaults.
+
+## Firmware changes and compatibility
+
 Firmware **8.2** retains expression transitions, hardware-random blink timing, sleepy/wink
 expressions, buffered audio, runtime USB settings, and the local preview/configuration
 tool. It adds optional authenticated paw control, protected dock support,
@@ -45,17 +60,6 @@ Ordinary blink pauses now vary between 2 and 6 seconds, centered near 4 seconds;
 the eyelids close quickly and reopen more slowly, with occasional double blinks.
 Saved settings keep the previous blink timing. Use **Restore defaults**, then **Save**, or
 apply and save the updated Everyday profile to adopt the new defaults.
-
-Preview the actual firmware without connecting a helmet:
-
-```sh
-python3 scripts/helmet-tool.py
-```
-
-Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teensy's
-serial device to configure the physical helmet. Open the private launcher printed by
-Face Studio and select **Open USB helmet controls**. Changes apply temporarily until
-explicitly saved. Saved startup/settings override compiled defaults on reboot.
 
 The [engineering specification](docs/ENGINEERING_PLAN.md), [schematic/wiring package](docs/HARDWARE_WIRING.md),
 [wireless protocol](docs/WIRELESS_PROTOCOL.md), and [8.2 change summary](docs/IMPLEMENTATION_8_2.md)
