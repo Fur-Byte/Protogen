@@ -72,15 +72,20 @@ records are rejected; pair again and reapply any peripheral calibration.
 
 ## Paw operation and failures
 
-Next/previous on release cycle the six original expressions. Both navigation
-buttons held 1.2 s toggle sleep; boop requests the original 1200 ms expression.
-Four recent intents can queue; anything older than 300 ms expires. Commands use
-fresh Teensy tickets and execution ACKs; radio ACKs never mean executed.
+Release either navigation button to cycle through the six original expressions.
+Hold both navigation buttons for 1.2 s to toggle sleep. The boop button requests
+the original 1200 ms expression.
+
+The paw can queue four recent intents. An intent expires after 300 ms. Commands
+use fresh Teensy tickets. Only a Teensy execution ACK confirms execution. A radio
+ACK confirms delivery at the radio layer.
 Gestures request fresh status immediately, with 100 ms active polling and a
 1.5 s tail. Idle keepalives are jittered 3–5 s, not 500 ms. Link loss is detected
 at 12 s; Teensy paw-online clears within another 2 s. Local buttons, rendering
 and safe current state continue. Radios try keyed channel recovery and fresh
 sessions; no usable spectrum means local-control fallback.
+
+### Peripheral status and calibration
 
 Optional peripheral mask starts at zero: helmet SHT40=1, INA228=2, SSD1306=4,
 case NTC=8; paw protected cell divider=2. Calibration is required for usable
@@ -89,7 +94,9 @@ voltage is not a promised percentage; energy percentage can be unknown after
 reset/gaps/sensor faults. Wireless battery/status packets use the same encrypted
 128-byte envelope as commands.
 
-Local console: `SECURITY STATUS` reports non-secret security state, counters,
+### Local console commands
+
+`SECURITY STATUS` reports non-secret security state, counters,
 session age, record count, renewal timing and channel. `INFO` reports role/pair/connection/features/faults, without a MAC
 or keys. `CONFIG mask usable_energy_mwh`, `FULL` and `FORGET` require the local
 physical unlock. CONFIG and FORGET restart. FULL requires a valid, calibrated

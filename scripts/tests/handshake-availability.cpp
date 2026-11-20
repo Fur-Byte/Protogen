@@ -271,8 +271,8 @@ void legacyIsExplicitlyRejected() {
   assert(!h.receive(legacy,paw,100)&&!h.pending());
   Frame request=offer(p,400);
   assert(request.bytes[1]==3&&request.bytes[2]>8&&request.bytes[91]==2);
-  // The supported legacy parser's allowed type range ended at8. No automatic
-  // fallback to that unauthenticated-freshness handshake is implemented.
+  // The legacy parser accepted types through 8. There is no automatic
+  // fallback to its handshake, which lacked receiver freshness.
   assert(!(request.bytes[2]>=1&&request.bytes[2]<=8));
   Frame future=request;future.bytes[1]=4;
   assert(!h.receive(future,paw,400));

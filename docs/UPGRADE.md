@@ -1,6 +1,6 @@
 # Existing-hardware upgrade — firmware 8.2
 
-The 8.2 additions and why they were made are in [IMPLEMENTATION_8_2.md](IMPLEMENTATION_8_2.md). The reviewed engineering plan, original IR-first boop specification and schematic package are in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md) and [HARDWARE_WIRING.md](HARDWARE_WIRING.md). Historical 8.0/8.1 validation below remains identified by its source fingerprints.
+For the 8.2 changes and their rationale, see [IMPLEMENTATION_8_2.md](IMPLEMENTATION_8_2.md). The reviewed engineering plan, original IR-first boop specification and schematic package are in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md) and [HARDWARE_WIRING.md](HARDWARE_WIRING.md). Historical 8.0/8.1 validation below remains identified by its source fingerprints.
 
 This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB indicator, and optional sensors**. The original four expression bitmaps, module order, rotations, pin assignments, fabrication assets, and archive are preserved. Optional sensors remain disabled in the supplied sketch. No firmware was uploaded and no physical helmet measurements were made.
 
@@ -50,20 +50,28 @@ python3 scripts/helmet-tool.py
 
 Open **http://127.0.0.1:8765**. Desktop simulation enables the three virtual sensors regardless of the real sketch's feature flags. It runs an isolated copy of the actual firmware with the same renderer, configuration protocol, FFT, and control logic. The nominal ADC/SPI model does not establish real electrical timing or visor appearance. Simulated saves last for the preview process; download a profile to retain them.
 
-After uploading firmware 8.2 using Arduino IDE, find the serial device and connect:
+### Connect a helmet over USB
+
+Upload firmware 8.2 using Arduino IDE. On macOS or Linux, close Arduino Serial Monitor, then find the serial device and connect:
 
 ```sh
 python3 scripts/helmet-tool.py --list-ports
 python3 scripts/helmet-tool.py --port "<port from --list-ports>"
 ```
 
-USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It opens the device supplied with `--port` for settings and diagnostics. Open the private launcher printed in the terminal, then select **Open USB helmet controls**. Its credential is valid for that Face Studio process. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
+Face Studio opens the device supplied with `--port` for settings and diagnostics. Open the private launcher printed in the terminal, then select **Open USB helmet controls**. Its credential is valid for that Face Studio process. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
+
+### Save or restore settings
 
 **Apply settings** changes RAM. **Save to helmet** retains the applied settings after power-off. **Load saved** restores the latest valid saved record. **Restore defaults** changes RAM to Settings.h defaults; it does not erase EEPROM. The current expression and sleep state remain session-only; saved `startup_expression` selects the face on the next boot. Saved settings override Settings.h defaults on boot. To retain changed compiled defaults, restore defaults and explicitly save.
 
-Choose a preset or import a profile, apply it, and save if desired. Everyday uses the spectrum mouth and original resting artwork. Expressive uses the amplitude mouth, shorter varied blink intervals, and idle glances. Brightness stays at 1 in both. Quiet calibration needs an enabled, visible, awake microphone with no active boop; remain quiet until the calibration indicator clears, then save. Interrupted calibration is canceled on sleep, expression reset, or settings changes. Idle noise adaptation stays in RAM; an explicit calibration updates the saved-setting candidate.
+Choose a preset or import a profile, apply it, and save if desired. Everyday uses the spectrum mouth and original resting artwork. Expressive uses the amplitude mouth, shorter varied blink intervals, and idle glances. Brightness stays at 1 in both.
 
 Existing saved settings and downloaded profiles keep their earlier blink interval. Restore defaults and Save, or apply and save the updated Everyday preset, to adopt the 4-second center and ±2-second variation. Expressive now uses a 3.5-second center and ±1.5-second variation. Schema 2 migrates saved schema 1 values while adding the held/timed boop fields.
+
+### Calibrate the microphone
+
+Enable the microphone and keep the face visible and awake with no active boop. Remain quiet until the calibration indicator clears, then save. Sleep, an expression reset, or a settings change cancels calibration. Idle noise adaptation stays in RAM. Explicit calibration updates the value you can save.
 
 ## Blink timing in 8.1
 

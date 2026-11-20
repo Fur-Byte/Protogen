@@ -3,8 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 
-// Explicit little-endian application/UART framing. Wireless confidentiality,
-// authentication, handshake and record replay protection belong to Mbed TLS.
+// Little-endian application and UART framing. The ESP32 wireless layer owns
+// radio authentication, encryption, session establishment and replay checks.
 namespace HelmetLink {
 constexpr uint8_t Version = 1;
 constexpr size_t MaxPayload = 72, HeaderBytes = 16, MaxRaw = HeaderBytes + MaxPayload + 2;

@@ -10,6 +10,19 @@
 > production builds. Physical S31 qualification is separately pending. See the
 > [S31 preflight](docs/WIRELESS_S31_PREFLIGHT.md) for evidence and remaining work.
 
+## Reporting a vulnerability
+
+Use **Security → Advisories → Report a vulnerability** on GitHub if the button
+is available. Otherwise, contact the maintainer through an existing private
+channel. If you have no private channel and can open a
+[repository issue](https://github.com/Fur-Byte/Protogen/issues/new), use it only
+to ask for a private reporting channel. Share vulnerability details, reproduction
+steps and sanitized diagnostics privately. Keep keys, credentials, key-bearing
+images, personal data, raw device captures and sensitive diagnostics out of
+GitHub issues, pull requests and Actions evidence.
+
+## Wireless trust boundary
+
 The experimental v4 library is outside this active v3 trust boundary. Its
 [protocol specification](docs/WIRELESS_V4_PROTOCOL.md) documents conditional
 hybrid forward secrecy, SAS limitations and the standards-based combiner.
@@ -67,11 +80,20 @@ lockout; sustained RF flooding can still deny service. Saturating non-secret
 closed on invalid records; CRC is corruption detection, not malicious-write
 protection. Physical power-cut qualification of ESP-IDF NVS remains outstanding.
 
+## UART keys and production provisioning
+
 The normal Teensy 4.0 cannot provide ESP32-style hardware-backed secret protection.
 The optional UART secret resides in each controller's firmware (encrypted ESP32
 flash in qualified production, ordinary Teensy flash). It protects unintended or
 injected serial traffic under the assumed secret-protection model; extraction or
 reflash of the ordinary Teensy defeats it. Never use a universal UART secret.
+
+Private per-helmet `ProtogenUartKey.h` files are ignored by Git; the explicitly
+public placeholder fixture remains tracked for regressions. Diagnostics must
+report only non-secret counters/status. Ordinary Teensy flash remains extractable
+with physical access: obfuscation or storing another software wrapping key in the
+same image would not remedy that risk. Re-pair/re-provision after a suspected
+extraction; keep UART keys distinct from wireless pairing keys and from other helmets.
 
 Development uses recoverable ordinary NVS and intentionally lacks irreversible
 lockdown. Production requires pre-provisioned hardware-backed encrypted NVS,
@@ -85,22 +107,3 @@ full nonces, pairing secrets, factory MACs, or authentication codes are logged.
 [release validation](docs/WIRELESS_VALIDATION.md) describe the implementation
 and remaining physical release gates. This is not a claim of invisibility,
 unjammability, or immunity to compromise.
-
-
-## Reporting a vulnerability
-
-Use **Security → Advisories → Report a vulnerability** on GitHub if the button
-is available. Otherwise, contact the maintainer through an existing private
-channel. If you have no private channel and can open a
-[repository issue](https://github.com/Fur-Byte/Protogen/issues/new), use it only
-to ask for a private reporting channel. Share vulnerability details, reproduction
-steps and sanitized diagnostics privately. Keep keys, credentials, key-bearing
-images, personal data, raw device captures and sensitive diagnostics out of
-GitHub issues, pull requests and Actions evidence.
-
-Private per-helmet `ProtogenUartKey.h` files are ignored by Git; the explicitly
-public placeholder fixture remains tracked for regressions. Diagnostics must
-report only non-secret counters/status. Ordinary Teensy flash remains extractable
-with physical access: obfuscation or storing another software wrapping key in the
-same image would not remedy that risk. Re-pair/re-provision after a suspected
-extraction; keep UART keys distinct from wireless pairing keys and from other helmets.

@@ -53,7 +53,7 @@ for candidate in BASELINE CASE_2HZ OLED_1HZ OLED_PAGES CHECKPOINT_5MIN WEARER_DE
     "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer"
   "$EFF_TEMP/wearer"
 done
-# Retain the old coarse-tick deadline stress as well as production1000Hz.
+# Exercise coarse 100 Hz ticks as well as the production 1000 Hz rate.
 "${CXX:-clang++}" "${FLAGS[@]}" -pthread -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES=1 -DPROTOGEN_TEST_TICK_HZ=100 \
   -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
   "$ROOT/scripts/tests/wearer-io.cpp" -o "$EFF_TEMP/wearer-coarse"
