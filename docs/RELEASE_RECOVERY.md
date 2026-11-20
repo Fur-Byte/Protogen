@@ -5,6 +5,8 @@ provisioned UART key even when the ZIP contains no standalone key file. Check
 [redistribution requirements](../THIRD_PARTY_NOTICES.md) before distributing
 any source or firmware build.
 
+## Build a recovery bundle
+
 Rebuild Teensy and both wireless roles from matching current sources with the
 pinned toolchain. Use a clean Git checkout and run `python3 scripts/build.py`
 and `python3 scripts/build-esp32.py` from the same commit. Keep generated outputs
@@ -22,6 +24,8 @@ previously verified bundle. For a first bundle, use `--initial-release` and omit
 both previous-release arguments. The manifest records the absence of a rollback
 bundle. Keep the known-good archive and its digest off the helmet and verify
 every file against `release.json` before flashing.
+
+## Verify build provenance and UART compatibility
 
 Packaging checks Git status and the exact commit independently of the hashed
 build inputs. Both successful build manifests must identify the current commit
@@ -49,6 +53,9 @@ per-helmet key and a hardware handshake check. Treat authenticated firmware as
 per-helmet material and keep its bundle private. Store the provisioning key
 separately from the firmware and configuration backups. Keep the UART provisioning
 header outside the checkout and point the existing build tooling at that directory.
+
+## Check the rollback archive
+
 Previous recovery ZIPs must contain the Teensy HEX, both radio roles' firmware,
 bootloaders and partition tables, toolchain pins, wiring and recovery
 references, and matching successful build evidence. The packager verifies the
@@ -58,14 +65,18 @@ schema-1 bundle can be used if the retained digest, contents and its build
 evidence satisfy those checks. A recovery ZIP is limited to 256 MiB of
 uncompressed data.
 
+## Retain the bundle and offline rebuild inputs
+
 The bundle contains Teensy HEX, matching helmet/paw firmware/bootloader/partition
 images, build manifests, dependency provenance/licenses/bundled sources, toolchain
 pins, wiring references, and these instructions. Installer download caches retain
 additional pinned toolchain/dependency archives and sources; preserve
 `build/toolchains` and `build/platformio` alongside the release for offline rebuilds.
 Optional schema-2 helmet backups contain only validated settings/calibration;
-pairing secrets, NVS dumps and arbitrary key headers are excluded. Configuration
-backup absence is recorded rather than silently replaced by defaults.
+pairing secrets, NVS dumps and arbitrary key headers are excluded. If the configuration backup is missing, the manifest records its absence. The
+packager does not substitute defaults.
+
+## Back up diagnostics and settings
 
 Read local diagnostics with
 `python3 scripts/export-diagnostics.py --port /dev/ttyACM0 --output diagnostic.json`.
@@ -75,6 +86,8 @@ packager and restored through the existing settings tool, then explicitly saved.
 For the ESP devices record `INFO`, `PERF` and `SECURITY STATUS` locally; none of
 these commands exports the pairing key. Re-pair through the physical procedure
 after replacing a wireless module; do not store pairing secrets in repair logs.
+
+## Restore the helmet and paw
 
 For Teensy recovery, isolate USB/battery power according to
 [HARDWARE_WIRING.md](HARDWARE_WIRING.md), connect a micro-USB data cable, select
@@ -94,6 +107,8 @@ identification and manufacturer limits, probe/meter serials, calibration methods
 measurements and the applicable firmware SHA. A blank ledger means unrecorded
 calibration. Use `docs/HARDWARE_WIRING.md` plus `hardware/connector-map.csv` as the
 single wiring reference and update them together when a real repair changes it.
+
+## Test the packager
 
 Run the isolated packager regression tests with
 `python3 scripts/tests/test-release-packaging.py`. They create temporary Git

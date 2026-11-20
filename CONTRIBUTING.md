@@ -1,11 +1,13 @@
 # Contributing
 
-Use a topic branch and open a pull request against `main`. Describe the affected
-hardware and feature flags. Report the tests you ran and distinguish host,
-simulated, target-build and physical-board results. Firmware, replay fixtures,
-and generated metadata should agree when a change intentionally affects behavior.
+Use a topic branch and open a pull request against `main`. When changing behavior,
+keep the firmware, replay fixtures and generated metadata consistent.
 
-- Use the pins in [toolchain.lock.json](toolchain.lock.json). See the
+In the pull request, name the affected hardware and feature flags. List the
+tests you ran and identify which results came from host tests, simulations,
+target builds or physical boards.
+
+- Use the toolchain versions pinned in [toolchain.lock.json](toolchain.lock.json). See the
   [regression commands](README.md#audit-and-regression-checks) and
   [hardware documentation](docs/HARDWARE_WIRING.md).
 - Let the automatic PR workflow run the fast checks. Use a manual full-matrix
