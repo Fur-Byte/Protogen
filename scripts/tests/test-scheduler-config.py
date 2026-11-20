@@ -5,7 +5,7 @@ import unittest
 import re
 ROOT=Path(__file__).resolve().parents[2]
 class SchedulerConfiguration(unittest.TestCase):
-    def test_five_ms_poll_is_representable_by_supported_sdk_config(self):
+    def test_production_poll_is_representable_by_supported_sdk_config(self):
         values=dict(line.split('=',1) for line in (ROOT/'firmware/esp32/sdkconfig.defaults').read_text().splitlines() if '=' in line and not line.startswith('#'))
         # The SDK default of 100 Hz would truncate the production poll to zero
         # ticks. Check both the configured tick rate and the converted delay.
