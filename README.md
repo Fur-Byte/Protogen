@@ -19,6 +19,21 @@ This is the current sketch for the 14-module MAX7219 face. All optional sensors
 are disabled initially; expressions, the button, blink, and angry glitch work
 without them. The firmware retains the original facial bitmaps.
 
+## Preview and USB configuration
+
+Preview the actual firmware without connecting a helmet:
+
+```sh
+python3 scripts/helmet-tool.py
+```
+
+Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teensy's
+serial device to configure the physical helmet. Open the private launcher printed by
+Face Studio and select **Open USB helmet controls**. Changes apply temporarily until
+explicitly saved. On reboot, the helmet uses the saved startup expression and settings in place of the compiled defaults.
+
+## Firmware changes and compatibility
+
 Firmware **8.2** retains expression transitions, hardware-random blink timing, sleepy/wink
 expressions, buffered audio, runtime USB settings, and the local preview/configuration
 tool. It adds optional authenticated paw control, protected dock support,
@@ -43,19 +58,8 @@ The original four resting faces are pixel-identical to the ZIP archive, includin
 the rotated physical module data. See [the archive comparison](docs/ARCHIVE_FACE_COMPARISON.md).
 Ordinary blink pauses now vary between 2 and 6 seconds, centered near 4 seconds;
 the eyelids close quickly and reopen more slowly, with occasional double blinks.
-Previously saved timing stays saved: use **Restore defaults**, then **Save**, or
+Saved settings keep the previous blink timing. Use **Restore defaults**, then **Save**, or
 apply and save the updated Everyday profile to adopt the new defaults.
-
-Preview the actual firmware without connecting a helmet:
-
-```sh
-python3 scripts/helmet-tool.py
-```
-
-Then open **http://127.0.0.1:8765**. After uploading, add `--port` with the Teensy's
-serial device to configure the physical helmet. Open the private launcher printed by
-Face Studio and select **Open USB helmet controls**. Changes apply temporarily until
-explicitly saved. Saved startup/settings override compiled defaults on reboot.
 
 The [engineering specification](docs/ENGINEERING_PLAN.md), [schematic/wiring package](docs/HARDWARE_WIRING.md),
 [wireless protocol](docs/WIRELESS_PROTOCOL.md), and [8.2 change summary](docs/IMPLEMENTATION_8_2.md)
@@ -83,8 +87,8 @@ no upload or wiring change was performed. [ESP32 setup instructions](firmware/es
    the Teensy 4.0 using a **micro-USB data cable**. A charging-only cable will not work.
 2. Open the sketch linked above. All `.ino` tabs and the `src/` folder must stay
    together inside `PROT_OS7_MAX7219`.
-3. To install **Teensy 1.62.0** in Boards Manager, add `https://www.pjrc.com/teensy/package_teensy_index.json`
-   to Additional Boards Manager URLs, then install Teensy.
+3. Add `https://www.pjrc.com/teensy/package_teensy_index.json` to Additional Boards Manager URLs,
+   then install **Teensy 1.62.0** in Boards Manager.
 4. Select **Tools → Board → Teensy → Teensy 4.0**. Set **USB Type: Serial**,
    **CPU Speed: 600 MHz**, and **Optimize: Faster** (the normal defaults used here).
 5. Library Manager must have **arduinoFFT 2.0.4**, **Adafruit GFX Library 1.12.6**,
@@ -193,15 +197,13 @@ From the project root:
 The HEX for the **currently selected feature flags** is exported under `build/teensy40/`;
 the supplied sketch has all optional sensors disabled. The build explicitly selects
 Teensy 4.0, Serial USB, 600 MHz, and Faster optimization. Use Arduino IDE for
-normal editing/upload; the HEX can also be opened in Teensy Loader if you prefer
-loading an already compiled image.
+normal editing/upload; open the compiled HEX in Teensy Loader to upload it directly.
 
 ## Audit and regression checks
 
 See [the current upgrade and validation guide](docs/UPGRADE.md). The earlier
 [independent audit](docs/INDEPENDENT_CODE_AUDIT.md) describes the preserved
 pre-upgrade baseline; its two sensor behavior findings are addressed in 8.0.
-Optional sensors remain disabled until enabled in the sketch.
 
 ```sh
 ./scripts/test-firmware.sh        # Sanitized host behavior + tooling/preview integration
