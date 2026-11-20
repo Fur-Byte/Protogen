@@ -1,6 +1,6 @@
 # Prototype schematic and connection package
 
-These are explicit connection-level schematics for review. They are not a PCB fabrication release: converter/eFuse timing values, connector mechanics and current limits require the measurements in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md). Existing wiring is preserved in the working configuration; all added connections are behind disabled firmware flags. No purchases, wiring or flashing occurred.
+These connection-level schematics are for review. They are not a PCB fabrication release: converter/eFuse timing values, connector mechanics and current limits require the measurements in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md). Existing wiring is preserved in the working configuration; all added connections are behind disabled firmware flags. No purchases, wiring or flashing occurred.
 
 ## Sheet 1 — power distribution
 
@@ -21,7 +21,7 @@ External protected USB-C PD bank (15 V / 3 A qualified)
 Ground star: INA/bucks/core/aux/display return. Display return is heavy and separate.
 ```
 
-U_INA logic VCC=3.3 V auxiliary, SDA/SCL pulled to auxiliary 3.3 V. INA high-side inputs carry the PD voltage, never an ESP GPIO. No other powered accessory may bypass the shunt if its consumption is supposed to be counted. The shunt dissipates I²R; at 3 A that is 0.135 W and 45 mV drop. Keep its high-current loop short and retain the module's Kelvin measurement routing.
+U_INA logic VCC=3.3 V auxiliary, SDA/SCL pulled to auxiliary 3.3 V. INA high-side inputs carry the PD voltage, never an ESP GPIO. Route power through the shunt for every accessory whose consumption you need to measure. The shunt dissipates I²R; at 3 A that is 0.135 W and 45 mV drop. Keep its high-current loop short and retain the module's Kelvin measurement routing.
 
 Fuses/current limits are qualified by measured load and weakest conductor. Do not tie buck outputs together. The display eFuse must implement reverse blocking, appropriate OVP/UVLO, qualified inrush slew and a limit chosen with tolerance. Use the selected TI variant's reference schematic and calculator for R_ILM/C_DVDT/C_ITIMER/OVLO/UVLO; these values intentionally remain unpopulated until load/capacitance are measured. A nominal 5 A limit is not preselected.
 

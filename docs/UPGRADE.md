@@ -1,6 +1,6 @@
 # Existing-hardware upgrade — firmware 8.2
 
-The 8.2 additions and why they were made are in [IMPLEMENTATION_8_2.md](IMPLEMENTATION_8_2.md). The reviewed engineering plan, original IR-first boop specification and schematic package are in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md) and [HARDWARE_WIRING.md](HARDWARE_WIRING.md). Historical 8.0/8.1 validation below remains identified by its source fingerprints.
+For the 8.2 changes and their rationale, see [IMPLEMENTATION_8_2.md](IMPLEMENTATION_8_2.md). The reviewed engineering plan, original IR-first boop specification and schematic package are in [ENGINEERING_PLAN.md](ENGINEERING_PLAN.md) and [HARDWARE_WIRING.md](HARDWARE_WIRING.md). Historical 8.0/8.1 validation below remains identified by its source fingerprints.
 
 This upgrade uses the existing **Teensy 4.0, 14 MAX7219 modules, button, RGB indicator, and optional sensors**. The original four expression bitmaps, module order, rotations, pin assignments, fabrication assets, and archive are preserved. Optional sensors remain disabled in the supplied sketch. No firmware was uploaded and no physical helmet measurements were made.
 
@@ -57,7 +57,7 @@ python3 scripts/helmet-tool.py --list-ports
 python3 scripts/helmet-tool.py --port "<port from --list-ports>"
 ```
 
-USB mode supports macOS/Linux. Close Arduino Serial Monitor before using it. It opens the device supplied with `--port` for settings and diagnostics. Open the private launcher printed in the terminal, then select **Open USB helmet controls**. Its credential is valid for that Face Studio process. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
+On macOS or Linux, close Arduino Serial Monitor before starting USB mode. Face Studio opens the device supplied with `--port` for settings and diagnostics. Open the private launcher printed in the terminal, then select **Open USB helmet controls**. Its credential is valid for that Face Studio process. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
 
 **Apply settings** changes RAM. **Save to helmet** retains the applied settings after power-off. **Load saved** restores the latest valid saved record. **Restore defaults** changes RAM to Settings.h defaults; it does not erase EEPROM. The current expression and sleep state remain session-only; saved `startup_expression` selects the face on the next boot. Saved settings override Settings.h defaults on boot. To retain changed compiled defaults, restore defaults and explicitly save.
 
