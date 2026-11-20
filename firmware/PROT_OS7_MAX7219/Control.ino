@@ -1,7 +1,7 @@
 // Poll at most once per millisecond. Stable-state debounce needs no interrupts,
 // delays, heap allocation, or repeated events while the button is held.
 void updateControls(uint32_t now) {
-  // lastPoll initialized to now - 1 ensures updateControls immediately services on the first call.
+  // Let the first call poll immediately.
   static uint32_t lastPoll = now - 1;
   static uint32_t buttonChangedAt = now;
   static uint32_t pressedAt = now;

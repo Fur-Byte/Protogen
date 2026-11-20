@@ -240,8 +240,8 @@ void loop() {
   if (behavior.boopActive) pauseMicrophone();
   else { if (microphoneEnabled) P3_TEENSY_CALL(Audio, microphone()); else pauseMicrophone(); glitch(now); Blink(now); }
   if (now - behavior.previousMillis >= Settings::IndicatorMs) setColor(0,0,0);
-  // Routine frames use16ms; sample first transition feedback at2ms until a
-  // visible frame changes. Unchanged rows produce no redundant SPI traffic.
+  // Render every 16 ms. While waiting for the first visible transition change,
+  // check every 2 ms. Unchanged rows produce no SPI traffic.
   if (behavior.frameDue(now, waking)) {
     Face::AudioSnapshot spectrum;
     renderFrame(now, spectrum);
@@ -261,9 +261,9 @@ void loop() {
 #endif
 }
 
-// Eye-only comparison excludes spectrum/glitch mouth changes. The counterfactual
-// source uses the SAME closure/offset, so simply closing the old face cannot be
-// reported as requested-expression onset.
+// Compare only the eyes to exclude speech and glitch effects. Apply the same
+// closure and offset to the source artwork so closing the old eyes alone
+// cannot count as the onset of the requested expression.
 bool responseEyesDiffer(const Face::Frame &a,const Face::Frame &b) {
   for(int y=0;y<Face::Height;++y)for(int x=0;x<16;++x)
     if(Face::pixel(a,x,y)!=Face::pixel(b,x,y)||Face::pixel(a,96+x,y)!=Face::pixel(b,96+x,y))return true;

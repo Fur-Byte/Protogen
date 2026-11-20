@@ -76,8 +76,8 @@ public:
       nextPoll = now;
     activeUntil = now + ActiveMs;
   }
-  // Called only after a matched authenticated command ACK. Coalesce a fresh
-  // status request so queued intent does not wait for the ordinary100ms poll.
+  // After a matching authenticated command ACK, coalesce a fresh status request
+  // so queued input need not wait for the regular 100 ms poll.
   bool refreshStatus(uint32_t now) {
     if(role!=Paw || !online())return false;
     activity(now);nextPoll=now;return true;

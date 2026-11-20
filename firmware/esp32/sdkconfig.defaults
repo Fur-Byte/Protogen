@@ -2,7 +2,7 @@ CONFIG_IDF_TARGET="esp32c3"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=12288
-# Keep the5ms main poll representable;100Hz silently turns it into delay(0).
+# At 100 Hz the main poll rounds down to zero ticks. Keep the delay representable.
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_TASK_WDT_EN=y
 CONFIG_MBEDTLS_PSK_MODES=y
