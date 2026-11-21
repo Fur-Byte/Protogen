@@ -52,13 +52,17 @@ bool Core::finishBlinkEntropy(const RuntimeConfig &config) {
 bool Core::advanceBlink(uint32_t now) {
   if (transitionActive || expression == ExpressionVwv) return false;
   if (!blinkState && !blinkRandomPending && now - blinkTime >= nextBlinkInterval) {
-    blinkState = true; blinkClosure = 0; blinkSpeed = now;
+    blinkState = true;
+    blinkClosure = 0;
+    blinkSpeed = now;
   }
   if (!blinkState) return false;
   const uint32_t elapsed = now - blinkSpeed;
   blinkClosure = blinkTiming.closure(elapsed);
   if (elapsed < blinkTiming.duration()) return false;
-  blinkClosure = 0; blinkState = false; blinkTime = now;
+  blinkClosure = 0;
+  blinkState = false;
+  blinkTime = now;
   if (!blinkDoublePending) return true;
   nextBlinkInterval = blinkTiming.followupMs;
   blinkDoublePending = false;
@@ -66,18 +70,35 @@ bool Core::advanceBlink(uint32_t now) {
 }
 
 void Core::advanceGlitch(uint32_t now, bool speaking) {
-  if (speaking || transitionActive) { glitchFrame = 0; glitchDelay = now; return; }
-  if (expression != ExpressionAngry) { glitchFrame = 0; return; }
+  if (speaking || transitionActive) {
+    glitchFrame = 0;
+    glitchDelay = now;
+    return;
+  }
+  if (expression != ExpressionAngry) {
+    glitchFrame = 0;
+    return;
+  }
   if (now - glitchDelay >= Settings::GlitchIntervalMs && now - glitchSpeed >= Settings::GlitchStepMs) {
-    ++glitchFrame; glitchSpeed = now;
-    if (glitchFrame >= 3) { glitchFrame = 0; glitchDelay = now; }
+    ++glitchFrame;
+    glitchSpeed = now;
+    if (glitchFrame >= 3) {
+      glitchFrame = 0;
+      glitchDelay = now;
+    }
   }
 }
 
 void Core::observeBoop(int reading, const RuntimeConfig &config) {
-  if (reading < 0 || reading > 1023) { boopState = false; boopArmed = false; }
-  else if (reading >= config.boopRelease) { boopState = false; boopArmed = true; }
-  else if (reading <= config.boopThreshold) boopState = true;
+  if (reading < 0 || reading > 1023) {
+    boopState = false;
+    boopArmed = false;
+  } else if (reading >= config.boopRelease) {
+    boopState = false;
+    boopArmed = true;
+  } else if (reading <= config.boopThreshold) {
+    boopState = true;
+  }
 }
 
 void Core::beginBoop(uint32_t now) {
@@ -94,7 +115,10 @@ void Core::beginRemoteBoop(uint32_t now, uint16_t duration) {
 
 void Core::expireBoop(uint32_t now, uint16_t localDuration) {
   if (boopActive && now - boopTime >= (boopFromRemote ? remoteBoopDuration : localDuration)) {
-    boopActive = false; boopFromRemote = false; boopArmed = false; rising = true;
+    boopActive = false;
+    boopFromRemote = false;
+    boopArmed = false;
+    rising = true;
   }
 }
 
@@ -174,9 +198,13 @@ Pose Core::poseAt(uint32_t now, const RuntimeConfig &config, bool speaking, uint
 #endif
                   ) {
   Pose pose;
-  pose.expression = expression; pose.boop = boopActive;
-  pose.speaking = speaking; pose.glitch = glitchFrame; pose.closure = blinkClosure;
-  pose.mouthMode = static_cast<uint8_t>(config.mouthMode); pose.aperture = aperture;
+  pose.expression = expression;
+  pose.boop = boopActive;
+  pose.speaking = speaking;
+  pose.glitch = glitchFrame;
+  pose.closure = blinkClosure;
+  pose.mouthMode = static_cast<uint8_t>(config.mouthMode);
+  pose.aperture = aperture;
   if (transitionActive) {
     const auto transition = transitionPose(now - transitionStarted, config.transitionMs,
         transitionFrom, expression, transitionStartClosure, earlyReveal);
