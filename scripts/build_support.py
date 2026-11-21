@@ -186,6 +186,57 @@ def memory_metrics(output):
     return result
 
 
+def _compiler_flag_error(objects, sketch, auth_enabled):
+    database = objects / "compile_commands.json"
+    units = json.loads(database.read_text()) if database.is_file() else []
+    required = ["-Werror"]
+    if auth_enabled:
+        required.append("-DPROTOGEN_UART_AUTH=1")
+    missing_flags = "Required security flags absent from actual compiler commands"
+    if not units or any(not all(flag in unit.get("arguments", []) for flag in required) for unit in units):
+        return missing_flags
+    if auth_enabled:
+        try:
+            for unit in units:
+                arguments = unit.get("arguments", [])
+                if "PROTOGEN_UART_AUTH" not in compiler_options(arguments)[0]:
+                    return missing_flags
+                validate_uart_key_flags(arguments, [sketch, sketch / "src"])
+        except RuntimeError as error:
+            return str(error)
+    return None
+
+
+def _inspect_libraries(objects, toolchain, features):
+    # The cache records the library paths Arduino CLI actually selected.
+    cache = objects / "libraries.cache"
+    selected = json.loads(cache.read_text()) if cache.is_file() else []
+    bundled = toolchain.get("bundled_source_libraries", {})
+    resolved = {}
+    for library in selected:
+        directory = Path(library)
+        properties = directory / "library.properties"
+        if not properties.is_file() and directory.name == "src":
+            properties = directory.parent / "library.properties"
+        if properties.is_file():
+            source = properties.read_text()
+            name = re.search(r"^name=(.*)$", source, re.MULTILINE)
+            version = re.search(r"^version=(.*)$", source, re.MULTILINE)
+            if name:
+                resolved[name[1]] = {"version": version[1] if version else None, "path": library}
+        # The legacy Entropy library is identified by its pinned source files.
+        for name, files in bundled.items():
+            if directory.name == name:
+                hashes = {filename: hashlib.sha256((directory / filename).read_bytes()).hexdigest()
+                          for filename in files if (directory / filename).is_file()}
+                resolved[name] = {"path": library, "source_sha256": hashes}
+
+    expected = locked_library_versions(toolchain, features)
+    problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
+    problems += [name for name, files in bundled.items() if resolved.get(name, {}).get("source_sha256") != files]
+    return resolved, problems
+
+
 class BuildRun:
     def __init__(self, root, kind):
         self.root, self.kind = root, kind
@@ -224,81 +275,52 @@ class BuildRun:
     def compile(self, cli, sketch, features, output_directory=None, extra_flags=None, fqbn=FQBN,
                 reuse_cache=False, jobs=None, build_properties=()):
         output_directory = output_directory or self.path / ("artifacts-" + str(len(self.record["results"])))
+        objects = output_directory / "objects"
         command = [cli, "compile", "--fqbn", fqbn, "--warnings", "all",
-                   "--build-path", str(output_directory / "objects"), "--output-dir", str(output_directory), str(sketch)]
+                   "--build-path", str(objects), "--output-dir", str(output_directory), str(sketch)]
         if not reuse_cache:
             command.insert(2, "--clean")
         if jobs is not None:
             command[2:2] = ["--jobs", str(jobs)]
         for value in build_properties:
             command[2:2] = ["--build-property", value]
-        extra_flags=extra_flags or "-Werror"
+
         auth_enabled = "PROTOGEN_UART_AUTH" in features
-        if extra_flags:
-            # Teensy's recipes consume build.flags.defs, not build.extra_flags.
-            # Preserve the installed board's definitions rather than replacing
-            # its MCU/Teensyduino flags with our security build options.
-            properties = subprocess.run(
-                [cli, "compile", "--fqbn", fqbn, "--show-properties=expanded", str(sketch)],
-                capture_output=True, text=True, check=True)
-            definitions = next((line.partition("=")[2] for line in properties.stdout.splitlines()
-                                if line.startswith("build.flags.defs=")), None)
-            if not definitions:
-                raise RuntimeError("Teensy board compiler definitions are missing")
-            auth_enabled = auth_enabled or "PROTOGEN_UART_AUTH" in compiler_options(definitions + " " + extra_flags)[0]
-            if auth_enabled:
-                validate_uart_key_flags(definitions + " " + extra_flags, [sketch, sketch / "src"])
-                # Upstream Mbed TLS public headers use canonical mbedtls/... paths.
-                extra_flags += " -I" + shlex.quote(str(sketch)) + " -I" + shlex.quote(str(sketch / "src/UartCrypto"))
-            command[2:2]=["--build-property", "build.flags.defs="+definitions+" "+extra_flags]
+        # Teensy's recipes use build.flags.defs. Keep the installed board's definitions.
+        properties = subprocess.run(
+            [cli, "compile", "--fqbn", fqbn, "--show-properties=expanded", str(sketch)],
+            capture_output=True, text=True, check=True)
+        definitions = next((line.partition("=")[2] for line in properties.stdout.splitlines()
+                            if line.startswith("build.flags.defs=")), None)
+        if not definitions:
+            raise RuntimeError("Teensy board compiler definitions are missing")
+
+        flags = definitions + " " + (extra_flags or "-Werror")
+        auth_enabled = auth_enabled or "PROTOGEN_UART_AUTH" in compiler_options(flags)[0]
+        if auth_enabled:
+            validate_uart_key_flags(flags, [sketch, sketch / "src"])
+            # Upstream Mbed TLS headers use canonical mbedtls/... paths.
+            flags += " -I" + shlex.quote(str(sketch)) + " -I" + shlex.quote(str(sketch / "src/UartCrypto"))
+        command[2:2] = ["--build-property", "build.flags.defs=" + flags]
+
         run = subprocess.run(command, capture_output=True, text=True)
         output = run.stdout + run.stderr
-        result = {"features": list(features), "fqbn": fqbn, "exit_code": run.returncode,
-                  "warnings": len(re.findall(r"\bwarning:", output)), "command": command,
-                  "configured_source_sha256": hashlib.sha256((sketch / "PROT_OS7_MAX7219.ino").read_bytes()).hexdigest(),
-                  "memory": memory_metrics(output)}
+        result = {
+            "features": list(features),
+            "fqbn": fqbn,
+            "exit_code": run.returncode,
+            "warnings": len(re.findall(r"\bwarning:", output)),
+            "command": command,
+            "configured_source_sha256": hashlib.sha256((sketch / "PROT_OS7_MAX7219.ino").read_bytes()).hexdigest(),
+            "memory": memory_metrics(output),
+        }
         if run.returncode == 0:
-            database = output_directory / "objects" / "compile_commands.json"
-            units = json.loads(database.read_text()) if database.is_file() else []
-            required = ["-Werror"] + (["-DPROTOGEN_UART_AUTH=1"] if auth_enabled else [])
-            if not units or any(not all(flag in unit.get("arguments", []) for flag in required) for unit in units):
-                result["dependency_error"] = "Required security flags absent from actual compiler commands"
-            elif auth_enabled:
-                try:
-                    for unit in units:
-                        arguments = unit.get("arguments", [])
-                        if "PROTOGEN_UART_AUTH" not in compiler_options(arguments)[0]:
-                            raise RuntimeError("Required security flags absent from actual compiler commands")
-                        validate_uart_key_flags(arguments, [sketch, sketch / "src"])
-                except RuntimeError as error:
-                    result["dependency_error"] = str(error)
-        # libraries.cache records the paths actually selected by Arduino CLI.
-        if run.returncode == 0:
-            cache = output_directory / "objects" / "libraries.cache"
-            selected = json.loads(cache.read_text()) if cache.is_file() else []
-            resolved = {}
-            for library in selected:
-                properties = Path(library) / "library.properties"
-                if not properties.is_file() and Path(library).name == "src":
-                    properties = Path(library).parent / "library.properties"
-                if properties.is_file():
-                    text = properties.read_text()
-                    name = re.search(r"^name=(.*)$", text, re.MULTILINE)
-                    version = re.search(r"^version=(.*)$", text, re.MULTILINE)
-                    if name:
-                        resolved[name[1]] = {"version": version[1] if version else None, "path": library}
-                # Teensy's legacy Entropy library has no library.properties.
-                # Identify and verify its actually selected source files instead.
-                for name, files in self.record["toolchain"].get("bundled_source_libraries", {}).items():
-                    if Path(library).name == name:
-                        resolved[name] = {"path": library, "source_sha256": {
-                            filename: hashlib.sha256((Path(library) / filename).read_bytes()).hexdigest()
-                            for filename in files if (Path(library) / filename).is_file()}}
+            flag_error = _compiler_flag_error(objects, sketch, auth_enabled)
+            if flag_error is not None:
+                result["dependency_error"] = flag_error
+
+            resolved, problems = _inspect_libraries(objects, self.record["toolchain"], features)
             result["selected_libraries"] = resolved
-            expected = locked_library_versions(self.record["toolchain"], features)
-            problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
-            problems += [name for name, files in self.record["toolchain"].get("bundled_source_libraries", {}).items()
-                         if resolved.get(name, {}).get("source_sha256") != files]
             if problems:
                 result["dependency_error"] = "Selected libraries missing or different from lock: " + ", ".join(problems)
         self.record["results"].append(result)
