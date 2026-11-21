@@ -35,7 +35,8 @@ int main() {
     assert(paw.available && paw.at == 101 && paw.bridge == 12);
     assert(paw.packet.length == ExtendedStatusBytes && paw.packet.ticket == base.ticket);
     const auto repeated = Wireless::extendHelmetStatus(extended, 50, 0);
-    assert(repeated.length == extended.length && !memcmp(repeated.payload, extended.payload, extended.length));
+    assert(repeated.length == extended.length &&
+           !memcmp(repeated.payload, extended.payload, extended.length));
   }
 
   // Use status delivered through the application adapter to issue a real command.
@@ -69,8 +70,7 @@ int main() {
     assert(!memcmp(paw.packet.payload, good.payload, good.length));
   };
   for (unsigned length = 0; length <= MaxPayload; ++length) {
-    if (length == StatusBytes || length == ExtendedStatusBytes)
-      continue;
+    if (length == StatusBytes || length == ExtendedStatusBytes) continue;
     auto bad = good;
     bad.length = length;
     rejected(bad);
@@ -78,12 +78,24 @@ int main() {
   auto bad = good;
   put16(bad.payload + StatusBytes, 101);
   rejected(bad);
-  bad = good; bad.payload[19] = 1; rejected(bad);
-  bad = good; bad.payload[4] = 6; rejected(bad);
-  bad = good; bad.payload[5] = 0x80; rejected(bad);
-  bad = good; bad.epoch = 0; rejected(bad);
-  bad = good; put32(bad.payload, 0); rejected(bad);
-  bad = good; bad.kind = Ack; rejected(bad);
+  bad = good;
+  bad.payload[19] = 1;
+  rejected(bad);
+  bad = good;
+  bad.payload[4] = 6;
+  rejected(bad);
+  bad = good;
+  bad.payload[5] = 0x80;
+  rejected(bad);
+  bad = good;
+  bad.epoch = 0;
+  rejected(bad);
+  bad = good;
+  put32(bad.payload, 0);
+  rejected(bad);
+  bad = good;
+  bad.kind = Ack;
+  rejected(bad);
   const auto ack = Wireless::extendHelmetStatus(bad, 50, 0);
   assert(ack.kind == Ack && ack.length == bad.length && !memcmp(ack.payload, bad.payload, bad.length));
 
@@ -94,7 +106,9 @@ int main() {
   assert(paw.receive(base, 202, changed) && changed && paw.bridge == 13);
   paw.available = false; // An ACK requests a fresh status before another action.
   assert(paw.receive(base, 203, changed) && !changed && paw.available);
-  paw.available = false; paw.bridge = 0; // A disconnected paw starts a new session.
+  paw.available = false;
+  paw.bridge = 0; // A disconnected paw starts a new session.
   assert(paw.receive(base, 204, changed) && !changed && paw.available);
-  std::cout << "PASS: base/extended status delivery, command acceptance/expiry/dedup, malformed status rejection, session changes\n";
+  std::cout
+      << "PASS: base/extended status delivery, command acceptance/expiry/dedup, malformed status rejection, session changes\n";
 }
