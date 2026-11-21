@@ -20,7 +20,8 @@ python3 scripts/package-release.py --output build/releases/release.zip \
 ```
 
 `PREVIOUS_RELEASE_SHA256` comes from the independently retained record of the
-previously verified bundle. For a first bundle, use `--initial-release` and omit
+previously verified bundle. Keep that ZIP alongside the new bundle. The new
+bundle records its digest for recovery. For a first bundle, use `--initial-release` and omit
 both previous-release arguments. The manifest records the absence of a rollback
 bundle. Keep the known-good archive and its digest off the helmet and verify
 every file against `release.json` before flashing.
@@ -37,7 +38,7 @@ under script and tool cache directories are permitted. Put the output in an
 ignored build directory or outside the checkout. The packager publishes the
 ZIP only after all checks pass and preserves an existing output path.
 
-`release.json` schema 2 records the exact Git commit, source-content hash,
+`release.json` schema 3 records the exact Git commit, source-content hash,
 build compatibility, configuration-backup presence, rollback digest and a
 hash of every payload. It labels all output as development with physical
 qualification pending. This is a local build and archive integrity check.
@@ -61,7 +62,7 @@ bootloaders and partition tables, toolchain pins, wiring and recovery
 references, and matching successful build evidence. The packager verifies the
 independent archive digest, rejects duplicate or unsafe paths, and checks that
 archived files match both the archive manifest and the build evidence. A
-schema-1 bundle can be used if the retained digest, contents and its build
+schema-1 or schema-2 bundle can be used if the retained digest, contents and its build
 evidence satisfy those checks. A recovery ZIP is limited to 256 MiB of
 uncompressed data.
 
