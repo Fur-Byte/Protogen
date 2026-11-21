@@ -1,4 +1,5 @@
 """The canonical P6 schema validator and deterministic asset compiler."""
+
 import argparse
 from dataclasses import dataclass
 import json
@@ -12,8 +13,12 @@ MAX_EVENTS = 32
 VERSION = 1
 REGIONS = ("left", "right", "mouth", "full")
 CHANNELS = {
-    "x": (-2, 2), "y": (-1, 1), "lid": (0, 8), "squint": (0, 4),
-    "sprite": (0, 5), "aperture": (0, 3),
+    "x": (-2, 2),
+    "y": (-1, 1),
+    "lid": (0, 8),
+    "squint": (0, 4),
+    "sprite": (0, 5),
+    "aperture": (0, 3),
 }
 EASING = ("linear", "in", "out", "in-out", "settle")
 HEADER = struct.Struct("<HBBHIBBBB2x")
@@ -70,8 +75,13 @@ def load_json(data):
         return int(token)
 
     try:
-        return json.loads(data.decode("utf-8"), object_pairs_hook=pairs, parse_int=parse_int,
-                          parse_constant=reject, parse_float=reject)
+        return json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=pairs,
+            parse_int=parse_int,
+            parse_constant=reject,
+            parse_float=reject,
+        )
     except (UnicodeError, json.JSONDecodeError) as error:
         raise TimelineError("$", f"invalid JSON: {error}") from error
 
@@ -113,20 +123,20 @@ class Compiled:
 
     def header(self):
         # All generated tokens come from byte values, never user strings.
-        lines = [", ".join(str(b) for b in self.data[i:i+16]) for i in range(0, len(self.data), 16)]
+        lines = [", ".join(str(b) for b in self.data[i : i + 16]) for i in range(0, len(self.data), 16)]
         return (
             '#pragma once\n#include "src/BehaviorCore/Timeline.h"\n'
             '#if !PROTOGEN_ANIMATION_TIMELINES\n#error "This asset requires timeline support."\n#endif\n'
-            'namespace ProtogenAsset {\ninline constexpr uint8_t clip[] = {\n    '
-            + ',\n    '.join(lines) + '\n};\n'
+            "namespace ProtogenAsset {\ninline constexpr uint8_t clip[] = {\n    "
+            + ",\n    ".join(lines)
+            + "\n};\n"
             'static_assert(Behavior::Timeline::validAsset(clip, sizeof(clip)), "Invalid timeline asset");\n'
-            '}\n'
+            "}\n"
         )
 
 
 def compile_document(doc):
-    fields(doc, ("version", "id", "name", "duration_ms", "initial", "events"), "$",
-           ("cancel", "completion"))
+    fields(doc, ("version", "id", "name", "duration_ms", "initial", "events"), "$", ("cancel", "completion"))
     integer(doc["version"], VERSION, VERSION, "version")
     identifier = doc["id"]
     if type(identifier) is not str or not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", identifier):
@@ -141,7 +151,7 @@ def compile_document(doc):
     initial = doc["initial"]
     fields(initial, ("expression", "natural_blinks", "idle_motion", "cosmetic_seed", "audio"), "initial")
     expression = integer(initial["expression"], 0, 5, "initial.expression")
-    seed = integer(initial["cosmetic_seed"], 0, 2**32-1, "initial.cosmetic_seed")
+    seed = integer(initial["cosmetic_seed"], 0, 2**32 - 1, "initial.cosmetic_seed")
     audio = integer(initial["audio"], 0, 500, "initial.audio")
     idle = boolean(initial["idle_motion"], "initial.idle_motion")
     blink = boolean(initial["natural_blinks"], "initial.natural_blinks")
@@ -153,8 +163,12 @@ def compile_document(doc):
     channel_names = tuple(CHANNELS)
     for index, item in enumerate(doc["events"]):
         path = f"events[{index}]"
-        fields(item, ("at_ms", "duration_ms", "from", "to", "region", "channel", "priority", "easing"),
-               path, ("repeat",))
+        fields(
+            item,
+            ("at_ms", "duration_ms", "from", "to", "region", "channel", "priority", "easing"),
+            path,
+            ("repeat",),
+        )
         start = integer(item["at_ms"], 0, duration, f"{path}.at_ms")
         event_duration = integer(item["duration_ms"], 0, 5000, f"{path}.duration_ms")
         region = choice(item["region"], REGIONS, f"{path}.region")
@@ -187,24 +201,44 @@ def compile_document(doc):
         easing_code = EASING.index(easing)
         for occurrence in range(repeat_count):
             at = start + occurrence * repeat_period
-            expanded.append((at, start, index, event_duration, region_code, channel_code,
-                             priority, easing_code, first, last))
+            expanded.append(
+                (
+                    at,
+                    start,
+                    index,
+                    event_duration,
+                    region_code,
+                    channel_code,
+                    priority,
+                    easing_code,
+                    first,
+                    last,
+                )
+            )
     # Equal expanded timestamps sort by canonical source order: original
     # base time, then original declaration index. This survives re-import.
     expanded.sort()
     active_until = []
-    data = bytearray(HEADER.pack(VERSION, len(expanded), audio >> 8, duration, seed, expression,
-                                 blink, idle, audio & 255))
+    data = bytearray(
+        HEADER.pack(VERSION, len(expanded), audio >> 8, duration, seed, expression, blink, idle, audio & 255)
+    )
     for at, _, index, event_duration, region, channel, priority, easing, first, last in expanded:
         active_until = [end for end in active_until if end >= at]  # P5 includes the last millisecond.
         if len(active_until) == 8:
             raise TimelineError(f"events[{index}]", f"global capacity exceeded at {at} ms")
         active_until.append(at + event_duration)
         data.extend(EVENT.pack(at, event_duration, region, channel, priority, easing, first, last))
-    data.extend(bytes((MAX_EVENTS-len(expanded))*EVENT.size))
-    canonical = {"version": VERSION, "id": identifier, "name": name, "duration_ms": duration,
-                 "initial": dict(initial), "events": sorted(source_events, key=lambda item: item["at_ms"]),
-                 "cancel": cancel, "completion": completion}
+    data.extend(bytes((MAX_EVENTS - len(expanded)) * EVENT.size))
+    canonical = {
+        "version": VERSION,
+        "id": identifier,
+        "name": name,
+        "duration_ms": duration,
+        "initial": dict(initial),
+        "events": sorted(source_events, key=lambda item: item["at_ms"]),
+        "cancel": cancel,
+        "completion": completion,
+    }
     return Compiled(canonical, bytes(data))
 
 
@@ -215,13 +249,15 @@ def main():
     args = parser.parse_args()
     try:
         with args.input.open("rb") as stream:
-            compiled = compile_document(load_json(stream.read(MAX_BYTES+1)))
+            compiled = compile_document(load_json(stream.read(MAX_BYTES + 1)))
         if args.format == "binary":
             sys.stdout.buffer.write(compiled.data)
         else:
             print(compiled.source() if args.format == "json" else compiled.header(), end="")
     except (TimelineError, OSError) as error:
-        detail = error.diagnostic() if isinstance(error, TimelineError) else {"path": "$", "message": str(error)}
+        detail = (
+            error.diagnostic() if isinstance(error, TimelineError) else {"path": "$", "message": str(error)}
+        )
         print(json.dumps({"error": detail}), file=sys.stderr)
         return 1
     return 0
