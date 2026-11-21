@@ -3,6 +3,7 @@
 import argparse
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -147,9 +148,11 @@ def main():
                 controls.add(test)
             path = directory / relative
             text = path.read_text()
-            if text.count(original) != 1:
+            # Line wrapping and indentation do not change a mutation point.
+            pattern = r"\s+".join(re.escape(part) for part in original.split())
+            mutated, edits = re.subn(pattern, lambda _: replacement, text)
+            if edits != 1:
                 raise RuntimeError(f"{name}: expected one mutation point in {relative}")
-            mutated = text.replace(original, replacement)
             if test == "wireless":
                 marker = "  bool okay = Crypto::gcm(false,"
                 if mutated.count(marker) != 1:

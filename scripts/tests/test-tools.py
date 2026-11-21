@@ -335,12 +335,17 @@ class SettingsChecks(unittest.TestCase):
                      ("StartupExpression", "256"), ("StartupExpression", "-1"),
                      ("BoopThreshold", "550"), ("MicrophoneSensitivity", "1024"),
                      ("ButtonHoldMs", "10")]
-        intervals = re.findall(r"constexpr uint32_t (\w+Ms) =", source)
+        intervals = re.findall(r"\bconstexpr\s+uint32_t\s+(\w+Ms)\s*=", source)
         mutations += [(name, value) for name in intervals for value in ("0", "0xffffffffUL") if not (value == "0" and name in ("TransitionMs", "BlinkJitterMs"))]
         for name, value in [(None, None)] + mutations:
             with self.subTest(setting=name, value=value):
-                text = source if name is None else re.sub(
-                    r"(constexpr \w+ " + name + r" = )[^;]+", lambda match: match[1] + value, source)
+                text = source
+                if name is not None:
+                    text, edits = re.subn(
+                        rf"(\bconstexpr\s+\w+\s+{re.escape(name)}\s*=\s*)[^;]+",
+                        lambda match: match[1] + value, source,
+                    )
+                    self.assertEqual(edits, 1, f"Expected one constexpr declaration for {name}")
                 # Compile as an included header so #pragma once is not a warning.
                 with tempfile.TemporaryDirectory(prefix="protogen-settings-") as tmp:
                     header = Path(tmp) / "Settings.h"
