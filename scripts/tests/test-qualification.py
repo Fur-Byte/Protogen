@@ -135,6 +135,66 @@ class Qualification(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 validate(self.manifest(record), self.root, SOURCE)
 
+    def test_release_soak_requires_retained_shard_files(self):
+        record = self.record("host.soak-100x24h")
+        record["artifact"] = self.soak_artifact()
+        document = self.manifest(record)
+        validate(document, self.root, SOURCE)
+        with self.assertRaisesRegex(ValueError, "missing.*shard"):
+            validate(document, self.root, SOURCE, require_soak_shards=True)
+
+    def test_release_soak_recomputes_coverage_and_identity(self):
+        from twin import soak
+
+        source = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        runner = b"".join(subprocess.check_output(["git", "show", f"{source}:scripts/twin/{name}"], cwd=ROOT)
+                          for name in ("soak.py", "replay.py"))
+        identity = {"source_sha": source, "source_dirty": False, "program_sha256": "b" * 64,
+                    "runner_sha256": soak.digest(runner)}
+        duration = soak.SOAK_DURATION_US
+
+        def seed_record(seed):
+            tape = soak.tape(seed, duration // 1000)
+            record = {"seed": seed, "status": "PASS", "runtime_seconds": 0,
+                      "virtual_duration_us": duration, "input_sha256": soak.digest(soak.encode(tape, soak=True).encode()),
+                      "invariant_counts": {**soak.expected_checks(tape), **dict.fromkeys(soak.CONTINUOUS_CHECKS, 1)},
+                      "event_counts": {**dict.fromkeys(soak.COUNTS, 0), "inputs_processed": len(tape["events"])},
+                      "queue_peaks": {name: soak.QUEUE_LIMITS.get(name, 0) for name in soak.PEAKS},
+                      "drop_and_rejection_counts": dict.fromkeys(soak.DROPS, 1),
+                      "feature_flags": dict.fromkeys(soak.FEATURES, False),
+                      "eeprom_sha256": "e" * 64, "terminal_state_sha256": "f" * 64}
+            record["semantic_sha256"] = soak.semantic_hash(record)
+            return record
+
+        def write_shard(name, start, count, shard_identity=identity):
+            path = self.root / name
+            document = {"version": 1, "evidence_level": "F2", "identity": shard_identity, "status": "PASS",
+                        "request": {"seed_start": start, "seed_count": count, "virtual_duration_us": duration},
+                        "seeds": [seed_record(seed) for seed in range(start, start + count)]}
+            raw = json.dumps(document).encode()
+            path.write_bytes(raw)
+            return {"path": name, "sha256": soak.digest(raw), "status": "PASS"}
+
+        def verify(shards):
+            record = self.record("host.soak-100x24h")
+            record["source_sha"] = source
+            record["artifact"] = self.soak_artifact({"identity": identity, "shards": shards})
+            document = self.manifest(record)
+            document["source_sha"] = source
+            validate(document, self.root, source, require_soak_shards=True)
+
+        head = write_shard("first.json", 0, 50)
+        tail = write_shard("last.json", 50, 50)
+        verify([head, tail])
+        with self.assertRaisesRegex(ValueError, "aggregate coverage"):
+            verify([head])
+        with self.assertRaisesRegex(ValueError, "identity differs"):
+            foreign = write_shard("foreign.json", 50, 1, {**identity, "runner_sha256": "0" * 64})
+            verify([foreign])
+        (self.root / "last.json").write_text("{}")
+        with self.assertRaisesRegex(ValueError, "digest mismatch"):
+            verify([tail])
+
     def test_mixed_physical_candidates_are_rejected(self):
         optical = self.physical("hardware.optical", "photodiode-01")
         electrical = self.physical("hardware.electrical", "meter-02")

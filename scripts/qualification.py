@@ -132,7 +132,7 @@ def artifact_identity(root, name):
     return {"path": name, "sha256": digest, "size_bytes": file.stat().st_size}
 
 
-def validate_full_soak(path, source):
+def validate_full_soak(path, source, shard_root=None):
     aggregate = load_manifest(path)
     if not isinstance(aggregate, dict):
         raise ValueError("Release soak aggregate must be an object")
@@ -162,6 +162,52 @@ def validate_full_soak(path, source):
             and coverage.get("passed_virtual_duration_us") == 100 * duration
             and all(coverage.get(key) == [] for key in blockers)):
         raise ValueError("Release soak evidence must cover all 100 complete full-day seeds on this source")
+    if shard_root is not None:
+        verify_soak_shards(shard_root, aggregate)
+
+
+def verify_soak_shards(root, aggregate):
+    from twin import soak
+
+    identity = aggregate["identity"]
+    duration = aggregate["request"]["virtual_duration_us"]
+    seeds = set()
+    profile = None
+    for reference in aggregate["shards"]:
+        name = reference["path"]
+        path = artifact_path(root, name)
+        if not path.is_file():
+            raise ValueError(f"missing retained soak shard: {name}")
+        raw = soak.read_bounded(path, soak.MAX_SHARD_BYTES)
+        if soak.digest(raw) != reference["sha256"]:
+            raise ValueError(f"soak shard digest mismatch: {name}")
+        try:
+            shard = json.loads(raw, object_pairs_hook=unique_keys, parse_constant=invalid_constant)
+            if shard["identity"] != identity:
+                raise ValueError("soak runner or executable identity differs from aggregate")
+            _, status = soak.validate_shard(shard, duration)
+            if status != "PASS" or any(record["status"] != "PASS" for record in shard["seeds"]):
+                raise ValueError("soak shard did not pass")
+            for record in shard["seeds"]:
+                if record["seed"] in seeds:
+                    raise ValueError("duplicate retained seed")
+                seeds.add(record["seed"])
+                if profile is None:
+                    profile = record["feature_flags"]
+                elif profile != record["feature_flags"]:
+                    raise ValueError("soak seed feature flags differ")
+        except (IndexError, KeyError, TypeError, ValueError) as error:
+            raise ValueError(f"invalid soak shard {name}: {error}") from error
+    if sorted(seeds) != aggregate["coverage"]["passed_seed_ids"]:
+        raise ValueError("retained soak shards do not match aggregate coverage")
+    try:
+        runner = b"".join(subprocess.check_output(
+            ["git", "--no-replace-objects", "show", f"{identity['source_sha']}:scripts/twin/{name}"],
+            cwd=ROOT, stderr=subprocess.PIPE, timeout=5) for name in ("soak.py", "replay.py"))
+    except subprocess.SubprocessError as error:
+        raise ValueError("cannot read the soak runner at the recorded source commit") from error
+    if soak.digest(runner) != identity["runner_sha256"]:
+        raise ValueError("soak runner digest differs from the recorded source commit")
 
 
 def require_identified(values):
@@ -192,11 +238,12 @@ def physical_identity(hardware, flags):
     return hardware["assembly_id"], pairs, flags
 
 
-def validate(document, artifact_root, expected_source):
+def validate(document, artifact_root, expected_source, *, require_soak_shards=False):
     check_schema(document, SCHEMA, "manifest")
     if document["source_sha"] != expected_source:
         raise ValueError("manifest does not match expected source SHA")
     seen = set()
+    verified_soak = False
     physical_candidate = None
     for record in document["records"]:
         name = record["requirement_id"]
@@ -232,7 +279,11 @@ def validate(document, artifact_root, expected_source):
         if artifact and artifact_identity(artifact_root, artifact["path"]) != artifact:
             raise ValueError(f"{name}: artifact identity mismatch")
         if name == "host.soak-100x24h" and record["result"] == "PASS":
-            validate_full_soak(artifact_path(artifact_root, artifact["path"]), expected_source)
+            validate_full_soak(artifact_path(artifact_root, artifact["path"]), expected_source,
+                               artifact_root if require_soak_shards else None)
+            verified_soak = True
+    if require_soak_shards and not verified_soak:
+        raise ValueError("release-grade verification requires a passing soak record")
 
 
 def readiness(document, candidate=None):
@@ -321,6 +372,8 @@ def main():
         check.add_argument("--artifact-root", required=True, type=Path)
         check.add_argument("--source", required=True)
         check.add_argument("--candidate", type=Path, help="independent release candidate identity for F3 readiness")
+        check.add_argument("--require-soak-shards", action="store_true",
+                           help="verify retained soak shards and the runner at their source commit")
         check.add_argument("--output", type=Path, required=name == "merge")
     args = parser.parse_args()
     try:
@@ -332,7 +385,7 @@ def main():
             validate(doc, args.artifact_root, args.source)
             entries.extend(doc["records"])
         merged = {"schema_version": 1, "source_sha": args.source, "records": entries}
-        validate(merged, args.artifact_root, args.source)
+        validate(merged, args.artifact_root, args.source, require_soak_shards=args.require_soak_shards)
         report = readiness(merged, load_manifest(args.candidate) if args.candidate else None)
         if args.operation == "merge":
             args.output.parent.mkdir(parents=True, exist_ok=True)

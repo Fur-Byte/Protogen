@@ -86,6 +86,12 @@ The release verifier checks the retained aggregate's binary and runner hashes,
 passing shard references and coverage. Recomputing that aggregate requires
 the original shard files.
 
+For release review, add `--require-soak-shards` to `verify` or `merge`. Retain
+the shard files at the aggregate's recorded paths relative to `--artifact-root`,
+and make the recorded Git commit available locally. This mode verifies shard
+digests, checks the runner source at that commit, and recomputes seed coverage.
+The default mode still verifies historical summaries.
+
 The [release and restore procedure](RELEASE_RECOVERY.md) requires a clean
 source checkout, matching exact build manifests and toolchains, artifact
 hashes and compatible feature/authentication modes. Previous archives require

@@ -17,7 +17,10 @@ import sys
 import tempfile
 import time
 
-from replay import METRICS, PROGRAM, ROOT, SOAK_DURATION_US, encode, integer
+if __package__:
+    from .replay import METRICS, PROGRAM, ROOT, SOAK_DURATION_US, encode, integer
+else:
+    from replay import METRICS, PROGRAM, ROOT, SOAK_DURATION_US, encode, integer
 
 VERSION = 1
 TARGET_SEEDS = 100
