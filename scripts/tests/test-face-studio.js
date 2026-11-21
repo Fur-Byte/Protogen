@@ -1,4 +1,4 @@
-// Execute the real inline application. The DOM fixture provides inputs only;
+// Execute the application script. The DOM fixture provides inputs only;
 // assertions inspect commands produced by its actual event handlers.
 const assert=require('node:assert/strict');
 const test=require('node:test');
@@ -6,6 +6,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'../../tools/helmet/index.html'),'utf8');
+const studio=fs.readFileSync(path.join(__dirname,'../../tools/helmet/studio.js'),'utf8');
 const token = 'A'.repeat(43);
 function openStudio() {
   const elements = new Map(), requests = [], timers = [], tabStorage = new Map();
@@ -25,7 +26,7 @@ function openStudio() {
       path, options, reply(value,ok=true){resolve({ok,json:async()=>value});}
     })),
     setTimeout(fn,ms){timers.push({fn,ms});},console});
-  vm.runInContext(html.split('<script>')[1].split('</script>')[0],context);
+  vm.runInContext(studio,context);
   return {context, element, expressions, requests, timers, get draws(){return draws;}};
 }
 const {context, requests} = openStudio();
@@ -40,7 +41,7 @@ for(const {path,options} of requests){
 const metadata=JSON.parse(fs.readFileSync(path.join(__dirname,'../../tools/helmet/config-metadata.json'),'utf8'));
 assert.deepEqual(Array.from(vm.runInContext('keys',context)),metadata.fields.map(field=>field.name));
 for(const field of metadata.fields){
-  const input=html.match(new RegExp('<input id="'+field.name+'"[^>]*>'));
+  const input=html.match(new RegExp('<input\\b[^>]*\\bid="'+field.name+'"[^>]*>'));
   if(input&&input[0].includes('type="number"')){
     assert.equal(Number(input[0].match(/min="(\d+)"/)[1]),field.minimum,field.name);
     assert.equal(Number(input[0].match(/max="(\d+)"/)[1]),field.maximum,field.name);

@@ -24,6 +24,12 @@ from timelines.simulator import replay_asset
 
 
 ROOT = Path(__file__).resolve().parents[1]
+STUDIO_ASSETS = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/studio.css": ("studio.css", "text/css; charset=utf-8"),
+    "/studio.js": ("studio.js", "text/javascript; charset=utf-8"),
+    "/timeline-editor.js": ("timeline-editor.js", "text/javascript; charset=utf-8"),
+}
 
 
 class PreviewTransport:
@@ -233,10 +239,9 @@ def make_handler(helmet, port, usb_token=None):
             if not self.allow_request():
                 return
             try:
-                if self.path == "/":
-                    self.respond(200, (ROOT / "tools/helmet/index.html").read_bytes(), "text/html; charset=utf-8")
-                elif self.path == "/timeline-editor.js":
-                    self.respond(200, (ROOT / "tools/helmet/timeline-editor.js").read_bytes(), "text/javascript; charset=utf-8")
+                if self.path in STUDIO_ASSETS:
+                    name, mime = STUDIO_ASSETS[self.path]
+                    self.respond(200, (ROOT / "tools/helmet" / name).read_bytes(), mime)
                 elif self.path == "/api/timeline/sample" and helmet.transport.simulation:
                     sample = ROOT / "tools/helmet/timelines/three-channel.json"
                     self.respond(200, load_json(sample.read_bytes()))
