@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import pty
+import select
 import stat
 import tempfile
 import threading
@@ -258,6 +259,29 @@ class HandlerChecks(unittest.TestCase):
 
 
 class SerialChecks(unittest.TestCase):
+    def test_late_reply_after_timeout_cannot_answer_next_command(self):
+        master, slave = pty.openpty()
+        try:
+            with patch("fcntl.ioctl"):
+                transport = tool.SerialTransport(os.ttyname(slave))
+            self.addCleanup(transport.close)
+            select_ready = select.select
+
+            def timed_out_read(read, write, error, remaining):
+                return ([], [], []) if read else select_ready(read, write, error, remaining)
+
+            with patch("serial_transport.select.select", side_effect=timed_out_read):
+                with self.assertRaisesRegex(RuntimeError, "did not respond"):
+                    transport.command("SAVE")
+            self.assertEqual(os.read(master, 64), b"SAVE\n")
+            os.write(master, b'{"ok":true}\n')
+            with self.assertRaisesRegex(RuntimeError, "out of sync"):
+                transport.command("GET")
+            self.assertEqual(select_ready([master], [], [], 0)[0], [])
+        finally:
+            os.close(slave)
+            os.close(master)
+
     def test_fragmented_usb_reply(self):
         # A disposable pseudo-terminal exercises raw-mode I/O, framing, and
         # request/response parsing. It is not a physical Teensy validation.
@@ -284,6 +308,31 @@ class SerialChecks(unittest.TestCase):
                 transport.close()
             os.close(slave)
             os.close(master)
+
+
+class ActionOutcomeChecks(unittest.TestCase):
+    def test_acknowledged_save_survives_frame_refresh_failure(self):
+        transport = Mock(simulation=True)
+        config = {"ok": True, "schema": 2, "config": {}}
+        transport.command.side_effect = [config, {"ok": True}, config, {"ok": True},
+                                         RuntimeError("frame unavailable"), {"ok": True}, {"ok": True}]
+        helmet = tool.Helmet(transport)
+        self.assertEqual(helmet.action({"action": "save"}),
+                         {"action_acknowledged": True, "refresh_error": "frame unavailable"})
+        self.assertEqual(helmet.state()["config"], {})
+        self.assertEqual([args[0] for args, _ in transport.command.call_args_list].count("SAVE"), 1)
+
+    def test_failed_config_refresh_retries_read_without_repeating_load(self):
+        transport = Mock(simulation=True)
+        old = {"ok": True, "schema": 2, "config": {"sensitivity": 10}}
+        restored = {"ok": True, "schema": 2, "config": {"sensitivity": 20}}
+        transport.command.side_effect = [old, {"ok": True}, {"ok": False, "error": "GET unavailable"},
+                                         {"ok": True}, restored, {"ok": True}]
+        helmet = tool.Helmet(transport)
+        self.assertTrue(helmet.action({"action": "load"})["action_acknowledged"])
+        self.assertEqual(helmet.state()["config"], restored["config"])
+        self.assertEqual([args[0] for args, _ in transport.command.call_args_list],
+                         ["GET", "LOAD", "GET", "STATUS", "GET", "FRAME"])
 
 
 if __name__ == "__main__":
