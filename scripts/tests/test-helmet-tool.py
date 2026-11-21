@@ -196,6 +196,16 @@ class HandlerChecks(unittest.TestCase):
                 self.assertTrue(headers["Content-Type"].startswith("text/html"))
                 self.assertEqual(bool(body), method != "HEAD")
 
+    def test_studio_assets_use_the_same_local_access_checks(self):
+        for name, mime in [("studio.css", "text/css"), ("studio.js", "text/javascript"),
+                           ("timeline-editor.js", "text/javascript")]:
+            with self.subTest(asset=name):
+                status, headers, body = self.request("GET", "/" + name)
+                self.assertEqual(status, 200)
+                self.assertEqual(headers["Content-Type"], mime + "; charset=utf-8")
+                self.assertEqual(body, (ROOT / "tools/helmet" / name).read_bytes())
+                self.assertEqual(self.request("GET", "/" + name, {"Origin": "https://invalid.example"})[0], 403)
+
     def test_local_api_controls_remain_available(self):
         for host in ("127.0.0.1:8765", "localhost:8765"):
             with self.subTest(host=host):
