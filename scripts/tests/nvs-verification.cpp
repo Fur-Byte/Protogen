@@ -9,8 +9,13 @@ void wipe(void *p,size_t n){protogenSecureZero(p,n);}
 int nvs_flash_init_partition(const char *){return ESP_OK;}
 int nvs_open(const char *,int,nvs_handle_t *h){*h=1;return ESP_OK;}
 int nvs_set_blob(nvs_handle_t,const char *,const void *p,size_t n){
-  if(failure==1)return -1;
-  const auto *bytes=static_cast<const uint8_t *>(p);staged.assign(bytes,bytes+n);return ESP_OK;
+  if(failure==1)return ESP_ERR_NVS_NOT_ENOUGH_SPACE;
+  const auto *bytes=static_cast<const uint8_t *>(p);staged.assign(bytes,bytes+n);
+  if (failure == 6) {
+    persisted = staged;
+    return ESP_ERR_NVS_REMOVE_FAILED;
+  }
+  return ESP_OK;
 }
 int nvs_commit(nvs_handle_t){if(failure==2)return -1;persisted=staged;return ESP_OK;}
 int nvs_get_blob(nvs_handle_t,const char *,void *p,size_t *n){
@@ -21,19 +26,32 @@ int nvs_get_blob(nvs_handle_t,const char *,void *p,size_t *n){
   return ESP_OK;
 }
 int main(){
+  using SecureStorage::SaveResult;
   Device::Config config;config.features=3;config.usableEnergyMWh=1000;
   nvs_handle_t handle=0;assert(SecureStorage::begin(handle));
-  assert(SecureStorage::save(handle,config));
+  assert(SecureStorage::save(handle,config) == SaveResult::Verified);
   Device::Config loaded;assert(SecureStorage::load(handle,loaded));
   assert(loaded.features==3 && loaded.usableEnergyMWh==1000);
   const auto previous=persisted;
-  for(failure=1;failure<=5;++failure){
+  failure=1;
+  config.usableEnergyMWh=1001;
+  const auto rejected = SecureStorage::save(handle, config);
+  assert(rejected == SaveResult::NotWritten);
+  assert(persisted==previous);
+  for(failure=2;failure<=6;++failure){
     config.usableEnergyMWh=1000+failure;
-    assert(!SecureStorage::save(handle,config));
-    if(failure<=2)assert(persisted==previous);
+    const auto outcome = SecureStorage::save(handle,config);
+    assert(outcome == SaveResult::Indeterminate);
+    if(failure==2)assert(persisted==previous);
+    else {
+      assert(persisted!=previous);
+      assert(outcome != rejected && "post-commit failure must trigger recovery");
+    }
   }
-  failure=0;assert(SecureStorage::save(handle,config));
+  failure=0;
+  assert(SecureStorage::load(handle, loaded) && loaded.usableEnergyMWh == 1006);
+  assert(SecureStorage::save(handle,config) == SaveResult::Verified);
   const auto m=SecureStorage::metrics();
-  assert(m.attempts==7 && m.commits==5 && m.verified==2 && m.failures==5);
+  assert(m.attempts==8 && m.commits==5 && m.verified==2 && m.failures==6);
   std::cout<<"PASS: actual NVS save path, set/commit/read failures, corrupted/short readback and verified write counters\n";
 }

@@ -48,26 +48,42 @@ bool load(nvs_handle_t handle, Device::Config &config) {
   Wireless::Crypto::wipe(blob, sizeof(blob));
   return okay;
 }
-bool save(nvs_handle_t handle, const Device::Config &config) {
+SaveResult save(nvs_handle_t handle, const Device::Config &config) {
   uint8_t blob[Device::ConfigBytes];
   Device::encode(config, blob);
   Device::Config checked;
   const bool valid = Device::decode(blob, sizeof(blob), checked);
   Efficiency::increment(counters.attempts);
-  const bool okay =
-      valid && nvs_set_blob(handle, "config", blob, sizeof(blob)) == ESP_OK &&
-      nvs_commit(handle) == ESP_OK;
-  bool verified=false;
-  if(okay) {
-    Efficiency::increment(counters.commits);
-    uint8_t readback[Device::ConfigBytes]{};size_t size=sizeof(readback);
-    verified=nvs_get_blob(handle,"config",readback,&size)==ESP_OK && size==sizeof(blob) &&
-        memcmp(readback,blob,sizeof(blob))==0;
-    Wireless::Crypto::wipe(readback,sizeof(readback));
+  SaveResult result = SaveResult::NotWritten;
+  if (valid) {
+    switch (nvs_set_blob(handle, "config", blob, sizeof(blob))) {
+      case ESP_OK:
+        result = SaveResult::Indeterminate;
+        if (nvs_commit(handle) == ESP_OK) {
+          Efficiency::increment(counters.commits);
+          uint8_t readback[Device::ConfigBytes]{};
+          size_t size = sizeof(readback);
+          if (nvs_get_blob(handle, "config", readback, &size) == ESP_OK &&
+              size == sizeof(blob) && memcmp(readback, blob, sizeof(blob)) == 0)
+            result = SaveResult::Verified;
+          Wireless::Crypto::wipe(readback, sizeof(readback));
+        }
+        break;
+      case ESP_ERR_NVS_INVALID_HANDLE:
+      case ESP_ERR_NVS_READ_ONLY:
+      case ESP_ERR_NVS_INVALID_NAME:
+      case ESP_ERR_NVS_NOT_ENOUGH_SPACE:
+      case ESP_ERR_NVS_VALUE_TOO_LONG:
+        break;
+      default:
+        // In particular, REMOVE_FAILED can leave a value NVS finishes installing on reboot.
+        result = SaveResult::Indeterminate;
+        break;
+    }
   }
-  Efficiency::increment(verified?counters.verified:counters.failures);
+  Efficiency::increment(result == SaveResult::Verified ? counters.verified : counters.failures);
   Wireless::Crypto::wipe(blob, sizeof(blob));
   Wireless::Crypto::wipe(checked.psk,sizeof(checked.psk));
-  return verified;
+  return result;
 }
 } // namespace SecureStorage
