@@ -471,9 +471,10 @@ void serviceUnlock(uint32_t now) {
     unlockedAt = now;
     entryConsumed = true;
     confirmationArmed = false;
-    if (radioStarted)
-      wirelessLink.startPairing(now);
-    puts("{\"event\":\"wireless_pairing\",\"seconds\":60}");
+    if (radioStarted && wirelessLink.startPairing(now))
+      puts("{\"event\":\"wireless_pairing\",\"seconds\":60}");
+    else
+      puts("{\"event\":\"wireless_pairing_unavailable\"}");
   }
   if (unlocked && held && !eraseConsumed &&
       now - unlockStarted >= Wireless::EraseHoldMs) {
@@ -803,8 +804,11 @@ extern "C" void app_main() {
   gpio_set_direction(static_cast<gpio_num_t>(Device::PairingLed),
                      GPIO_MODE_OUTPUT);
   gpio_set_level(static_cast<gpio_num_t>(Device::PairingLed), 0);
-  radioStarted = transport.begin() &&
-                 wirelessLink.begin(config.paired, config.psk, nowMs());
+  radioStarted = transport.begin();
+  if (radioStarted && !wirelessLink.begin(config.paired, config.psk, nowMs())) {
+    radioStarted = false;
+    puts("{\"event\":\"radio_start_failed\",\"stage\":\"secure_link\"}");
+  }
   WearerIO::start(config);
   printf("{\"event\":\"ready\",\"role\":%u,\"paired\":%s,\"radio\":%s}\n",
          Device::Role, config.paired ? "true" : "false",

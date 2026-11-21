@@ -5,6 +5,7 @@
 #include "esp_now.h"
 #include "esp_random.h"
 #include "esp_wifi.h"
+#include <stdio.h>
 #include <string.h>
 namespace Wireless {
 namespace {
@@ -20,11 +21,24 @@ void tx(const esp_now_send_info_t *, esp_now_send_status_t s) {
 }
 } // namespace
 bool EspNowTransport::begin() {
+  if (initialized) return true;
+
+  bool ownsLoop = false, wifiInitialized = false;
+  const auto fail = [&](const char *stage, bool startAttempted = false) {
+    if (startAttempted) esp_wifi_stop();
+    if (wifiInitialized) esp_wifi_deinit();
+    if (ownsLoop) esp_event_loop_delete_default();
+    if (queue) vQueueDelete(queue);
+    queue = nullptr;
+    printf("{\"event\":\"radio_start_failed\",\"stage\":\"%s\"}\n", stage);
+    return false;
+  };
   queue = xQueueCreate(RxSlots, sizeof(Received));
   if (!queue)
-    return false;
+    return fail("receive_queue");
   if (esp_event_loop_create_default() != ESP_OK)
-    return false;
+    return fail("event_loop");
+  ownsLoop = true;
   // First pseudonym needs real entropy before Wi-Fi is running. This routine
   // is called before WearerIO starts any ADC and before initializing Wi-Fi.
   Mac initial;
@@ -33,15 +47,18 @@ bool EspNowTransport::begin() {
   bootloader_random_disable();
   initial.bytes[0] = (initial.bytes[0] & 0xfc) | 2;
   wifi_init_config_t wifi = WIFI_INIT_CONFIG_DEFAULT();
-  if (esp_wifi_init(&wifi) != ESP_OK ||
-      esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK ||
+  if (esp_wifi_init(&wifi) != ESP_OK)
+    return fail("wifi_init");
+  wifiInitialized = true;
+  if (esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK ||
       esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK)
-    return false;
+    return fail("wifi_configuration");
   // No default STA/AP netif, IP/DHCP services, credentials, Wi-Fi connect,
   // scans or SSID. SoftAP support is disabled at compile time.
-  if (esp_wifi_set_mac(WIFI_IF_STA, initial.bytes) != ESP_OK ||
-      esp_wifi_start() != ESP_OK)
-    return false;
+  if (esp_wifi_set_mac(WIFI_IF_STA, initial.bytes) != ESP_OK)
+    return fail("wifi_identity");
+  if (esp_wifi_start() != ESP_OK)
+    return fail("wifi_start", true);
   // Start with a pseudonym, so PSA/session randomness subsequently has the
   // continuously active Wi-Fi hardware entropy source. No network connect.
   started = true;
