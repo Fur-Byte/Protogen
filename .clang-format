@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+ColumnLimit: 110
+SortIncludes: Never
+FixNamespaceComments: false
+ReflowComments: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+BreakStringLiterals: false
