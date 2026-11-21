@@ -1,12 +1,15 @@
 # Protogen helmet — Teensy 4.0
 
-This repository is a private firmware development and recovery workspace.
-See [public repository readiness](docs/PUBLIC_RELEASE_READINESS.md) for release
-status and redistribution gates, and [Contributing](CONTRIBUTING.md) for changes.
+This repository is publicly visible. The documented redistribution and
+publication gates remain open. See [public repository readiness](docs/PUBLIC_RELEASE_READINESS.md).
+
+Use the [developer guide](docs/DEVELOPMENT.md) to install the pinned tools,
+preview the firmware, and choose the right build or regression check.
+See [Contributing](CONTRIBUTING.md) before opening a change.
 
 > **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
 > for helmet and Paw; C3/v3 is retained as legacy development/regression.
-> Current production sources remain v3. Public S31 preview builds and a 48 KiB
+> The active C3 development firmware uses v3. Public S31 preview builds and a 48 KiB
 > ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
 > and its memory-protection implementation block production S31 integration.
 > The isolated [experimental v4 core](docs/WIRELESS_V4_PROTOCOL.md) implements

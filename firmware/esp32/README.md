@@ -2,7 +2,7 @@
 
 > **Target plan (2026-10-06):** ESP32-S31 is the intended final wireless MCU
 > for helmet and Paw; C3/v3 is retained as legacy development/regression.
-> Current production sources remain v3. Public S31 preview builds and a 48 KiB
+> The active C3 development firmware uses v3. Public S31 preview builds and a 48 KiB
 > ML-KEM-1024 worker have static resource evidence, but the supported-stable SDK
 > and its memory-protection implementation block production S31 integration.
 > The isolated [experimental v4 core](../../docs/WIRELESS_V4_PROTOCOL.md) is host-tested and is never
@@ -24,15 +24,10 @@ connection, IP interface or custom raw-frame disguise. See
 Pinned: PlatformIO 6.1.19, espressif32@7.1.3, ESP-IDF 6.1.0, Mbed TLS 4.1.0.
 
 ```sh
-python3 -m venv build/esp32-venv
-build/esp32-venv/bin/python -m pip install platformio==6.1.19
+python3 scripts/install-toolchains.py
+source build/toolchains/environment.sh
 python3 scripts/build-esp32.py
 bash scripts/test-wireless.sh
-bash scripts/test-firmware.sh
-bash scripts/test-dtls.sh
-python3 scripts/check-features.py
-python3 scripts/check-extensions.py
-python3 scripts/check-uart-auth.py
 ```
 
 `PIO` can select another PlatformIO executable. Generated configurations and
@@ -41,6 +36,7 @@ changed defaults. The wrapper records artifact hashes, sources and resolved
 security settings. DTLS tests cover only the retained historical adapter.
 [Validation](../../docs/WIRELESS_VALIDATION.md) distinguishes host evidence from
 real-radio qualification. Builds/tests never upload firmware or burn eFuses.
+The [developer guide](../../docs/DEVELOPMENT.md) lists cross-target and focused checks.
 
 ## Pair without USB
 
