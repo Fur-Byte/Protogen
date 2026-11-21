@@ -35,6 +35,13 @@ bool pawConnected = false;
 uint64_t faceAt = 0;
 bool faceKnown = false;
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+constexpr uint16_t EnergyMonitorFaultBit = 2;
+#ifdef HELMET_RECEIVER
+constexpr uint16_t EnvironmentFaultBit = 1;
+constexpr uint16_t ScreenFaultBit = 4;
+constexpr uint16_t CaseTemperatureFaultBit = 8;
+#endif
+
 std::atomic<bool> fullRequested{false};
 std::atomic<uint32_t> fullFailureGeneration{0};
 std::atomic<TaskHandle_t> worker{nullptr};
@@ -398,29 +405,31 @@ void sampleWorker(Metrics &metrics, uint32_t now, uint32_t elapsed) {
 #endif
 void task(void *) {
   worker.store(xTaskGetCurrentTaskHandle());
-  Status s;
+  Status status;
 #ifdef HELMET_RECEIVER
-  s.energyEnabled = (settings.features & Device::EnergyMonitor) != 0;
+  status.energyEnabled = (settings.features & Device::EnergyMonitor) != 0;
   bool energyWasFailed = false;
   const bool environmentEnabled = (settings.features & Device::Environment) != 0;
-  const bool usesBus = environmentEnabled || s.energyEnabled;
+  const bool usesBus = environmentEnabled || status.energyEnabled;
   HelmetLink::RetryDelay<5000> screenRetry, busRetry, environmentRetry, energyRetry;
   if ((settings.features & Device::Screen) && !initScreen()) {
-    s.faults |= 4;
+    status.faults |= ScreenFaultBit;
     screenRetry.start(nowMs());
   }
-  if ((settings.features & Device::BatteryCaseTemperature) && !adcReady(nowMs())) s.faults |= 8;
+  if ((settings.features & Device::BatteryCaseTemperature) && !adcReady(nowMs()))
+    status.faults |= CaseTemperatureFaultBit;
   nvs_handle_t energyStorage = 0;
   nvs_open("energy", NVS_READWRITE, &energyStorage);
   uint32_t checkpoint = 0;
-  if (energyStorage && nvs_get_u32(energyStorage, "used_mwh", &checkpoint) == ESP_OK) s.usedMWh = checkpoint;
+  if (energyStorage && nvs_get_u32(energyStorage, "used_mwh", &checkpoint) == ESP_OK)
+    status.usedMWh = checkpoint;
   // A reset leaves an unmeasured gap. Never present the old checkpoint as known SOC.
-  uint32_t shtAt = 0, energyAt = 0, screenAt = 0, caseAt = 0;
+  uint32_t environmentRequestAt = 0, energySampleAt = 0, screenAt = 0, caseSampleAt = 0;
   Efficiency::Checkpoint saving;
   saving.known = energyStorage && nvs_get_u32(energyStorage, "used_mwh", &saving.value) == ESP_OK;
-  constexpr uint32_t caseInterval = PROTOGEN_CASE_2HZ ? 500 : 20;
-  constexpr uint32_t screenInterval = PROTOGEN_OLED_1HZ ? 1000 : 200;
-  constexpr uint32_t saveInterval = PROTOGEN_CHECKPOINT_5MIN ? 300000 : 60000;
+  constexpr uint32_t caseIntervalMs = PROTOGEN_CASE_2HZ ? 500 : 20;
+  constexpr uint32_t screenIntervalMs = PROTOGEN_OLED_1HZ ? 1000 : 200;
+  constexpr uint32_t saveIntervalMs = PROTOGEN_CHECKPOINT_5MIN ? 300000 : 60000;
   FaceDisplay previousFace{};
   bool previousRadio = false, previousStale = true;
   const char *previousWarning = nullptr;
@@ -431,19 +440,19 @@ void task(void *) {
   while (true) {
     const uint64_t workStarted = esp_timer_get_time();
     const uint32_t now = nowMs();
-    Efficiency::increment(s.metrics.executions);
+    Efficiency::increment(status.metrics.executions);
     if ((settings.features & Device::Screen) && !screenConfigured && screenRetry.ready(now)) {
       if (!initScreen()) {
-        s.faults |= 4;
+        status.faults |= ScreenFaultBit;
         screenRetry.start(nowMs());
       }
     }
     if (usesBus && !bus && busRetry.ready(now) && !initBus()) {
-      if (environmentEnabled) s.faults |= 1;
-      if (s.energyEnabled) {
-        s.faults |= 2;
-        s.energyFault = EnergyFault::Bus;
-        Efficiency::increment(s.energyFailures);
+      if (environmentEnabled) status.faults |= EnvironmentFaultBit;
+      if (status.energyEnabled) {
+        status.faults |= EnergyMonitorFaultBit;
+        status.energyFault = EnergyFault::Bus;
+        Efficiency::increment(status.energyFailures);
         energyWasFailed = true;
       }
       busRetry.start(now);
@@ -451,55 +460,55 @@ void task(void *) {
     // Each address has its own retry timer once the controller is available.
     if (bus) {
       if (environmentEnabled && environmentRetry.ready(now)) {
-        if (!shtPending && now - shtAt >= 1000) {
+        if (!shtPending && now - environmentRequestAt >= 1000) {
           const uint8_t command = 0xfd;
-          shtAt = now;
+          environmentRequestAt = now;
           shtPending = (sht || addDevice(0x44, sht)) && i2c_master_transmit(sht, &command, 1, 10) == ESP_OK;
           if (!shtPending) {
-            s.environmentValid = false;
-            s.faults |= 1;
+            status.environmentValid = false;
+            status.faults |= EnvironmentFaultBit;
             environmentRetry.start(now);
           }
-        } else if (shtPending && now - shtAt >= 10) {
+        } else if (shtPending && now - environmentRequestAt >= 10) {
           uint8_t b[6];
           shtPending = false;
-          Efficiency::increment(s.metrics.environmentReads);
-          s.environmentValid =
-              i2c_master_receive(sht, b, 6, 10) == ESP_OK && SensorMath::sht40(b, s.temperature, s.humidity);
-          if (s.environmentValid)
-            s.faults &= static_cast<uint16_t>(~1u);
+          Efficiency::increment(status.metrics.environmentReads);
+          status.environmentValid = i2c_master_receive(sht, b, 6, 10) == ESP_OK &&
+                                    SensorMath::sht40(b, status.temperature, status.humidity);
+          if (status.environmentValid)
+            status.faults &= static_cast<uint16_t>(~EnvironmentFaultBit);
           else {
-            s.faults |= 1;
+            status.faults |= EnvironmentFaultBit;
             environmentRetry.start(now);
           }
         }
       }
-      if (s.energyEnabled && energyRetry.ready(now) && now - energyAt >= 1000) {
-        const uint32_t elapsed = now - energyAt;
-        energyAt = now;
+      if (status.energyEnabled && energyRetry.ready(now) && now - energySampleAt >= 1000) {
+        const uint32_t elapsed = now - energySampleAt;
+        energySampleAt = now;
         const bool configuredNow = !inaConfigured && (inaConfigured = configureIna());
-        Efficiency::increment(s.metrics.energyReads);
+        Efficiency::increment(status.metrics.energyReads);
         // Configuring ADC_CONFIG restarts conversions. Keep the existing 1 Hz
         // schedule and read on its next visit, rather than accepting old data.
         if (configuredNow) {
-          s.energyValid = false;
-          s.energyFault = EnergyFault::NotReady;
+          status.energyValid = false;
+          status.energyFault = EnergyFault::NotReady;
         } else {
           float volts = 0, amps = 0;
           uint64_t count = 0;
-          s.energyValid = inaConfigured && energy(volts, amps, count);
-          if (s.energyValid) {
+          status.energyValid = inaConfigured && energy(volts, amps, count);
+          if (status.energyValid) {
             bool counterGood = true;
             const bool full = fullRequested.exchange(false) &&
-                              fullFailureGeneration.load() == s.energyFailures &&
-                              s.energyFailures != UINT32_MAX;
+                              fullFailureGeneration.load() == status.energyFailures &&
+                              status.energyFailures != UINT32_MAX;
             if (counterReady) {
               const uint64_t delta = (count - lastCounter) & 0xffffffffffULL;
               const double joules = delta * SensorMath::EnergyJoulesLsb;
               if (joules <= 50.0 * elapsed / 1000.0 + 2.0) {
-                if (!full) s.usedMWh += joules / 3.6;
-                s.measuredMWh += joules / 3.6;
-                Efficiency::increment(s.measuredIntervals);
+                if (!full) status.usedMWh += joules / 3.6;
+                status.measuredMWh += joules / 3.6;
+                Efficiency::increment(status.measuredIntervals);
               } else
                 counterGood = false;
             }
@@ -507,34 +516,34 @@ void task(void *) {
             counterReady = true;
             if (counterGood) {
               if (full) {
-                s.usedMWh = 0;
-                s.estimateQualified = settings.usableEnergyMWh > 0;
+                status.usedMWh = 0;
+                status.estimateQualified = settings.usableEnergyMWh > 0;
               }
-              s.volts = volts;
-              s.amps = amps;
-              s.energyValidAt = now;
-              Efficiency::increment(s.energySamples);
-              if (energyWasFailed) Efficiency::increment(s.energyRecoveries);
+              status.volts = volts;
+              status.amps = amps;
+              status.energyValidAt = now;
+              Efficiency::increment(status.energySamples);
+              if (energyWasFailed) Efficiency::increment(status.energyRecoveries);
               energyWasFailed = false;
-              s.energyFault = EnergyFault::None;
-              s.faults &= static_cast<uint16_t>(~2u);
+              status.energyFault = EnergyFault::None;
+              status.faults &= static_cast<uint16_t>(~EnergyMonitorFaultBit);
             } else {
               // FULL cannot turn an implausible accumulator jump into valid SOC.
-              s.energyValid = false;
-              s.estimateQualified = false;
+              status.energyValid = false;
+              status.estimateQualified = false;
               fullRequested.store(false);
-              s.energyFault = EnergyFault::Counter;
-              s.faults |= 2;
-              Efficiency::increment(s.energyFailures);
+              status.energyFault = EnergyFault::Counter;
+              status.faults |= EnergyMonitorFaultBit;
+              Efficiency::increment(status.energyFailures);
               energyWasFailed = true;
             }
           } else {
-            s.energyFault = inaFault;
-            s.faults |= 2;
-            s.estimateQualified = false;
+            status.energyFault = inaFault;
+            status.faults |= EnergyMonitorFaultBit;
+            status.estimateQualified = false;
             counterReady = false;
             fullRequested.store(false);
-            Efficiency::increment(s.energyFailures);
+            Efficiency::increment(status.energyFailures);
             energyWasFailed = true;
             if (inaFault != EnergyFault::NotReady) inaConfigured = false;
             energyRetry.start(now);
@@ -542,62 +551,65 @@ void task(void *) {
         }
       }
     }
-    if (now - shtAt > 5000) {
-      s.environmentValid = false;
-      if (settings.features & Device::Environment) s.faults |= 1;
+    if (now - environmentRequestAt > 5000) {
+      status.environmentValid = false;
+      if (settings.features & Device::Environment) status.faults |= EnvironmentFaultBit;
     }
-    if ((settings.features & Device::EnergyMonitor) && now - energyAt > 2000) {
-      if (s.energyValid) {
-        s.energyFault = EnergyFault::Stale;
-        Efficiency::increment(s.energyFailures);
+    if ((settings.features & Device::EnergyMonitor) && now - energySampleAt > 2000) {
+      if (status.energyValid) {
+        status.energyFault = EnergyFault::Stale;
+        Efficiency::increment(status.energyFailures);
         energyWasFailed = true;
       }
-      s.energyValid = false;
-      s.estimateQualified = false;
-      s.faults |= 2;
+      status.energyValid = false;
+      status.estimateQualified = false;
+      status.faults |= EnergyMonitorFaultBit;
       fullRequested.store(false);
     }
-    s.remainingPercent =
-        s.energyValid && s.estimateQualified ? SensorMath::percent(s.usedMWh, settings.usableEnergyMWh) : -1;
+    status.remainingPercent = status.energyValid && status.estimateQualified
+                                  ? SensorMath::percent(status.usedMWh, settings.usableEnergyMWh)
+                                  : -1;
     if ((settings.features & Device::BatteryCaseTemperature) &&
-        ((!PROTOGEN_CASE_2HZ && !PROTOGEN_WEARER_DEADLINES) || now - caseAt >= caseInterval)) {
-      caseAt = now;
-      Efficiency::increment(s.metrics.caseReads);
+        ((!PROTOGEN_CASE_2HZ && !PROTOGEN_WEARER_DEADLINES) || now - caseSampleAt >= caseIntervalMs)) {
+      caseSampleAt = now;
+      Efficiency::increment(status.metrics.caseReads);
       int mv;
-      s.caseValid = readMv(mv) && SensorMath::ntc(mv, s.caseTemperature);
-      if (s.caseValid) {
-        s.faults &= static_cast<uint16_t>(~8u);
-        if (s.caseTemperature > s.maximumCaseTemperature) s.maximumCaseTemperature = s.caseTemperature;
+      status.caseValid = readMv(mv) && SensorMath::ntc(mv, status.caseTemperature);
+      if (status.caseValid) {
+        status.faults &= static_cast<uint16_t>(~CaseTemperatureFaultBit);
+        if (status.caseTemperature > status.maximumCaseTemperature)
+          status.maximumCaseTemperature = status.caseTemperature;
       } else
-        s.faults |= 8;
+        status.faults |= CaseTemperatureFaultBit;
     }
-    const uint32_t used = static_cast<uint32_t>(s.usedMWh);
-    if (energyStorage && (PROTOGEN_CHECKPOINT_5MIN ? saving.due(now, used, s.energyValid, saveInterval)
-                                                   : (s.energyValid && now - saving.at >= saveInterval))) {
-      Efficiency::increment(s.metrics.commitAttempts);
+    const uint32_t used = static_cast<uint32_t>(status.usedMWh);
+    if (energyStorage &&
+        (PROTOGEN_CHECKPOINT_5MIN ? saving.due(now, used, status.energyValid, saveIntervalMs)
+                                  : (status.energyValid && now - saving.at >= saveIntervalMs))) {
+      Efficiency::increment(status.metrics.commitAttempts);
       const bool okay =
           nvs_set_u32(energyStorage, "used_mwh", used) == ESP_OK && nvs_commit(energyStorage) == ESP_OK;
       saving.attempted(now, used, okay);
-      Efficiency::increment(okay ? s.metrics.commits : s.metrics.commitFailures);
+      Efficiency::increment(okay ? status.metrics.commits : status.metrics.commitFailures);
     }
     const FaceView view = readFace();
     const bool stale = view.validForMs == 0;
-    const bool urgent = warningFor(s) != previousWarning || s.faults != previousFaults ||
+    const bool urgent = warningFor(status) != previousWarning || status.faults != previousFaults ||
                         view.radio != previousRadio || stale != previousStale || view.face != previousFace ||
                         (PROTOGEN_OLED_PROTECTION && previousScreenGeneration != view.sampledAt / 60000);
     if (oled && screenConfigured &&
-        (now - screenAt >= screenInterval || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
+        (now - screenAt >= screenIntervalMs || ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) && urgent))) {
       screenAt = now;
-      const uint16_t displayedFaults = s.faults;
-      const char *displayedWarning = warningFor(s);
-      if (!showScreen(s, view)) {
-        s.faults |= 4;
+      const uint16_t displayedFaults = status.faults;
+      const char *displayedWarning = warningFor(status);
+      if (!showScreen(status, view)) {
+        status.faults |= ScreenFaultBit;
         validPages = 0;
         screenStateKnown = false;
         screenConfigured = false;
         screenRetry.start(nowMs());
       } else
-        s.faults &= static_cast<uint16_t>(~4u);
+        status.faults &= static_cast<uint16_t>(~ScreenFaultBit);
       previousFace = view.face;
       previousRadio = view.radio;
       previousStale = stale;
@@ -605,41 +617,42 @@ void task(void *) {
       previousScreenGeneration = view.sampledAt / 60000;
       previousWarning = displayedWarning;
     }
-    const uint32_t work = static_cast<uint32_t>(esp_timer_get_time() - workStarted);
-    s.metrics.workUs += work;
-    if (work > s.metrics.maxWorkUs) s.metrics.maxWorkUs = work;
+    const uint32_t workUs = static_cast<uint32_t>(esp_timer_get_time() - workStarted);
+    status.metrics.workUs += workUs;
+    if (workUs > status.metrics.maxWorkUs) status.metrics.maxWorkUs = workUs;
 #if PROTOGEN_FLIGHT_RECORDER
-    sampleWorker(s.metrics, now, work);
+    sampleWorker(status.metrics, now, workUs);
 #endif
     portENTER_CRITICAL(&mux);
-    published = s;
+    published = status;
     portEXIT_CRITICAL(&mux);
     if (PROTOGEN_WEARER_DEADLINES) {
       const uint32_t end = nowMs();
-      uint32_t wait = 1000;
+      uint32_t waitMs = 1000;
       if (settings.features & Device::BatteryCaseTemperature)
-        Efficiency::sooner(wait, Efficiency::remaining(end, caseAt, caseInterval));
+        Efficiency::sooner(waitMs, Efficiency::remaining(end, caseSampleAt, caseIntervalMs));
       if ((settings.features & Device::Screen) && !screenConfigured) {
-        Efficiency::sooner(wait, screenRetry.remaining(end));
+        Efficiency::sooner(waitMs, screenRetry.remaining(end));
       } else if (oled) {
-        Efficiency::sooner(wait, Efficiency::remaining(end, screenAt, screenInterval));
-        if (!stale) Efficiency::sooner(wait, Efficiency::remaining(end, view.sampledAt, view.validForMs));
+        Efficiency::sooner(waitMs, Efficiency::remaining(end, screenAt, screenIntervalMs));
+        if (!stale) Efficiency::sooner(waitMs, Efficiency::remaining(end, view.sampledAt, view.validForMs));
         if ((PROTOGEN_OLED_1HZ || PROTOGEN_OLED_PROTECTION) &&
-            (s.faults != previousFaults || warningFor(s) != previousWarning))
-          Efficiency::sooner(wait, 0);
+            (status.faults != previousFaults || warningFor(status) != previousWarning))
+          Efficiency::sooner(waitMs, 0);
       }
       if (usesBus && !bus)
-        Efficiency::sooner(wait, busRetry.remaining(end));
+        Efficiency::sooner(waitMs, busRetry.remaining(end));
       else {
         if (environmentEnabled)
-          Efficiency::sooner(wait, environmentRetry.ready(end)
-                                       ? Efficiency::remaining(end, shtAt, shtPending ? 10 : 1000)
-                                       : environmentRetry.remaining(end));
-        if (s.energyEnabled)
-          Efficiency::sooner(wait, energyRetry.ready(end) ? Efficiency::remaining(end, energyAt, 1000)
-                                                          : energyRetry.remaining(end));
+          Efficiency::sooner(waitMs,
+                             environmentRetry.ready(end)
+                                 ? Efficiency::remaining(end, environmentRequestAt, shtPending ? 10 : 1000)
+                                 : environmentRetry.remaining(end));
+        if (status.energyEnabled)
+          Efficiency::sooner(waitMs, energyRetry.ready(end) ? Efficiency::remaining(end, energySampleAt, 1000)
+                                                            : energyRetry.remaining(end));
       }
-      const TickType_t ticks = pdMS_TO_TICKS(wait);
+      const TickType_t ticks = pdMS_TO_TICKS(waitMs);
       if (ticks)
         ulTaskNotifyTake(pdTRUE, ticks);
       else {
@@ -650,28 +663,29 @@ void task(void *) {
       vTaskDelay(pdMS_TO_TICKS(20));
   }
 #else
-  if ((settings.features & Device::EnergyMonitor) && !adcReady(nowMs())) s.faults |= 2;
+  if ((settings.features & Device::EnergyMonitor) && !adcReady(nowMs()))
+    status.faults |= EnergyMonitorFaultBit;
   while (true) {
 #if PROTOGEN_FLIGHT_RECORDER
     const uint64_t p3Started = esp_timer_get_time();
 #endif
-    Efficiency::increment(s.metrics.executions);
+    Efficiency::increment(status.metrics.executions);
     if (settings.features & Device::EnergyMonitor) {
-      Efficiency::increment(s.metrics.energyReads);
+      Efficiency::increment(status.metrics.energyReads);
       int mv;
       if (readMv(mv) && mv >= 1400 && mv <= 2200) {
-        s.pawBatteryVolts = mv / 500.0f;
-        s.faults &= static_cast<uint16_t>(~2u);
+        status.pawBatteryVolts = mv / 500.0f;
+        status.faults &= static_cast<uint16_t>(~EnergyMonitorFaultBit);
       } else {
-        s.pawBatteryVolts = 0;
-        s.faults |= 2;
+        status.pawBatteryVolts = 0;
+        status.faults |= EnergyMonitorFaultBit;
       }
     }
 #if PROTOGEN_FLIGHT_RECORDER
-    sampleWorker(s.metrics, nowMs(), static_cast<uint32_t>(esp_timer_get_time() - p3Started));
+    sampleWorker(status.metrics, nowMs(), static_cast<uint32_t>(esp_timer_get_time() - p3Started));
 #endif
     portENTER_CRITICAL(&mux);
-    published = s;
+    published = status;
     portEXIT_CRITICAL(&mux);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
