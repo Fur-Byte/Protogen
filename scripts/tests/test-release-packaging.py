@@ -184,9 +184,23 @@ class PackagingTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(stat.S_IMODE(self.output.stat().st_mode), 0o600)
             with ZipFile(self.output) as archive:
-                self.assertEqual(archive.read('recovery/previous-release.zip'), prior.read_bytes())
+                self.assertNotIn("recovery/previous-release.zip", archive.namelist())
+                manifest = json.loads(archive.read("release.json"))
+                self.assertEqual(manifest["previous_release_sha256"], sha(prior.read_bytes()))
         finally:
             os.umask(original_umask)
+
+    def test_rollback_generations_retain_digest_without_nested_images(self):
+        prior = self.prior()
+        for generation in range(2):
+            output = self.root / "build" / f"generation-{generation}.zip"
+            result = self.run_packager(*self.prior_args(prior), output=output)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with ZipFile(output) as archive:
+                manifest = json.loads(archive.read("release.json"))
+                self.assertEqual(manifest["previous_release_sha256"], sha(prior.read_bytes()))
+                self.assertNotIn("recovery/previous-release.zip", archive.namelist())
+            prior = output
 
     def test_output_under_ignored_build_directory(self):
         output = self.root / "build/releases/synthetic-release-fixture.zip"
@@ -397,9 +411,25 @@ class PackagingTests(unittest.TestCase):
             self.assertIsNone(json.loads(archive.read("release.json"))["previous_release_sha256"])
             self.assertNotIn("recovery/previous-release.zip", archive.namelist())
         with ZipFile(self.output) as archive:
-            self.assertEqual(archive.read("recovery/previous-release.zip"), prior)
+            self.assertNotIn("recovery/previous-release.zip", archive.namelist())
             self.assertEqual(json.loads(archive.read("release.json"))["previous_release_sha256"], sha(prior))
         self.assertEqual(path.read_bytes(), prior)
+
+    def test_legacy_bundle_with_embedded_rollback_remains_readable(self):
+        path = self.prior()
+        previous = path.read_bytes()
+
+        def embed_legacy_rollback(entries):
+            manifest = json.loads(entries["release.json"])
+            manifest.update(schema=2, previous_release_sha256=sha(previous))
+            entries["release.json"] = json.dumps(manifest).encode()
+            entries["recovery/previous-release.zip"] = previous
+
+        self.rewrite_prior(path, embed_legacy_rollback, update_checksums=True)
+        result = self.run_packager(*self.prior_args(path))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with ZipFile(self.output) as archive:
+            self.assertNotIn("recovery/previous-release.zip", archive.namelist())
 
 
 if __name__ == "__main__":

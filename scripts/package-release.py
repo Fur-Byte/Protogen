@@ -262,7 +262,7 @@ def validate_previous(raw, expected):
         valid(sum(member.file_size for member in members) <= MAX_ARCHIVE_BYTES, "Previous archive exceeds size limit")
         valid("release.json" in names, "Missing previous release manifest")
         manifest = checked_json(archive.read("release.json"), "previous release")
-        valid(type(manifest["schema"]) is int and manifest["schema"] in (1, 2) and manifest["status"] == STATUS,
+        valid(type(manifest["schema"]) is int and manifest["schema"] in (1, 2, 3) and manifest["status"] == STATUS,
               "Unsupported previous release manifest")
         checksums = manifest["sha256"]
         valid(isinstance(checksums, dict) and set(names) == set(checksums) | {"release.json"}
@@ -287,8 +287,13 @@ def validate_previous(raw, expected):
     verify_artifacts(content, artifacts, esp)
     sdkconfigs = verify_sdkconfigs(content, esp, required=False)
     previous = manifest["previous_release_sha256"]
-    valid((previous is None and PREVIOUS not in content) or
-          (is_sha256(previous) and checksums.get(PREVIOUS) == previous), "Previous release recovery entry is inconsistent")
+    if manifest["schema"] == 3:
+        valid(PREVIOUS not in content and (previous is None or is_sha256(previous)),
+              "Previous release external rollback reference is inconsistent")
+    else:
+        valid((previous is None and PREVIOUS not in content) or
+              (is_sha256(previous) and checksums.get(PREVIOUS) == previous),
+              "Previous release recovery entry is inconsistent")
     backup = manifest["configuration_backup_included"]
     valid(type(backup) is bool and backup == (CONFIGURATION in content), "Previous release configuration entry is inconsistent")
     if backup:
@@ -354,8 +359,7 @@ def package(output, previous=None, initial=False, config_path=None, previous_sha
         valid(previous.stat().st_size <= MAX_ARCHIVE_BYTES + 1024 * 1024, "Previous archive exceeds size limit")
         raw = regular_file(previous)
         validate_previous(raw, previous_sha256)
-        content[PREVIOUS] = raw
-    manifest = {"schema": 2, "source_git_head": head, "source_sha256": source["sha256"], "status": STATUS,
+    manifest = {"schema": 3, "source_git_head": head, "source_sha256": source["sha256"], "status": STATUS,
                 "compatibility": compatible, "previous_release_sha256": previous_sha256,
                 "configuration_backup_included": bool(config_path),
                 "sha256": {name: digest(raw) for name, raw in content.items()}}
