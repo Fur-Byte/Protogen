@@ -379,11 +379,21 @@ void connectionChanged(void *, bool online) {
 #endif
   printf("{\"event\":\"%s\"}\n", online ? "connected" : "disconnected");
 }
+bool saveConfig(const Device::Config &candidate) {
+  const auto result = SecureStorage::save(storage, candidate);
+  if (result == SecureStorage::SaveResult::Indeterminate) {
+    // Reload NVS before dispatching any more commands under the old authority.
+    puts("{\"ok\":false,\"error\":\"storage_outcome_unknown\",\"restarting\":true}");
+    esp_restart();
+  }
+  return result == SecureStorage::SaveResult::Verified;
+}
+
 bool storePair(void *, const uint8_t secret[32]) {
   Device::Config candidate = config;
   candidate.paired = true;
   memcpy(candidate.psk, secret, 32);
-  const bool okay = SecureStorage::save(storage, candidate);
+  const bool okay = saveConfig(candidate);
   if (okay)
     config = candidate;
   Wireless::Crypto::wipe(candidate.psk, 32);
@@ -480,7 +490,7 @@ void serviceUnlock(uint32_t now) {
     Device::Config cleared = config;
     cleared.paired = false;
     Wireless::Crypto::wipe(cleared.psk, 32);
-    if (SecureStorage::save(storage, cleared)) {
+    if (saveConfig(cleared)) {
       puts("{\"event\":\"pair_erased\"}");
       fflush(stdout);
       esp_restart();
@@ -652,7 +662,7 @@ void consoleCommand(char *line) {
     puts("{\"ok\":false,\"error\":\"invalid_configuration\"}");
     return;
   }
-  if (!SecureStorage::save(storage, candidate)) {
+  if (!saveConfig(candidate)) {
     puts("{\"ok\":false,\"error\":\"storage_failed\"}");
     return;
   }
