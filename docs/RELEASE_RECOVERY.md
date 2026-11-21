@@ -44,6 +44,11 @@ qualification pending. This is a local build and archive integrity check.
 Production approval requires the physical evidence in the qualification
 procedures.
 
+New bundles retain each ESP32 role's resolved `sdkconfig.json` and verify its
+digest against the build manifest. Rebuild both ESP32 roles before packaging
+when prior local builds lack this evidence. Older rollback archives remain
+readable.
+
 Matching source hashes alone do not establish UART compatibility. The packager
 also checks authenticated UART modes when Teensy's `WirelessPaw` is enabled and
 records selected features and bridge availability in `release.json`. A default
