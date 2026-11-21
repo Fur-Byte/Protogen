@@ -7,8 +7,10 @@
   const curves = {linear:"Linear", in:"Ease in", out:"Ease out", "in-out":"Ease in/out", settle:"Settle"};
   const frameStepMs = 16;
   const playbackBatchSize = 12;
-  let clip, position = 0, selected = -1, playing = false, timer = null;
-  let revision = 0, snapshot = 0, importOrder = 0, busy = false, queued = false, batch = [];
+  let clip, position = 0, selected = -1;
+  let documentRevision = 0, importOrder = 0;
+  let playing = false, timer = null, playbackFrames = [];
+  let seekGeneration = 0, seekInFlight = false, seekPending = false;
 
   function optionList(name, values) {
     for (const [value, label] of Object.entries(values)) {
@@ -67,55 +69,64 @@
   function pause() {
     playing = false;
     clearTimeout(timer);
-    batch = [];
+    playbackFrames = [];
     element("play").textContent = "Play";
   }
 
   function queueSeek() {
-    snapshot += 1;
-    queued = true;
-    void drain();
+    seekGeneration += 1;
+    seekPending = true;
+    void drainSeekQueue();
   }
 
-  async function drain() {
-    if (busy || !queued) return;
-    queued = false;
-    busy = true;
-    const ticket = snapshot, version = revision;
-    const locations = [position];
+  function requestedPositions() {
+    const positions = [position];
     if (playing) {
       for (let frameIndex = 1; frameIndex < playbackBatchSize; ++frameIndex) {
         const at = position + frameIndex * frameStepMs;
         if (at > duration()) break;
-        locations.push(at);
+        positions.push(at);
       }
     }
+    return positions;
+  }
+
+  async function drainSeekQueue() {
+    // One request at a time. A pending seek uses the latest editor position.
+    if (seekInFlight || !seekPending) return;
+    seekPending = false;
+    seekInFlight = true;
+    const generation = seekGeneration;
+    const version = documentRevision;
+    const positions = requestedPositions();
     try {
-      const result = await request("seek", {document:clip, positions_ms:locations});
-      if (ticket !== snapshot || version !== revision) return;
-      const [frame, ...rest] = result.frames;
+      const result = await request("seek", {document: clip, positions_ms: positions});
+      if (generation !== seekGeneration || version !== documentRevision) return;
+
+      const [frame, ...remainingFrames] = result.frames;
       draw(frame);
-      const p = result.progress;
-      status(`Firmware preview · ${p.started} started · ${p.rejected} rejected · ${p.skipped} skipped · ${result.metrics.seek_ms.toFixed(1)} ms replay`);
-      if (!playing) return;
-      batch = rest;
-      tick();
+      const {started, rejected, skipped} = result.progress;
+      status(`Firmware preview · ${started} started · ${rejected} rejected · ${skipped} skipped · ${result.metrics.seek_ms.toFixed(1)} ms replay`);
+      if (playing) {
+        playbackFrames = remainingFrames;
+        tick();
+      }
     } catch (error) {
-      if (ticket === snapshot) {
+      if (generation === seekGeneration) {
         pause();
         status(error.message);
       }
     } finally {
-      busy = false;
-      if (queued) void drain();
+      seekInFlight = false;
+      if (seekPending) void drainSeekQueue();
     }
   }
 
   function tick() {
     timer = setTimeout(() => {
       if (!playing) return;
-      if (batch.length) {
-        const frame = batch.shift();
+      if (playbackFrames.length) {
+        const frame = playbackFrames.shift();
         move(frame.at_ms);
         draw(frame);
         tick();
@@ -151,7 +162,7 @@
 
   function change() {
     pause();
-    revision += 1;
+    documentRevision += 1;
     badge("Unsaved changes");
     queueSeek();
   }
@@ -202,10 +213,10 @@
 
   async function compiled(kind) {
     pause();
-    const version = revision;
+    const version = documentRevision;
     try {
       const value = await request("compile", {document:clip});
-      if (revision !== version) return;
+      if (documentRevision !== version) return;
       if (!kind) {
         badge("Validated");
         status("Valid timeline · " + value.asset_bytes + " compiled bytes");
@@ -220,7 +231,7 @@
       badge(kind === "json" ? "Source exported" : "Compiled asset exported");
       status(value.asset_bytes + " bytes · format version " + value.document.version);
     } catch (error) {
-      if (revision === version) status(error.message);
+      if (documentRevision === version) status(error.message);
     }
   }
 
@@ -235,7 +246,11 @@
     optionList("easing", curves);
     optionList("expression", {0:"Happy",1:"Surprised",2:"Angry",3:"vwv",4:"Sleepy",5:"Wink"});
     element("play").onclick = () => {
-      if (playing) { pause(); snapshot += 1; return; }
+      if (playing) {
+        pause();
+        seekGeneration += 1;
+        return;
+      }
       if (position >= duration()) move(0);
       playing = true;
       element("play").textContent = "Pause";
@@ -290,16 +305,16 @@
       e.target.value = "";
       if (!file) return;
       pause();
-      snapshot += 1;
-      queued = false;
-      const version = revision, order = ++importOrder;
+      seekGeneration += 1;
+      seekPending = false;
+      const version = documentRevision, order = ++importOrder;
       try {
         if (file.size > 30000) throw Error("Timeline JSON exceeds the import limit.");
         const value = await request("compile", {document_json:await file.text()});
-        if (version !== revision || order !== importOrder) return;
+        if (version !== documentRevision || order !== importOrder) return;
         resetEditor(value.document);
         badge("Validated import");
-      } catch (error) { if (version === revision && order === importOrder) status(error.message); }
+      } catch (error) { if (version === documentRevision && order === importOrder) status(error.message); }
     };
     document.getElementById("timeline").addEventListener("keydown", e => {
       if (e.target.matches("input,select,button,textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
