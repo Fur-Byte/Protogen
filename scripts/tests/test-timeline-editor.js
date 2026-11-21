@@ -10,6 +10,7 @@ const sample = JSON.parse(fs.readFileSync(path.join(root, 'tools/helmet/timeline
 const elements = new Map();
 const calls = [];
 const downloads = [];
+let deferSeek;
 
 function element(id) {
   if (!elements.has(id)) {
@@ -38,11 +39,12 @@ const context = vm.createContext({
       return {ok:true, json:async () => ({document, asset_bytes:336,
         json:JSON.stringify(document), header:'// test response from compiler'})};
     }
-    return {ok:true, json:async () => ({
+    const response = {ok:true, json:async () => ({
       frames: body.positions_ms.map(at => ({at_ms:at, frame:'00'.repeat(112), hidden:false})),
       progress:{started:body.document.events.length, rejected:0, skipped:0},
       metrics:{seek_ms:1},
     })};
+    return deferSeek ? deferSeek(response) : response;
   },
   setTimeout() { return 1; }, clearTimeout() {},
   URL: {createObjectURL() { return 'blob:test'; }, revokeObjectURL() {}},
@@ -115,6 +117,39 @@ async function checkGroupedEvents() {
   assert.deepEqual(list.children, [], 'an empty clip has no headings or buttons');
 }
 
+async function checkQueuedSeek() {
+  const replies = [];
+  deferSeek = response => new Promise(resolve => {
+    replies.push({resolve, response});
+  });
+  const before = calls.length;
+  const previousStatus = control('status').textContent;
+  await input('scrub', '48');
+  await input('scrub', '64');
+  await input('scrub', '80');
+  assert.deepEqual(calls.slice(before).map(call => call.body.positions_ms), [[48]]);
+
+  replies[0].resolve({ok:false, json:async () => ({error:'Superseded error'})});
+  await flush();
+  assert.equal(control('status').textContent, previousStatus);
+  assert.deepEqual(calls.slice(before).map(call => call.body.positions_ms), [[48], [80]]);
+
+  const current = await replies[1].response.json();
+  current.progress.started = 7;
+  replies[1].resolve({ok:true, json:async () => current});
+  await flush();
+  assert.match(control('status').textContent, /7 started/);
+
+  control('play').click();
+  await flush();
+  assert.equal(control('play').textContent, 'Pause');
+  replies[2].resolve({ok:false, json:async () => ({error:'Current seek failed'})});
+  await flush();
+  assert.equal(control('status').textContent, 'Current seek failed');
+  assert.equal(control('play').textContent, 'Play');
+  deferSeek = undefined;
+}
+
 async function main() {
   vm.runInContext(fs.readFileSync(path.join(root, 'tools/helmet/timeline-editor.js'), 'utf8'), context);
   await flush();
@@ -151,5 +186,7 @@ async function main() {
   console.log('PASS: timeline creation, input edits, export payloads, backward seek requests, and container placement');
   await checkGroupedEvents();
   console.log('PASS: populated groups, stable display order, original-index editing and click-to-seek');
+  await checkQueuedSeek();
+  console.log('PASS: queued seeks coalesce, stale errors stay hidden, and current errors pause playback');
 }
 main().catch(error => { console.error(error); process.exitCode=1; });
