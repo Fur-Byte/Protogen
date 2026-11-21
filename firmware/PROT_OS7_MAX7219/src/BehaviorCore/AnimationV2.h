@@ -4,8 +4,7 @@
 #ifndef PROTOGEN_ANIMATION_V2
 #define PROTOGEN_ANIMATION_V2 0
 #endif
-static_assert(PROTOGEN_ANIMATION_V2 == 0 || PROTOGEN_ANIMATION_V2 == 1,
-              "Animation V2 must be 0 or 1.");
+static_assert(PROTOGEN_ANIMATION_V2 == 0 || PROTOGEN_ANIMATION_V2 == 1, "Animation V2 must be 0 or 1.");
 
 #ifndef PROTOGEN_ANIMATION_TIMELINES
 #define PROTOGEN_ANIMATION_TIMELINES 0
@@ -38,21 +37,34 @@ struct Request {
 };
 
 constexpr bool valid(const Request &r) {
-  if (r.region > Region::FullFace || r.motion > Motion::MouthAperture ||
-      r.priority > MaxPriority || r.easing > Easing::Settle || r.duration > MaxDurationMs)
+  if (r.region > Region::FullFace || r.motion > Motion::MouthAperture || r.priority > MaxPriority ||
+      r.easing > Easing::Settle || r.duration > MaxDurationMs)
     return false;
   const bool mouth = r.motion == Motion::MouthAperture;
   if (r.region != Region::FullFace && (r.region == Region::Mouth) != mouth) return false;
   int low = 0, high = 0;
   switch (r.motion) {
-    case Motion::Gaze: low = -MaxHorizontal; high = MaxHorizontal; break;
-    case Motion::Vertical: low = -MaxVertical; high = MaxVertical; break;
-    case Motion::Lid: high = 8; break;
-    case Motion::Squint: high = 4; break;
-    case Motion::Expression:
-      if (r.from != r.to) return false;
-      high = 5; break;
-    case Motion::MouthAperture: high = 3; break;
+  case Motion::Gaze:
+    low = -MaxHorizontal;
+    high = MaxHorizontal;
+    break;
+  case Motion::Vertical:
+    low = -MaxVertical;
+    high = MaxVertical;
+    break;
+  case Motion::Lid:
+    high = 8;
+    break;
+  case Motion::Squint:
+    high = 4;
+    break;
+  case Motion::Expression:
+    if (r.from != r.to) return false;
+    high = 5;
+    break;
+  case Motion::MouthAperture:
+    high = 3;
+    break;
   }
   return r.from >= low && r.from <= high && r.to >= low && r.to <= high;
 }
@@ -60,10 +72,15 @@ constexpr bool valid(const Request &r) {
 struct Handle {
   uint8_t slot = Capacity;
   uint32_t generation = 0;
-  explicit operator bool() const { return slot < Capacity && generation; }
+  explicit operator bool() const {
+    return slot < Capacity && generation;
+  }
 };
 
-struct Start { Admission status; Handle handle; };
+struct Start {
+  Admission status;
+  Handle handle;
+};
 struct Selection {
   Handle handle;
   Motion motion = Motion::Gaze;
@@ -74,8 +91,8 @@ struct Selection {
 // zero-duration track has its target value at the instant it is admitted.
 uint16_t ease(Easing curve, uint32_t elapsed, uint16_t duration);
 
-constexpr bool outranks(uint8_t priority, uint32_t order, unsigned slot,
-                        uint8_t otherPriority, uint32_t otherOrder, unsigned otherSlot) {
+constexpr bool outranks(uint8_t priority, uint32_t order, unsigned slot, uint8_t otherPriority,
+                        uint32_t otherOrder, unsigned otherSlot) {
   if (priority != otherPriority) return priority > otherPriority;
   if (order != otherOrder) return order > otherOrder;
   return slot < otherSlot;
@@ -90,8 +107,12 @@ class Table {
   uint32_t nextOrder = 0;
   uint8_t activeMask = 0;
 
-  bool active(unsigned slot) const { return (activeMask & (1u << slot)) != 0; }
-  void deactivate(unsigned slot) { activeMask &= static_cast<uint8_t>(~(1u << slot)); }
+  bool active(unsigned slot) const {
+    return (activeMask & (1u << slot)) != 0;
+  }
+  void deactivate(unsigned slot) {
+    activeMask &= static_cast<uint8_t>(~(1u << slot));
+  }
   void rebaseOrder();
 #if PROTOGEN_ANIMATION_TIMELINES
   Selection select(Region region, const Motion *channel, uint32_t now) const;
