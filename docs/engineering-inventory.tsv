@@ -1,0 +1,539 @@
+classification	path	review decision
+GOOD	.github/workflows/firmware.yml	Existing job isolation and evidence policy; leave runtime and workflow scope intact.
+GOOD	.github/workflows/virtual-soak.yml	Existing job isolation and evidence policy; leave runtime and workflow scope intact.
+GOOD	.gitignore	Repository policy, security guidance, or pinned build input.
+GOOD	AGENTS.md	Repository policy, security guidance, or pinned build input.
+MAINTAINABILITY	CONTRIBUTING.md	Consolidate setup routes and distinguish current hardware, evidence and publication states.
+MAINTAINABILITY	README.md	Consolidate setup routes and distinguish current hardware, evidence and publication states.
+GOOD	SECURITY.md	Repository policy, security guidance, or pinned build input.
+EXCLUDED	THIRD_PARTY_NOTICES.md	Licensing record, generated metadata, vectors, or retained fixture.
+EXCLUDED	archive/PROT_OS7_original.zip	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2.zip	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/LICENSE.txt	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/README.txt	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/Protogen_Head_building_Instructions.pdf	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/Vaccuform_Buck.STL	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/jaw.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/jaw_left_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/jaw_right_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/left_panel_logo.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/left_panel_plane.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/lower_back_head.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/lower_back_head_left_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/lower_back_head_right_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/mid_head_left.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/mid_head_left_bottom_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/mid_head_left_top_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/mid_head_right.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/mid_head_right_bottom_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/mid_head_right_top_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/right_panel_logo.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/right_panel_plane.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/top_head.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/top_head_left_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/files/top_head_right_1.stl	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/Vaccuform_Buck.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/jaw.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/jaw_left_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/jaw_right_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/left_panel_logo.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/left_panel_plane.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/lower_back_head.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/lower_back_head_left_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/lower_back_head_right_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/mid_head_left.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/mid_head_left_bottom_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/mid_head_left_top_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/mid_head_right.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/mid_head_right_bottom_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/mid_head_right_top_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/protogen_head.jpg	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/right_panel_logo.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/right_panel_plane.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_1.1.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_1.2.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_1.3.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_1.4.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_2.1.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_2.2.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_2.3.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_2.4.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/step_done.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/top_head.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/top_head_left_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 1 of 2/images/top_head_right_1.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2.zip	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/LICENSE.txt	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/README.txt	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_2.5.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_2.6.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_3.1.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_3.2.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_3.3.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_3.4.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_3.5.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_3.6.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_6.1.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_6.2.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	assets/head-model/Protogen Head - 4268402 - part 2 of 2/images/step_6.3.JPG	Original asset, archived source, or protected visual evidence.
+EXCLUDED	docs/ARCHIVE_FACE_COMPARISON.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/AUDIT_CONFIG_REMEDIATION.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/AUDIT_PLATFORM_MAINTENANCE.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/AUDIT_REMEDIATION_2026_10_17.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/AUDIT_SENSOR_REMEDIATION.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/AUDIT_WIRELESS_REMEDIATION.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/CODE_AUDIT.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/EFFICIENCY_CORRECTIVE_AUDIT.md	Historical evidence, sealed test input, or dated audit record.
+GOOD	docs/EFFICIENCY_QUALIFICATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/ENGINEERING_PLAN.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/FINAL_CHECK.md	Historical evidence, sealed test input, or dated audit record.
+GOOD	docs/HARDWARE_WIRING.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/IMPLEMENTATION_8_2.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/INDEPENDENT_CODE_AUDIT.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/MODERNIZATION_PLAN.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/OPTIMIZATION.md	Historical evidence, sealed test input, or dated audit record.
+GOOD	docs/P0_BASELINE.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P1_COMPATIBILITY.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P2_DIGITAL_TWIN.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P3_INSTRUMENTATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P4_BEHAVIOR_CORE.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P5_ANIMATION_V2.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P6_DECLARATIVE_TIMELINES.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P7_AUDIO_BEHAVIOR.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P8_HARDWARE_QUALIFICATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P8_RELIABILITY_INVENTORY.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+CORRECTNESS	docs/P8_RELIABILITY_QUALIFICATION.md	Full shard evidence verification is covered by draft #40.
+GOOD	docs/P8_VIRTUAL_SOAK.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/P8_WATCHDOG_RETENTION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/POSTMERGE_REMEDIATION_2026_10_20.md	Historical evidence, sealed test input, or dated audit record.
+GOOD	docs/PRODUCTION_PROVISIONING.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/PUBLIC_RELEASE_READINESS.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/README_RECOVERY.md	Historical evidence, sealed test input, or dated audit record.
+GOOD	docs/RELEASE_BRIGHTNESS_QUALIFICATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/RELEASE_LATENCY_QUALIFICATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/RELEASE_POWER_QUALIFICATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/RELEASE_READINESS_2026_10_17.md	Historical evidence, sealed test input, or dated audit record.
+CORRECTNESS	docs/RELEASE_RECOVERY.md	SDK evidence and rollback retention are covered by drafts #39 and #42.
+GOOD	docs/RELEASE_S31_V4_READINESS.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/UPGRADE.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_IMPLEMENTATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_PQ_WORKER_QUALIFICATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_PROTOCOL.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_S31_PREFLIGHT.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_V4_HARDWARE_GATES.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_V4_IMPLEMENTATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_V4_PREFLIGHT.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_V4_PROTOCOL.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_V4_VALIDATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	docs/WIRELESS_VALIDATION.md	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/archive-face-comparison.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	docs/historical/PROT_OS7_Nano_Schematic.png	Original asset, archived source, or protected visual evidence.
+EXCLUDED	docs/superpowers/plans/2026-10-16-audit-remediation.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/P6_BROWSER_WALKTHROUGH.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/P7_AUDIO_ITERATION_2.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/P7_AUDIO_SCORING.md	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/p8-soak-44225128810/aggregate.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/p8-soak-44225128810/evidence.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/pq-worker-qualification.json	Historical evidence, sealed test input, or dated audit record.
+GOOD	docs/validation/qualification-v1.schema.json	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+EXCLUDED	docs/validation/wireless-s31-preflight.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/wireless-v4-core.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	docs/validation/wireless-v4-preflight.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	firmware/PROT_OS7_MAX7219/Blink.ino	Inherited or mixed-origin sketch module; protected content stays intact.
+GOOD	firmware/PROT_OS7_MAX7219/BlinkTiming.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/ConfigStore.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/Configuration.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/Control.ino	Keep the current module or firmware boundary and fixed timing or storage contract.
+STYLE	firmware/PROT_OS7_MAX7219/ControllerIdle.h	Separate packed statements and normalize layout; require token and target checks.
+EXCLUDED	firmware/PROT_OS7_MAX7219/FFT.ino	Inherited or mixed-origin sketch module; protected content stays intact.
+GOOD	firmware/PROT_OS7_MAX7219/FaceRenderer.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/FlightInstrumentation.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+EXCLUDED	firmware/PROT_OS7_MAX7219/Glitch.ino	Inherited or mixed-origin sketch module; protected content stays intact.
+EXCLUDED	firmware/PROT_OS7_MAX7219/Icons.h	Inherited or mixed-origin sketch module; protected content stays intact.
+EXCLUDED	firmware/PROT_OS7_MAX7219/Microphone.ino	Inherited or mixed-origin sketch module; protected content stays intact.
+EXCLUDED	firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino	Inherited or mixed-origin sketch module; protected content stays intact.
+MAINTAINABILITY	firmware/PROT_OS7_MAX7219/PawLink.ino	Admission, session freshness and queue timing are interleaved. Preserve the ordering pending a focused transport change.
+STYLE	firmware/PROT_OS7_MAX7219/ResponseTiming.h	Separate packed statements and normalize layout; require token and target checks.
+STYLE	firmware/PROT_OS7_MAX7219/SensorHardware.ino	Separate packed statements and normalize layout; require token and target checks.
+STYLE	firmware/PROT_OS7_MAX7219/Settings.h	Separate packed statements and normalize layout; require token and target checks.
+GOOD	firmware/PROT_OS7_MAX7219/Supervision.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/UartCryptoConfig.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/UartCryptoSymbols.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+MAINTAINABILITY	firmware/PROT_OS7_MAX7219/UsbControl.ino	Dense command dispatch is protected by reply ordering, settings approval and byte-level compatibility tests. Avoid a parser split in this pass.
+GOOD	firmware/PROT_OS7_MAX7219/UsbReply.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+STYLE	firmware/PROT_OS7_MAX7219/VisorConnector.ino	Separate packed statements and normalize layout; require token and target checks.
+GOOD	firmware/PROT_OS7_MAX7219/VisualCache.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/build_info.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/check_config.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_legacy_crypto.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_ssl.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/config_adjust_x509.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/error.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/md.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/md5.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/platform.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/platform_util.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/private_access.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/ripemd160.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/sha1.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/sha256.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/sha3.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/sha512.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/mbedtls/threading.h	Vendored or upstream-derived material and its provenance.
+GOOD	firmware/PROT_OS7_MAX7219/src/AudioV2/AudioV2.cpp	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/AudioV2/AudioV2.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/BehaviorCore/AnimationV2.cpp	Keep the current module or firmware boundary and fixed timing or storage contract.
+STYLE	firmware/PROT_OS7_MAX7219/src/BehaviorCore/AnimationV2.h	Separate packed statements and normalize layout; require token and target checks.
+GOOD	firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/BehaviorCore/Timeline.cpp	Keep the current module or firmware boundary and fixed timing or storage contract.
+STYLE	firmware/PROT_OS7_MAX7219/src/BehaviorCore/Timeline.h	Separate packed statements and normalize layout; require token and target checks.
+GOOD	firmware/PROT_OS7_MAX7219/src/HelmetProtocol/Efficiency.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/HelmetProtocol/FlightRecorder.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/HelmetProtocol/HelmetProtocol.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/HelmetProtocol/RetryDelay.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/HelmetProtocol/SecureZero.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+GOOD	firmware/PROT_OS7_MAX7219/src/HelmetProtocol/UartAuthentication.h	Keep the current module or firmware boundary and fixed timing or storage contract.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/Max72xxPanel/README.md	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/Max72xxPanel/license.txt	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/LICENSE	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/UPSTREAM.json	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/UartMac.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/alignment.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/common.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/md.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/md.inc	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/md_wrap.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/platform_util.inc	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/PROT_OS7_MAX7219/src/UartCrypto/sha256.inc	Vendored or upstream-derived material and its provenance.
+GOOD	firmware/esp32/CMakeLists.txt	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+MAINTAINABILITY	firmware/esp32/README.md	Consolidate setup routes and distinguish current hardware, evidence and publication states.
+GOOD	firmware/esp32/platform_research/AuthenticatedUart.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/platform_research/BoardProfile.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/platform_research/S31Uart.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/platform_research/S31Uart.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/platformio.ini	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+MAINTAINABILITY	firmware/esp32/protocol_v4/Core.cpp	Large experimental state machine. Maintain research isolation and require protocol evidence for structural changes.
+GOOD	firmware/esp32/protocol_v4/Core.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Derivation.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Derivation.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Fragments.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Fragments.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/HostCrypto.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/HostCrypto.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Interfaces.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Native.c	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Native.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/NativeConfig.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/README.md	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/S31Adapter.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Storage.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Storage.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Traffic.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Traffic.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Worker.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/protocol_v4/Worker.hpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/LICENSE	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/PROVENANCE.json	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/mlkem_native.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/mlkem_native.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/mlkem_native_config.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/cbmc.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/common.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/compress.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/context.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/debug.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/debug.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/fips202x4.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/fips202/keccakf1600.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/indcpa.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/kem.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/params.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/poly_k.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/randombytes.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sampling.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/symmetric.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/sys.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/verify.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/verify.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/mlkem/src/zetas.inc	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/acvp/acvp_mlkem.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/notrandombytes/notrandombytes.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/notrandombytes/notrandombytes.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/decode_hex.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/test_common.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/test_mlkem.c	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/src/test_namespace.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	firmware/esp32/protocol_v4/vendor/mlkem-native/test/test_vectors/expected_test_vectors.h	Vendored or upstream-derived material and its provenance.
+GOOD	firmware/esp32/sdkconfig.defaults	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/sdkconfig.defaults.paw	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/ActionQueue.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+STYLE	firmware/esp32/src/ApplicationStatus.h	Separate packed statements and normalize layout; require token and target checks.
+GOOD	firmware/esp32/src/CMakeLists.txt	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/ControlArming.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/DeviceConfig.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+CORRECTNESS	firmware/esp32/src/EspNowTransport.cpp	Cold-start resource ownership and diagnostics are covered by draft #41.
+GOOD	firmware/esp32/src/EspNowTransport.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/IdentityRecovery.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/IdentityRecovery.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/Kconfig.projbuild	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+STYLE	firmware/esp32/src/PairingIndicator.cpp	Separate packed statements and normalize layout; require token and target checks.
+GOOD	firmware/esp32/src/PairingIndicator.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/ReplayWindow.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/SecureSession.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/SecureSession.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+CORRECTNESS	firmware/esp32/src/SecureStorage.cpp	NVS write-outcome recovery is covered by draft #37.
+CORRECTNESS	firmware/esp32/src/SecureStorage.h	NVS write-outcome recovery is covered by draft #37.
+GOOD	firmware/esp32/src/SecurityState.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/SensorMath.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/SessionHandshake.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/SessionHandshake.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+MAINTAINABILITY	firmware/esp32/src/WearerIO.cpp	The worker combines sampling, retries, OLED and NVS. These share loop deadlines and snapshots; a larger split needs target timing evidence.
+GOOD	firmware/esp32/src/WearerIO.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessConfig.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessCrypto.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessCrypto.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+MAINTAINABILITY	firmware/esp32/src/WirelessLink.cpp	Recovery and session deadlines share the receive order. Keep the state machine intact during this pass.
+GOOD	firmware/esp32/src/WirelessLink.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessPairing.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessPairing.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessSession.cpp	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessSession.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+GOOD	firmware/esp32/src/WirelessTransport.h	Preserve role, protocol, resource, or experimental boundary. No justified change in this pass.
+CORRECTNESS	firmware/esp32/src/main.cpp	Durable authority and cold-start failure are covered by drafts #37 and #41.
+GOOD	hardware/calibration-records.csv	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	hardware/connector-map.csv	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	hardware/p8-physical-manifest.template.json	Named architecture, operator, qualification or hardware reference. Preserve its requirements.
+GOOD	profiles/everyday.json	Supported example or configuration input with a defined schema.
+GOOD	profiles/expressive.json	Supported example or configuration input with a defined schema.
+GOOD	profiles/indoor.json	Supported example or configuration input with a defined schema.
+GOOD	profiles/outdoor.json	Supported example or configuration input with a defined schema.
+GOOD	scripts/analyze-efficiency.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/analyze-wireless.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/audio/corpus.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/build-efficiency.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+CORRECTNESS	scripts/build-esp32.py	Effective ESP32 configuration provenance is covered by draft #39.
+GOOD	scripts/build.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/build.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+MAINTAINABILITY	scripts/build_support.py	Command, validation and manifest responsibilities already have named seams. A broader split would add provenance churn.
+GOOD	scripts/check-animation-v2.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-audio-profiles.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/check-audio.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/check-baseline.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-behavior-build.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-behavior-parity.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-build-matrix.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/check-extensions.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/check-features.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-flight-builds.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-golden-frames.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-invalid-configurations.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-invariant-mutations.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-mlkem-preflight.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/check-pq-worker.py	Compressed preflight code has pinned worker and isolation evidence; leave it outside supported target formatting.
+STYLE	scripts/check-s31-preflight.py	Long experimental runner; preserve resource and toolchain evidence.
+STYLE	scripts/check-s31-uart.py	Compressed research runner and report path; preserve S31 preflight evidence.
+GOOD	scripts/check-supervision.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-timeline-build.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/check-timelines.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/check-uart-auth.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+STYLE	scripts/check-v4-resources.py	Compressed experimental footprint gate; preserve the measured path.
+STYLE	scripts/check-v4.py	Dense experimental qualification runner; isolate research changes.
+STYLE	scripts/compare-archive-faces.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/esp32-uart-build.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/export-diagnostics.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/flight-decode.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/generate-config-metadata.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+CORRECTNESS	scripts/helmet-tool.py	USB acknowledgement and stream recovery are covered by draft #38. Static asset routing stacks on that draft.
+GOOD	scripts/host-fft.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/host_support.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+STYLE	scripts/install-toolchains.py	Compact pinned installer; leave download and cache handling stable while improving its documentation.
+GOOD	scripts/maintenance_support.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+CORRECTNESS	scripts/package-release.py	SDK evidence and rollback retention are covered by drafts #39 and #42.
+GOOD	scripts/pair-paw.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/preview.cpp	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/provision-uart-auth.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+CORRECTNESS	scripts/qualification.py	Full shard evidence verification is covered by draft #40.
+GOOD	scripts/reset_retention.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+CORRECTNESS	scripts/serial_transport.py	USB acknowledgement and stream recovery are covered by draft #38.
+GOOD	scripts/sketch_features.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/supervision.mk	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-adc-sleep.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-config-compatibility.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-configuration-safety.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-dtls.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-efficiency.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-firmware.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-flight-recorder.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+CORRECTNESS	scripts/test-ingress-peer.sh	Cold-start resource ownership and diagnostics are covered by draft #41.
+GOOD	scripts/test-latency.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-postmerge-rendering.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-postmerge-wireless.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-s31-platform.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-uart-admission.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-v4.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/test-wireless.sh	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/tests/adc-sleep.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/animation-v2-visual.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/animation-v2.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/application-status.cpp	Make test cases readable while preserving assertions, constants and fixture order.
+GOOD	scripts/tests/archive-faces.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/audio-corpus.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/audio-profile.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/audio-v2-unit.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/behavior-core.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/blink-timing.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/brightness-reconnect.cpp	Make test cases readable while preserving assertions, constants and fixture order.
+GOOD	scripts/tests/brightness-upgrade.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/command-status.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/config-compatibility.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/config-metadata.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/configuration-safety.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/configuration.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/connector-timing.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/controller-idle.cpp	Make test cases readable while preserving assertions, constants and fixture order.
+GOOD	scripts/tests/dtls-config.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/dtls-crypto-config.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/dtls.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/dtls/CMakeLists.txt	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/efficiency.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/energy-monitor.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/extensions.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/feature-smoke.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/firmware.cpp	Dense assertion sequences preserve a wide firmware oracle; defer bulk formatting to an isolated test change.
+EXCLUDED	scripts/tests/fixtures/behavior-p3.json.gz	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	scripts/tests/fixtures/eeprom-v1.hex	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	scripts/tests/fixtures/p4-legacy-traces.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	scripts/tests/fixtures/p6-browser-walkthrough.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	scripts/tests/fixtures/rendering-v1.tsv	Historical evidence, sealed test input, or dated audit record.
+GOOD	scripts/tests/flight-recorder-integration.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/flight-recorder-unit.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/golden-rendering.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/handshake-availability.cpp	Dense fault sequences encode protocol ordering; preserve verified fixtures and avoid broad churn.
+GOOD	scripts/tests/helmet-protocol.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/ingress-peer.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/matrix.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/microphone-recovery.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/mlkem-preflight-pins.json	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+CORRECTNESS	scripts/tests/nvs-verification.cpp	NVS write-outcome recovery is covered by draft #37.
+GOOD	scripts/tests/p8-timeline-format.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/postmerge-rendering.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker-pins.json	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/arena_config.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/arena_shim.c	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/freertos_probe.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/guarded_stack.c	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/host_rng.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/kem.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/native_config.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/native_shim.c	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/primitive_stress.c	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/stress.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/wolf_settings.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/wolf_shim.c	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/pq-worker/worker.hpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/response-latency.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/retry-delay.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/s31-preflight-pins.json	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/s31/platform.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/sensor-recovery.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/sketch.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/storage-faults.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+CORRECTNESS	scripts/tests/storage-stubs/nvs.h	NVS write-outcome recovery is covered by draft #37.
+GOOD	scripts/tests/storage-stubs/nvs_flash.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/storage-stubs/psa/crypto.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/storage-stubs/sdkconfig.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/stubs/ADC.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/stubs/Adafruit_GFX.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/stubs/Arduino.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/stubs/EEPROM.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/stubs/Entropy.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/stubs/SPI.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/supervision-integration.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/supervision-unit.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/test-board-targets.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/tests/test-diagnostics-export.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/test-efficiency.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+CORRECTNESS	scripts/tests/test-face-studio.js	USB acknowledgement and stream recovery are covered by draft #38.
+CORRECTNESS	scripts/tests/test-helmet-tool.py	USB acknowledgement and stream recovery are covered by draft #38.
+GOOD	scripts/tests/test-host-build.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/test-host-support.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+STYLE	scripts/tests/test-pair-paw.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/tests/test-pq-worker.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+CORRECTNESS	scripts/tests/test-qualification.py	Full shard evidence verification is covered by draft #40.
+CORRECTNESS	scripts/tests/test-release-packaging.py	SDK evidence and rollback retention are covered by drafts #39 and #42.
+GOOD	scripts/tests/test-reset-retention.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/test-runner-portability.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+STYLE	scripts/tests/test-scheduler-config.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/tests/test-security-builds.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/test-timeline-compiler.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/test-timeline-editor.js	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/test-toolchain-integrity.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/test-tools.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/test-twin-build-profile.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/timeline-runtime.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/uart-admission.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/uart-auth.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+EXCLUDED	scripts/tests/uart-fixture/ProtogenUartKey.h	Licensing record, generated metadata, vectors, or retained fixture.
+GOOD	scripts/tests/uart-mbed-adapter.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/uart-rendering.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/CMakeLists.txt	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/Checks.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/Qualification.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/Simulator.hpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/Sizes.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/UartIntegration.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/Vectors.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/make_vectors.py	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/v4/test.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+EXCLUDED	scripts/tests/v4/vectors.json	Licensing record, generated metadata, vectors, or retained fixture.
+STYLE	scripts/tests/wearer-io.cpp	Dense modeled timings and peer state; keep task ownership and trace tests intact.
+GOOD	scripts/tests/wearer-stubs/driver/gpio.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/driver/i2c_master.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/driver/spi_master.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/esp_adc/adc_cali.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/esp_adc/adc_cali_scheme.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/esp_adc/adc_oneshot.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/esp_timer.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/freertos/FreeRTOS.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/freertos/task.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wearer-stubs/nvs.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+STYLE	scripts/tests/wearer-stubs/wearer-fakes.h	Compressed peripheral stubs are shared timing inputs; leave them byte stable for this pass.
+GOOD	scripts/tests/wireless-benchmark.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wireless-config.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wireless-crypto-config.h	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wireless.cpp	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+GOOD	scripts/tests/wireless/CMakeLists.txt	Focused regression, deterministic harness or small hardware fake. Keep oracle behavior intact.
+EXCLUDED	scripts/tests/wireless/compat/mbedtls/bignum.h	Vendored or upstream-derived material and its provenance.
+EXCLUDED	scripts/tests/wireless/compat/mbedtls/ecp.h	Vendored or upstream-derived material and its provenance.
+STYLE	scripts/timelines/compiler.py	Normalize crowded Python statements; preserve the AST, CLI and evidence.
+GOOD	scripts/timelines/simulator.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	scripts/twin/Makefile	Explicit replay or host build responsibilities with deterministic evidence.
+EXCLUDED	scripts/twin/fixtures/animation-v2.json	Historical evidence, sealed test input, or dated audit record.
+EXCLUDED	scripts/twin/fixtures/visibility.json	Historical evidence, sealed test input, or dated audit record.
+GOOD	scripts/twin/replay.py	Explicit replay or host build responsibilities with deterministic evidence.
+CORRECTNESS	scripts/twin/soak.py	Full shard evidence verification is covered by draft #40.
+GOOD	scripts/twin/test_replay.py	Explicit replay or host build responsibilities with deterministic evidence.
+GOOD	scripts/twin/test_soak.py	Explicit replay or host build responsibilities with deterministic evidence.
+MAINTAINABILITY	scripts/twin/twin.cpp	Replay scheduling and trace production share ordered virtual events. Existing reference comparisons justify preserving the loop.
+GOOD	scripts/uart_key.py	Focused host entry point or shared helper with an established CLI or evidence contract.
+GOOD	toolchain.lock.json	Repository policy, security guidance, or pinned build input.
+EXCLUDED	tools/helmet/config-metadata.json	Licensing record, generated metadata, vectors, or retained fixture.
+CORRECTNESS	tools/helmet/index.html	USB acknowledgement and stream recovery are covered by draft #38. Source and accessibility work stacks on that draft.
+STYLE	tools/helmet/timeline-editor.js	Expand compressed markup-facing code while preserving seek order and timing.
+GOOD	tools/helmet/timelines/three-channel.json	Supported example or configuration input with a defined schema.
