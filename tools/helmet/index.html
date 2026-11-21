@@ -133,6 +133,7 @@ const names=['Happy','Surprised','Angry','vwv','Sleepy','Wink'],symbols=['^‿^'
 const keys=['brightness','startup_expression','mouth_mode','sensitivity','noise_margin','noise_floor','boop_trigger','boop_release','blink_interval_ms','blink_jitter_ms','transition_ms','attack_ms','release_ms','natural_blinks','idle_motion','boop_mode','boop_duration_ms'];
 const $=id=>document.getElementById(id);let state=null,brightnessDirty=false,busy=false,presets=[],booping=false,visorHidden=false;
 let actionVersion = 0, pendingEdits = 0;
+let acknowledgedWithoutRefresh = false;
 function message(text, error = false) {
   const notice = $('message');
   notice.textContent = text;
@@ -279,6 +280,7 @@ function update(value) {
 async function action(payload, notice) {
   if (busy) return;
   actionVersion++;
+  acknowledgedWithoutRefresh = false;
   const editsAtStart = pendingEdits;
   busy = true;
   $('settings').disabled = true;
@@ -296,6 +298,12 @@ async function action(payload, notice) {
     if (sameEdits && (payload.action === 'set' || payload.action === 'load' || payload.action === 'defaults')) {
       pendingEdits = 0;
       brightnessDirty = false;
+    }
+    if (value.action_acknowledged) {
+      acknowledgedWithoutRefresh = true;
+      const confirmation = sameEdits && notice ? notice : 'Helmet acknowledged the command.';
+      message(`${confirmation} Status refresh failed. ${value.refresh_error}`, true);
+      return;
     }
     update(value);
     if (notice && sameEdits) message(notice);
@@ -324,7 +332,7 @@ async function poll() {
       if (version === actionVersion) {
         $('connection').textContent = 'Disconnected';
         $('connection').className = 'tag';
-        message(error.message, true);
+        if (!acknowledgedWithoutRefresh) message(error.message, true);
       }
     }
   }

@@ -236,3 +236,19 @@ test('a preset selected during Apply stays pending for the next explicit Apply',
   element('apply').onclick();
   assert.deepEqual(JSON.parse(requests.at(-1).options.body), {action:'set', config:{mouth_mode:0}});
 });
+
+test('a failed refresh leaves an acknowledged save visible', async () => {
+  const {element, requests, timers} = openStudio();
+  requests.find(request => request.path === '/api/state').reply(snapshot(0));
+  await settle();
+  element('save').onclick();
+  requests.at(-1).reply({action_acknowledged:true, refresh_error:'frame unavailable'});
+  await settle();
+  const confirmation = element('message').textContent;
+  assert.match(confirmation, /Settings saved on the helmet.*Status refresh failed/);
+  const poll = timers.shift().fn();
+  requests.at(-1).reply({error:'USB did not respond'}, false);
+  await poll;
+  assert.equal(element('connection').textContent, 'Disconnected');
+  assert.equal(element('message').textContent, confirmation);
+});

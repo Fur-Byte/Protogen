@@ -102,6 +102,7 @@ class Helmet:
             raise RuntimeError("Unsupported settings schema; this tool supports schemas 1 and 2.")
         self.fields = set(self.config["config"])
         self.calibrating = False
+        self.config_stale = False
 
     def checked(self, command):
         result = self.transport.command(command)
@@ -115,8 +116,9 @@ class Helmet:
         with self.lock:
             self.transport.tick()
             status = self.checked("STATUS")
-            if self.calibrating and not status.get("calibrating"):
+            if self.config_stale or (self.calibrating and not status.get("calibrating")):
                 self.config = self.checked("GET")
+                self.config_stale = False
             self.calibrating = status.get("calibrating", False)
             return {"simulation": self.transport.simulation, "status": status,
                     "display": self.checked("FRAME"), "config": self.config["config"]}
@@ -132,11 +134,12 @@ class Helmet:
                     raise ValueError("Settings must be nonnegative integers")
                 # Firmware validates every range and cross-field constraint, atomically.
                 self.config = self.checked("SET " + " ".join(f"{key}={number}" for key, number in value.items()))
+                self.config_stale = False
             elif action in ("save", "load", "defaults", "calibrate"):
                 self.checked(action.upper())
                 if action == "calibrate":
                     self.calibrating = True
-                self.config = self.checked("GET")
+                self.config_stale = True
             elif action in ("expression", "sleep", "microphone"):
                 value = payload.get("value")
                 maximum = 5 if action == "expression" else 1
@@ -151,7 +154,13 @@ class Helmet:
                 self.checked(f"sim {sensor} {value}")
             else:
                 raise ValueError("Unknown action")
-            return self.state()
+            try:
+                if self.config_stale:
+                    self.config = self.checked("GET")
+                    self.config_stale = False
+                return self.state()
+            except (OSError, RuntimeError, ValueError) as error:
+                return {"action_acknowledged": True, "refresh_error": str(error)}
 
 
 class StudioServer(ThreadingHTTPServer):

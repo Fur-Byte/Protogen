@@ -28,10 +28,20 @@ class SerialTransport:
         except Exception:
             os.close(self.fd)
             raise
-        self.pending = b""
+        self.out_of_sync = False
 
     def command(self, text):
+        if self.out_of_sync:
+            raise RuntimeError("USB session is out of sync. Reset the helmet and restart the USB tool.")
         data = (text + "\n").encode("ascii")
+        try:
+            return self._exchange(data)
+        except (OSError, RuntimeError):
+            # Replies carry no command ID. A late reply cannot be assigned safely.
+            self.out_of_sync = True
+            raise
+
+    def _exchange(self, data):
         deadline = time.monotonic() + 3
         while data:
             remaining = deadline - time.monotonic()
@@ -41,23 +51,23 @@ class SerialTransport:
                 data = data[os.write(self.fd, data):]
             except BlockingIOError:
                 continue
-        while b"\n" not in self.pending:
+        pending = b""
+        while b"\n" not in pending:
             remaining = deadline - time.monotonic()
             if remaining <= 0 or not select.select([self.fd], [], [], remaining)[0]:
-                self.termios.tcflush(self.fd, self.termios.TCIFLUSH)
-                self.pending = b""
-                raise RuntimeError("Helmet did not respond. Upload firmware 8.0 with USB Type Serial first.")
+                raise RuntimeError("Helmet did not respond. Reset the helmet and restart the USB tool.")
             try:
                 chunk = os.read(self.fd, 4096)
             except BlockingIOError:
                 continue
             if not chunk:
                 raise RuntimeError("Helmet disconnected.")
-            self.pending += chunk
-            if len(self.pending) > 8192:
-                self.pending = b""
+            pending += chunk
+            if len(pending) > 8192:
                 raise RuntimeError("Unexpected USB response length.")
-        line, self.pending = self.pending.split(b"\n", 1)
+        line, trailing = pending.split(b"\n", 1)
+        if trailing:
+            self.out_of_sync = True
         try:
             return json.loads(line)
         except (ValueError, UnicodeDecodeError) as error:
