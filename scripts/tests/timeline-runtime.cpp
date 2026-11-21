@@ -3,10 +3,123 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <initializer_list>
 #include <iostream>
 
 using namespace Behavior::Animation;
 using namespace Behavior::Timeline;
+
+namespace {
+constexpr uint8_t ClipDurationMs = 100;
+
+struct GazeEvent {
+  uint8_t at, duration;
+  int8_t value;
+};
+
+std::array<uint8_t, AssetBytes> gazeClip(std::initializer_list<GazeEvent> events) {
+  std::array<uint8_t, AssetBytes> clip{};
+  clip[0] = Version;
+  clip[2] = events.size();
+  clip[4] = ClipDurationMs;
+  auto *encoded = clip.data() + HeaderBytes;
+  for (const auto &event : events) {
+    encoded[0] = event.at;
+    encoded[2] = event.duration;
+    encoded[4] = static_cast<uint8_t>(Region::LeftEye);
+    encoded[5] = static_cast<uint8_t>(Motion::Gaze);
+    encoded[8] = encoded[9] = static_cast<uint8_t>(event.value);
+    encoded += EventBytes;
+  }
+  return clip;
+}
+
+void checkPendingAndExpiry(uint32_t origin) {
+  const auto clip = gazeClip({{16, 8, 1}, {30, 10, 2}, {ClipDurationMs, 0, -1}});
+  Table table;
+  Player player;
+  const auto &progress = player.progress();
+  assert(player.start(table, clip.data(), clip.size(), origin));
+  player.advance(table, origin - 1);
+  player.advance(table, origin + 15);
+  assert(progress.next == 0 && progress.last == Outcome::None && table.count() == 0);
+
+  player.advance(table, origin + 24);
+  assert(progress.next == 1 && progress.outcomes[0] == Outcome::Started);
+  assert(table.resolveChannel(Region::LeftEye, Motion::Gaze, origin + 24).value == 1);
+
+  player.advance(table, origin + 41);
+  assert(progress.state == State::Running && progress.next == 2 && progress.skipped == 1);
+  assert(progress.outcomes[1] == Outcome::Skipped && progress.outcomes[2] == Outcome::None);
+  assert(!table.resolveChannel(Region::LeftEye, Motion::Gaze, origin + 41).handle);
+
+  player.advance(table, origin + ClipDurationMs);
+  assert(progress.state == State::Running && progress.next == 3 && progress.started == 2);
+  assert(progress.outcomes[2] == Outcome::Started);
+  assert(table.resolveChannel(Region::LeftEye, Motion::Gaze, origin + ClipDurationMs).value == -1);
+
+  player.advance(table, origin + ClipDurationMs + 1);
+  player.cancel(table);
+  assert(progress.state == State::Complete && table.count() == 0);
+}
+
+void checkCancellationWithPendingEvents(uint32_t origin) {
+  const auto clip = gazeClip({{0, 100, 1}, {30, 10, 2}});
+  Table table;
+  Player player;
+  const auto &progress = player.progress();
+  const auto unrelated = table.start(origin, {Region::RightEye, Motion::Lid, 0, Easing::Linear,
+                                              250, 1, 1});
+  assert(player.start(table, clip.data(), clip.size(), origin));
+  player.advance(table, origin);
+  assert(progress.next == 1 && table.count() == 2);
+
+  player.cancel(table);
+  player.advance(table, origin + 30);
+  player.cancel(table);
+  player.advance(table, origin + ClipDurationMs + 1);
+  assert(progress.state == State::Cancelled && progress.next == 1);
+  assert(progress.started == 1 && progress.skipped == 0 && progress.rejected == 0);
+  assert(progress.outcomes[0] == Outcome::Started && progress.outcomes[1] == Outcome::None);
+  assert(table.count() == 1 && table.cancel(unrelated.handle));
+}
+
+void checkReplacement(uint32_t origin) {
+  const auto initial = gazeClip({{0, 100, 1}, {40, 10, 2}, {ClipDurationMs, 0, 1}});
+  const auto replacement = gazeClip({{15, 30, -2}});
+  Table table;
+  Player player;
+  const auto &progress = player.progress();
+  const auto unrelated = table.start(origin, {Region::RightEye, Motion::Lid, 0, Easing::Linear,
+                                              250, 1, 1});
+  assert(player.start(table, initial.data(), initial.size(), origin));
+  player.advance(table, origin);
+
+  assert(!player.start(table, replacement.data(), replacement.size() - 1, origin + 20));
+  assert(progress.state == State::Running && progress.next == 1 && table.count() == 2);
+  player.advance(table, origin + 40);
+  assert(progress.next == 2 && progress.started == 2);
+  assert(table.resolveChannel(Region::LeftEye, Motion::Gaze, origin + 40).value == 2);
+
+  const uint32_t replacementOrigin = origin + 45;
+  assert(player.start(table, replacement.data(), replacement.size(), replacementOrigin));
+  assert(progress.state == State::Running && progress.next == 0 && progress.started == 0);
+  assert(progress.last == Outcome::None && progress.outcomes[0] == Outcome::None);
+  assert(progress.outcomes[1] == Outcome::None && table.count() == 1);
+  player.advance(table, replacementOrigin + 14);
+  assert(progress.next == 0 && table.count() == 1);
+
+  player.advance(table, replacementOrigin + 15);
+  assert(progress.next == 1 && progress.outcomes[0] == Outcome::Started);
+  assert(table.resolveChannel(Region::LeftEye, Motion::Gaze, replacementOrigin + 15).value == -2);
+  player.advance(table, origin + ClipDurationMs);
+  assert(progress.state == State::Running && progress.next == 1 && progress.outcomes[1] == Outcome::None);
+  assert(!table.resolveChannel(Region::LeftEye, Motion::Gaze, origin + ClipDurationMs).handle);
+
+  player.advance(table, replacementOrigin + ClipDurationMs + 1);
+  assert(progress.state == State::Complete && table.count() == 1 && table.cancel(unrelated.handle));
+}
+}
 
 int main() {
   const auto *data = ProtogenAsset::clip;
@@ -95,6 +208,32 @@ int main() {
   assert(player.start(collision, backlog.data(), backlog.size(), origin));
   player.advance(collision, origin+40);
   assert(player.progress().next == EventsPerLoop && player.progress().skipped == EventsPerLoop);
+
+  backlog[HeaderBytes + 2] = 100;
+  Table draining;
+  Player drainingPlayer;
+  const auto unrelated = draining.start(origin, {Region::RightEye, Motion::Lid, 0, Easing::Linear,
+                                                250, 1, 1});
+  assert(drainingPlayer.start(draining, backlog.data(), backlog.size(), origin));
+  drainingPlayer.advance(draining, origin);
+  assert(draining.count() == 2);
+  drainingPlayer.advance(draining, origin + 101);
+  assert(drainingPlayer.progress().state == State::Running);
+  assert(drainingPlayer.progress().next == 1 + EventsPerLoop);
+  assert(drainingPlayer.progress().outcomes[1 + EventsPerLoop] == Outcome::None);
+  assert(draining.count() == 1);
+  for (unsigned loop = 0; loop < 3; ++loop)
+    drainingPlayer.advance(draining, origin + 102 + loop);
+  const auto &drained = drainingPlayer.progress();
+  assert(drained.state == State::Complete && drained.next == MaxEvents && drained.skipped == MaxEvents - 1);
+  assert(drained.outcomes[0] == Outcome::Started);
+  assert(std::all_of(drained.outcomes + 1, drained.outcomes + MaxEvents,
+                     [](Outcome outcome) { return outcome == Outcome::Skipped; }));
+  assert(draining.cancel(unrelated.handle));
+
+  checkPendingAndExpiry(origin);
+  checkCancellationWithPendingEvents(origin);
+  checkReplacement(origin);
 
   // Numerical conformance stream. Python's independent rational oracle
   // checks signed division at all integer ticks and every easing endpoint.
