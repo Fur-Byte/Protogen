@@ -113,6 +113,10 @@ class PackagingTests(unittest.TestCase):
                                       "MBEDTLS_GCM_C": True, "MBEDTLS_ECDH_C": True, "MBEDTLS_ECP_DP_SECP256R1_ENABLED": True,
                                       "NVS_ENCRYPTION": False, "SECURE_BOOT": False,
                                       "SECURE_FLASH_ENC_ENABLED": False, "PROTOGEN_PRODUCTION": False})
+            target = esp["targets"][role]
+            sdk = json.dumps({**target["sdk_settings"], "ESP_MAIN_TASK_STACK_SIZE": 12288}).encode()
+            self.write(f"build/esp32/{role}/config/sdkconfig.json", sdk)
+            target["sdkconfig_sha256"] = sha(sdk)
         self.write(TEENSY, json.dumps(teensy).encode())
         self.write(ESP, json.dumps(esp).encode())
 
@@ -165,6 +169,9 @@ class PackagingTests(unittest.TestCase):
             self.assertEqual(archive.read("teensy/" + HEX), b"Synthetic HEX fixture. Never flash.")
             self.assertEqual(set(archive.namelist()), set(record["sha256"]) | {"release.json"})
             self.assertTrue(all(sha(archive.read(name)) == expected for name, expected in record["sha256"].items()))
+            for role in ROLES:
+                self.assertEqual(archive.read(f"evidence/sdkconfig.{role}.json"),
+                                 (self.root / f"build/esp32/{role}/config/sdkconfig.json").read_bytes())
             self.assertFalse(any("compile_commands" in name or "temporary-cache" in name for name in archive.namelist()))
 
     def test_output_inode_is_private_under_ordinary_umask(self):
@@ -348,6 +355,17 @@ class PackagingTests(unittest.TestCase):
         self.edit_manifest(ESP, lambda record: record.update(platformio_overrides=["PLATFORMIO_BUILD_FLAGS"]))
         self.rejected(r"(?i)platformio")
 
+    def test_current_build_requires_both_sdkconfig_digests(self):
+        self.edit_manifest(ESP, lambda record: record["targets"]["paw"].pop("sdkconfig_sha256", None))
+        self.rejected(r"(?i)sdkconfig")
+
+    def test_sdkconfig_drift_outside_the_checked_settings(self):
+        path = "build/esp32/helmet/config/sdkconfig.json"
+        config = json.loads((self.root / path).read_bytes())
+        config["ESP_MAIN_TASK_STACK_SIZE"] += 1024
+        self.write(path, json.dumps(config).encode())
+        self.rejected(r"(?i)sdkconfig")
+
     def test_legacy_prior_bundle_with_complete_evidence(self):
         path = self.prior()
 
@@ -358,6 +376,9 @@ class PackagingTests(unittest.TestCase):
             entries["release.json"] = json.dumps(manifest).encode()
             evidence = json.loads(entries["evidence/esp32-build.json"])
             del evidence["platformio_overrides"]
+            for role in ROLES:
+                del evidence["targets"][role]["sdkconfig_sha256"]
+                del entries[f"evidence/sdkconfig.{role}.json"]
             entries["evidence/esp32-build.json"] = json.dumps(evidence).encode()
 
         self.rewrite_prior(path, legacy_layout, update_checksums=True)

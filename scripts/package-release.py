@@ -28,6 +28,7 @@ SKETCH = "firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino"
 DOCS = ("docs/HARDWARE_WIRING.md", "hardware/connector-map.csv", "hardware/calibration-records.csv",
         "docs/EFFICIENCY_QUALIFICATION.md", "docs/RELEASE_RECOVERY.md", "firmware/esp32/README.md")
 ROLES = ("helmet", "paw")
+SDKCONFIG_EVIDENCE = {role: f"evidence/sdkconfig.{role}.json" for role in ROLES}
 RADIO_IMAGES = ("firmware.bin", "bootloader.bin", "partitions.bin")
 RADIO_BINARIES = {f"{role}/{name}" for role in ROLES for name in RADIO_IMAGES}
 RADIO_ELFS = {f"build/esp32/{role}/firmware.elf" for role in ROLES}
@@ -214,6 +215,22 @@ def verify_artifacts(content, checksums, esp):
               f"ESP32 {role} firmware size differs from the build evidence")
 
 
+def verify_sdkconfigs(content, esp, *, required):
+    if not required and not any("sdkconfig_sha256" in esp["targets"][role] for role in ROLES):
+        return set()
+    for role, path in SDKCONFIG_EVIDENCE.items():
+        target = esp["targets"][role]
+        expected = target.get("sdkconfig_sha256")
+        raw = content.get(path)
+        valid(raw and is_sha256(expected) and digest(raw) == expected,
+              f"Missing or mismatched ESP32 {role} sdkconfig evidence")
+        config = checked_json(raw, f"ESP32 {role} sdkconfig")
+        valid(all(key in config and type(config[key]) is type(value) and config[key] == value
+                  for key, value in target["sdk_settings"].items()),
+              f"ESP32 {role} sdkconfig differs from recorded settings")
+    return set(SDKCONFIG_EVIDENCE.values())
+
+
 def dependency(name):
     if name.startswith(VENDORED):
         return True
@@ -268,6 +285,7 @@ def validate_previous(raw, expected):
           "Previous release compatibility entries differ from its build evidence")
     artifacts = artifact_checksums(teensy, esp)
     verify_artifacts(content, artifacts, esp)
+    sdkconfigs = verify_sdkconfigs(content, esp, required=False)
     previous = manifest["previous_release_sha256"]
     valid((previous is None and PREVIOUS not in content) or
           (is_sha256(previous) and checksums.get(PREVIOUS) == previous), "Previous release recovery entry is inconsistent")
@@ -276,7 +294,7 @@ def validate_previous(raw, expected):
     if backup:
         profile = checked_json(content[CONFIGURATION], "previous configuration")
         valid(validate_profile(profile) == profile, "Previous release configuration is not a validated helmet backup")
-    allowed = required | set(artifacts) | {PREVIOUS, CONFIGURATION}
+    allowed = required | set(artifacts) | sdkconfigs | {PREVIOUS, CONFIGURATION}
     for name in set(content) - allowed:
         path = name.removeprefix("dependencies/")
         valid(path != name and dependency(path), "Unexpected entry outside the rollback package allowlist")
@@ -310,6 +328,9 @@ def package(output, previous=None, initial=False, config_path=None, previous_sha
         except ValueError as error:
             raise ValueError(f"Missing or invalid release artifact: {name}") from error
     verify_artifacts(content, checksums, esp)
+    for role, path in SDKCONFIG_EVIDENCE.items():
+        content[path] = local_file(f"build/esp32/{role}/config/sdkconfig.json")
+    verify_sdkconfigs(content, esp, required=True)
     for path in sorted(RADIO_ELFS):
         valid(digest(local_file(path)) == esp["artifacts"][path], "ESP32 ELF artifact checksum mismatch")
     content.update({LOCK: lock_bytes, TEENSY_EVIDENCE: teensy_bytes, ESP_EVIDENCE: esp_bytes})

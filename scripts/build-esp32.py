@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compile both pinned ESP32 targets; record source identity and artifact hashes."""
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -97,7 +98,8 @@ def main():
             uart_linked = any("::uartMac(" in symbol for symbol in symbols.splitlines())
             if uart_linked != (role == "helmet" and record["uart_auth"]):
                 raise RuntimeError(f"{role}: linked UART authentication differs from the requested build")
-            sdk = json.loads((build / "esp32" / role / "config/sdkconfig.json").read_text())
+            sdk_bytes = (build / "esp32" / role / "config/sdkconfig.json").read_bytes()
+            sdk = json.loads(sdk_bytes)
             required = {
                 "FREERTOS_HZ": 1000,
                 "ESPTOOLPY_FLASHSIZE": "4MB",
@@ -151,6 +153,7 @@ def main():
                 },
                 "binary_bytes": (build / "esp32" / role / "firmware.bin").stat().st_size,
                 "sdk_settings": required,
+                "sdkconfig_sha256": hashlib.sha256(sdk_bytes).hexdigest(),
             }
             for name in ("firmware.bin", "firmware.elf", "bootloader.bin", "partitions.bin"):
                 path = build / "esp32" / role / name
