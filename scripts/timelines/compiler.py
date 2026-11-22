@@ -196,25 +196,17 @@ def compile_document(doc):
         if len(expanded) + repeat_count > MAX_EVENTS:
             raise TimelineError(path, "expanded event count exceeds 32")
         source_events.append(source_event)
-        region_code = REGIONS.index(region)
-        channel_code = channel_names.index(channel)
-        easing_code = EASING.index(easing)
+        motion_fields = (
+            REGIONS.index(region),
+            channel_names.index(channel),
+            priority,
+            EASING.index(easing),
+            first,
+            last,
+        )
         for occurrence in range(repeat_count):
             at = start + occurrence * repeat_period
-            expanded.append(
-                (
-                    at,
-                    start,
-                    index,
-                    event_duration,
-                    region_code,
-                    channel_code,
-                    priority,
-                    easing_code,
-                    first,
-                    last,
-                )
-            )
+            expanded.append((at, start, index, event_duration, motion_fields))
     # Equal expanded timestamps sort by canonical source order: original
     # base time, then original declaration index. This survives re-import.
     expanded.sort()
@@ -222,12 +214,12 @@ def compile_document(doc):
     data = bytearray(
         HEADER.pack(VERSION, len(expanded), audio >> 8, duration, seed, expression, blink, idle, audio & 255)
     )
-    for at, _, index, event_duration, region, channel, priority, easing, first, last in expanded:
+    for at, _, index, event_duration, motion_fields in expanded:
         active_until = [end for end in active_until if end >= at]  # P5 includes the last millisecond.
         if len(active_until) == 8:
             raise TimelineError(f"events[{index}]", f"global capacity exceeded at {at} ms")
         active_until.append(at + event_duration)
-        data.extend(EVENT.pack(at, event_duration, region, channel, priority, easing, first, last))
+        data.extend(EVENT.pack(at, event_duration, *motion_fields))
     data.extend(bytes((MAX_EVENTS - len(expanded)) * EVENT.size))
     canonical = {
         "version": VERSION,
