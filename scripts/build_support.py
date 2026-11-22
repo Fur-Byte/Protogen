@@ -245,9 +245,15 @@ class BuildRun:
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.build / "runs" / (timestamp + "-" + kind + "-" + uuid.uuid4().hex[:8])
         self.path.mkdir(parents=True)
-        self.current = self.build / ("current-build.json" if kind == "build" else "feature-results.json" if kind == "features" else kind+"-results.json")
+        if kind == "build":
+            report_name, log_name = "current-build.json", "compile.log"
+        elif kind == "features":
+            report_name, log_name = "feature-results.json", "feature-checks.log"
+        else:
+            report_name, log_name = f"{kind}-results.json", f"{kind}-checks.log"
+        self.current = self.build / report_name
         self.log = self.path / "compile.log"
-        self.compat_log = self.build / ("compile.log" if kind == "build" else "feature-checks.log" if kind == "features" else kind+"-checks.log")
+        self.compat_log = self.build / log_name
         self.record = {"schema": 1, "kind": kind, "state": "running", "started_utc": timestamp,
                        "run_directory": str(self.path), "fqbn": FQBN, "results": []}
         self.publish()
