@@ -1,4 +1,5 @@
-import Lean
+import Lean.Elab.Tactic.Omega
+import Init.Data.BitVec.Bitblast
 
 namespace Protogen
 
@@ -29,7 +30,9 @@ theorem nextSlot (index : Nat) : (index + 1) % 4 < 4 := by omega
 
 -- RetryDelay and ReleaseGate: unsigned 32-bit subtraction across rollover.
 theorem elapsedModulo (start elapsed : BitVec 32) :
-    start + elapsed - start = elapsed := by bv_decide
+    start + elapsed - start = elapsed := by
+  rw [BitVec.add_comm start elapsed]
+  exact BitVec.add_sub_cancel elapsed start
 
 theorem remainingBound (elapsed delay : Nat) : delay - elapsed ≤ delay := by omega
 
@@ -185,7 +188,9 @@ theorem audioCounterConsume (read write : BitVec 16) :
   exact (BitVec.sub_sub write read 1).symm
 
 theorem eepromNextSequence (seq : BitVec 32) :
-    (seq + 1) - seq = 1 := by bv_decide
+    (seq + 1) - seq = 1 := by
+  rw [BitVec.add_comm seq 1]
+  exact BitVec.add_sub_cancel 1 seq
 
 -- Fresh intent is retained if a transport admission fails; expiration
 -- uses original arrival time, not the retry time.
@@ -201,6 +206,44 @@ theorem successfulIntentRemoved (count : Nat) (h : count > 0) :
 theorem blockedIntentExpires (arrival now retry : Nat)
     (h : arrival + 300 ≤ now) (later : now ≤ retry) :
     arrival + 300 ≤ retry := by omega
+
+-- Session counter policy, separate from assumptions about fresh key material.
+theorem reservedSequenceStrict (sequence : Nat)
+    (h : sequence < 9223372036854775807) :
+    sequence < sequence + 1 ∧ sequence + 1 ≤ 9223372036854775807 := by omega
+
+theorem recordLimit (records : Nat) (h : records < 1000000) :
+    records + 1 ≤ 1000000 := by omega
+
+theorem rekeyBeforeExhaustion (sequence : Nat)
+    (h : sequence < 9223372036854775807 - 1024) :
+    sequence + 1 ≤ 9223372036854775807 - 1024 := by omega
+
+def replayCommit (authenticated decoded valid : Bool) : Bool :=
+  authenticated && decoded && valid
+
+theorem replayCommitRequiresAll (authenticated decoded valid : Bool)
+    (h : replayCommit authenticated decoded valid = true) :
+    authenticated = true ∧ decoded = true ∧ valid = true := by
+  cases authenticated <;> cases decoded <;> cases valid <;> simp [replayCommit] at h ⊢
+
+-- No same-generation publication after one nonzero modular advance. A
+-- callback spanning 2^32 publications is excluded by the environment contract.
+theorem retiredGeneration (generation advance : BitVec 32) (h : advance ≠ 0) :
+    generation + advance ≠ generation := by
+  intro equal
+  have cancel : generation + advance - generation = advance := elapsedModulo generation advance
+  rw [equal, BitVec.sub_self] at cancel
+  exact h cancel.symm
+
+-- Either serialization of one admissible producer and consumer preserves the
+-- occupancy bound; the proof assumes publication of complete samples.
+theorem producerConsumerOrder (count : Nat) (lo : 0 < count) (hi : count < 512) :
+    count + 1 ≤ 512 ∧ count - 1 < 512 ∧
+    count + 1 - 1 = count ∧ count - 1 + 1 = count := by omega
+
+theorem concurrentCellsDistinct (read count : Nat) (lo : 0 < count) (hi : count < 512) :
+    (read + count) % 512 ≠ read % 512 := by omega
 
 #print axioms tileIndex
 #print axioms rotatedTileIndex
@@ -245,5 +288,13 @@ theorem blockedIntentExpires (arrival now retry : Nat)
 #print axioms blockedIntentRetained
 #print axioms successfulIntentRemoved
 #print axioms blockedIntentExpires
+
+#print axioms reservedSequenceStrict
+#print axioms recordLimit
+#print axioms rekeyBeforeExhaustion
+#print axioms replayCommitRequiresAll
+#print axioms retiredGeneration
+#print axioms producerConsumerOrder
+#print axioms concurrentCellsDistinct
 
 end Protogen

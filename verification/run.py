@@ -41,6 +41,9 @@ FAST = (
     ("brightness", "brightness", None, 4),
     ("action-cursor", "action_cursor", None, 4),
     ("action-fields", "action_fields", None, 4),
+    ("session-policy", "session_policy", None, 16),
+    ("ingress-generation", "ingress_generation", None, 4),
+    ("audio-interleavings", "audio_interleavings", None, 4),
 )
 EXTENDED = (
     ("replay-three", "replay", None, 5),
@@ -133,9 +136,10 @@ def verify_lean():
         return report("lean", "INCONCLUSIVE", reason="forbidden proof construct")
     names = re.findall(r"(?m)^theorem (\w+)", text)
     # Run Lean directly so the axiom report is fresh even if Lake has cached a build.
-    code, path = run([str(LEAN / "lean"), str(source)], "lean", 120, HERE / "lean")
+    timeout = 600
+    code, path = run([str(LEAN / "lean"), "-j", "1", str(source)], "lean", timeout, HERE / "lean")
     if code is None:
-        return report("lean", "TIMEOUT", artifact=path.name)
+        return report("lean", "TIMEOUT", timeout_seconds=timeout, artifact=path.name)
     audit = {}
     for name, dependencies in re.findall(
             r"'Protogen\.(\w+)' depends on axioms: \[([^\]]*)\]", path.read_text()):
@@ -145,7 +149,7 @@ def verify_lean():
     passed = code == 0 and bool(names) and set(names) == set(audit) and all(
         dependencies <= AXIOMS for dependencies in audit.values())
     return report("lean", "VERIFIED" if passed else "INCONCLUSIVE",
-                  theorems=len(audit), exit_code=code, artifact=path.name,
+                  theorems=len(audit), exit_code=code, timeout_seconds=timeout, artifact=path.name,
                   axioms={name: sorted(deps) for name, deps in audit.items()})
 
 def main():
@@ -188,6 +192,10 @@ def main():
             mutation=(UART.parent.parent / "AudioRing.h", "return (uint16_t)(counter + 1);", "return counter;")))
         results.append(verify_case(("action-mutation", "action_fields", None, 4),
             mutation=(UART / "PacketCore.h", "duration <= 6000", "duration <= 65535")))
+        results.append(verify_case(("session-mutation", "session_policy", None, 16),
+            mutation=(ESP / "SessionPolicy.h", "return authenticated && decoded && validApplication;", "return decoded && validApplication;")))
+        results.append(verify_case(("ingress-mutation", "ingress_generation", None, 4),
+            mutation=(ESP / "IngressCore.h", "return enabled && received == current;", "return enabled;")))
     else:
         results.extend(report(case[0], "NOT_RUN") for case in FAST + EXTENDED)
         results.append(report("lean", "NOT_RUN"))

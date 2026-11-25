@@ -88,8 +88,7 @@ bool Session::begin(uint8_t r, const Material &m) {
   return okay;
 }
 bool Session::seal(const HelmetLink::Packet &p, Frame &f) {
-  if (!ready() || records >= RekeyRecords || sequence >= MaxSequence ||
-      !applicationValid(p, role))
+  if (!protogenMaySeal(ready(), records, sequence) || !applicationValid(p, role))
     return false;
   uint8_t plain[PlainBytes]{};
   if (!Crypto::random(plain, sizeof(plain))) {
@@ -104,7 +103,7 @@ bool Session::seal(const HelmetLink::Packet &p, Frame &f) {
   HelmetLink::put16(plain, n);
   header(f, Data, role);
   memcpy(f.bytes + 4, keys.id, 8);
-  put64(f.bytes + 12, ++sequence);
+  put64(f.bytes + 12, protogenReserveSequence(&sequence));
   uint8_t nonce[12];
   protogenNonce(nonce, Version, role, sequence);
   const bool okay =
@@ -112,13 +111,12 @@ bool Session::seal(const HelmetLink::Packet &p, Frame &f) {
                   f.bytes, HeaderBytes, plain, sizeof(plain),
                   f.bytes + HeaderBytes, PacketBytes - HeaderBytes);
   Crypto::wipe(plain, sizeof(plain));
-  if (okay)
-    ++records;
+  protogenAccountRecord(&records, okay);
   return okay;
 }
 bool Session::open(const uint8_t *b, size_t n, HelmetLink::Packet &p) {
   const uint8_t sender = role == Paw ? Helmet : Paw;
-  if (!ready() || records >= RekeyRecords || !valid(b, n, sender) ||
+  if (!protogenMayOpen(ready(), records) || !valid(b, n, sender) ||
       b[2] != Data) {
     if (diagnostics)
       increment(diagnostics->malformed);
@@ -142,14 +140,13 @@ bool Session::open(const uint8_t *b, size_t n, HelmetLink::Packet &p) {
                           n - HeaderBytes, plain, sizeof(plain));
   if (!okay && diagnostics)
     increment(diagnostics->aeadFailures);
-  if (okay)
-    ++records;
+  protogenAccountRecord(&records, okay);
   HelmetLink::Packet decoded;
   const size_t length = HelmetLink::u16(plain);
-  okay = okay && length >= HelmetLink::HeaderBytes + 2 &&
-         length <= HelmetLink::MaxRaw &&
-         HelmetLink::unpack(plain + 2, length, decoded) &&
-         applicationValid(decoded, sender);
+  const bool parsed = okay && length >= HelmetLink::HeaderBytes + 2 &&
+                      length <= HelmetLink::MaxRaw &&
+                      HelmetLink::unpack(plain + 2, length, decoded);
+  okay = protogenMayCommitReplay(okay, parsed, parsed && applicationValid(decoded, sender));
   Crypto::wipe(plain, sizeof(plain));
   if (!okay) {
     if (diagnostics)

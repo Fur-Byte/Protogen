@@ -24,3 +24,6 @@ flags=(-std=c++17 -O2 -Wall -Wextra -Werror
 "$tmp/nvs" | tee build/formal/nvs-native.log
 "$cxx" "${flags[@]}" -DHELMET_RECEIVER scripts/tests/storage-faults.cpp -o "$tmp/storage"
 "$tmp/storage" | tee build/formal/storage-native.log
+"$cxx" "${flags[@]}" -I scripts/tests/storage-stubs verification/tests/session_faults.cpp \
+  "$esp/WirelessSession.cpp" -o "$tmp/session-faults"
+"$tmp/session-faults" | tee build/formal/session-faults-native.log

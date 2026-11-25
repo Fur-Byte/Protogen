@@ -61,7 +61,7 @@ from pathlib import Path
 import sys
 Path(sys.argv[2]).write_text(Path(sys.argv[1]).read_text().replace('MaxBrightness = 1;', f'MaxBrightness = {sys.argv[3]};'))
 PY2
-  if "${CXX:-clang++}" -std=c++17 -x c++ -fsyntax-only "$CONFIG_TEMP/invalid.h" > "$CONFIG_TEMP/invalid.log" 2>&1; then
+  if "${CXX:-clang++}" -std=c++17 -x c++ -fsyntax-only -I"$ROOT/firmware/PROT_OS7_MAX7219" "$CONFIG_TEMP/invalid.h" > "$CONFIG_TEMP/invalid.log" 2>&1; then
     printf 'FAIL: invalid brightness ceiling %s compiled\n' "$invalid" >&2
     exit 1
   fi

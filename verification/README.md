@@ -55,7 +55,10 @@ layout, brightness, and Lean. Extended adds three-record replay, larger
 COBS end-to-end cases, and arbitrary prior framebuffer contents. The
 pull-request workflow is fast; extended is manual. Each case is capped at
 180 seconds except the 12-byte COBS round trip (900 seconds, following the
-successful longer retry on the original kernel). The runner records source
+successful longer retry on the original kernel). Lean uses narrow standard
+library imports, one elaboration thread, direct algebraic lemmas for modular
+identities and a 600-second wall-clock limit. The larger limit allows for
+slow cold library reads on loaded hosts; it does not relax the axiom audit. The runner records source
 commit, pre/post source hashes, outcome, property count, loop/input bounds,
 time budget, counterexamples and theorem axioms in build/formal/. The CBMC
 JSON output is retained in case logs. Source changes during a run invalidate
@@ -65,7 +68,9 @@ The separate native suite compiles the actual wrappers under AddressSanitizer,
 UndefinedBehaviorSanitizer and float-cast-overflow checks. It tests queue
 backpressure, all packet lengths, sensor raw axes, audio samples, easing
 durations and EEPROM/NVS fault paths. Its evidence is regression evidence,
-not symbolic proof; storage mocks do not establish real flash durability.
+not symbolic proof; storage mocks do not establish real flash durability. The session fault
+fixture uses deterministic test doubles at the AEAD boundary and checks the
+real wrapper; it is not a replacement for the Mbed TLS integration tests.
 
 - VERIFIED: all generated properties and unwinding assertions pass.
 - COUNTEREXAMPLE: a concrete modeled property violation.
@@ -80,8 +85,9 @@ Only VERIFIED and MUTATION_DETECTED are positive results; NOT_RUN is a scope
 marker, not a successful verification. Unexpected outcomes fail CI. The
 negative controls mutate temporary copies of actual production kernels,
 never the firmware tree. Replay-bit loss, corrupt COBS delimiter, zero pixel mask, role-free nonce,
-expired retry, stalled ring counter and overlong action duration must be
-detected by harness assertions. Their
+expired retry, stalled ring counter, overlong action duration, missing
+authentication gate and ignored ingress generation must be detected by
+harness assertions. Their
 counterexamples also establish that the corresponding assertion paths
 are reachable. They do not establish coverage of every branch.
 
