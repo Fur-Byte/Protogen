@@ -1,4 +1,5 @@
 #include "ActionQueue.h"
+#include "PawCommand.h"
 #include "ApplicationStatus.h"
 #include "EspNowTransport.h"
 #include "PairingIndicator.h"
@@ -263,37 +264,14 @@ void serviceCommands(uint32_t now) {
   if (!actions.pending() || !connected || !helmetStatus.available ||
       now - helmetStatus.at >= Wireless::FreshStatusMs)
     return;
-  Wireless::Intent intent;
-  if (!actions.pop(now, intent))
-    return;
-  if (intent.action == Wireless::Actions::Next ||
-      intent.action == Wireless::Actions::Previous) {
-    intent.value = (helmetStatus.packet.payload[4] +
-                    (intent.action == Wireless::Actions::Next ? 1 : 5)) % 6;
-    intent.action = HelmetLink::Expression;
-  } else if (intent.action == Wireless::Actions::ToggleSleep) {
-    intent.action = HelmetLink::Sleep;
-    intent.value = !(helmetStatus.packet.payload[5] & HelmetLink::Sleeping);
-  }
-  if (commandSequence == UINT32_MAX) {
+  uint32_t age = 0;
+  const auto outcome = Wireless::tryQueueAction(
+      actions, helmetStatus, now, commandSequence, pendingCommand, age, queueSecure);
+  if (outcome == Wireless::ActionSend::Exhausted) {
     buttonsArmed = false;
     actions.clear();
-    return;
-  }
-  HelmetLink::Packet p;
-  p.kind = HelmetLink::Command;
-  p.length = 8;
-  p.epoch = helmetStatus.packet.epoch;
-  p.ticket = helmetStatus.packet.ticket;
-  p.sequence = ++commandSequence;
-  HelmetLink::put32(p.payload, helmetStatus.bridge);
-  p.payload[4] = intent.action;
-  p.payload[5] = intent.value;
-  HelmetLink::put16(p.payload + 6, intent.duration);
-  if (queueSecure(p)) {
-    const uint32_t queueMs=now-intent.at;
-    if(queueMs>intentQueueMaxMs)intentQueueMaxMs=queueMs;
-    pendingCommand = p;
+  } else if (outcome == Wireless::ActionSend::Sent) {
+    if (age > intentQueueMaxMs) intentQueueMaxMs = age;
     commandWaiting = true;
     commandAt = retriedAt = now;
   }
@@ -889,11 +867,8 @@ extern "C" void app_main() {
       if(uartCount)Efficiency::sooner(wait,5);
       size_t uartBuffered=0;
       if(uart_get_buffered_data_len(UART_NUM_1,&uartBuffered)==ESP_OK && uartBuffered)Efficiency::sooner(wait,5);
-      if(connected) {
-        Efficiency::sooner(wait,Efficiency::remaining(end,uartHeartbeatAt,Wireless::UartHeartbeatMs));
-        if(helmetStatus.available && HelmetLink::u32(helmetStatus.packet.payload)!=helmetStatus.bridge)
-          Efficiency::sooner(wait,Efficiency::remaining(end,helloAt,Wireless::ActivePollMs));
-      }
+      Efficiency::sooner(wait, Wireless::uartServiceIn(
+          helmetStatus, connected, end, uartHeartbeatAt, helloAt));
 #else
       for(const auto &button:buttons) {
         if(button.raw!=button.down)Efficiency::sooner(wait,Efficiency::remaining(end,button.changed,Wireless::DebounceMs));
@@ -908,9 +883,10 @@ extern "C" void app_main() {
       const TickType_t ticks=pdMS_TO_TICKS(wait);
       if(ticks)ulTaskNotifyTake(pdTRUE,ticks);
       else {
-        // A sub-tick deadline must retain the original yielding poll rather
-        // than sleep past it. Pending notifications are still consumed.
-        ulTaskNotifyTake(pdTRUE,0);vTaskDelay(0);
+        // An overdue but blocked operation must not spin at zero ticks.
+        // Consume pending notifications, then allow other tasks a full tick.
+        ulTaskNotifyTake(pdTRUE, 0);
+        vTaskDelay(1);
       }
     } else vTaskDelay(pdMS_TO_TICKS(Wireless::ServicePollMs));
   }

@@ -146,6 +146,62 @@ theorem oldSessionRejected (active old : Nat) (allowed : Prop)
     (different : active ≠ old) : ¬ sessionAllowed active old allowed := by
   simp [sessionAllowed, different]
 
+-- Full-sized UART framing. The C writer-step harness establishes the
+-- concrete invariant under the same 90-byte maximum.
+theorem cobsInitial : (1 : Nat) = 0 + 1 ∧ 0 < 1 ∧ 1 - 0 = 1 := by omega
+
+theorem cobsWriterStep (i n capacity codeAt : Nat)
+    (hi : i < n) (hn : n ≤ 90) (hc : n + 2 ≤ capacity) (ha : codeAt ≤ i) :
+    i + 2 < capacity ∧ codeAt < i + 2 ∧ i + 2 - codeAt ≤ 91 := by omega
+
+theorem cobsWriterFinish (n capacity codeAt : Nat)
+    (hn : n ≤ 90) (hc : n + 2 ≤ capacity) (ha : codeAt ≤ n) :
+    codeAt < capacity ∧ n + 1 < capacity ∧ n + 2 ≤ 92 := by omega
+
+theorem cobsReaderStep (i used n capacity length offset : Nat)
+    (hi : i + length ≤ n) (hu : used + length ≤ capacity)
+    (ho : offset < length) :
+    i + offset < n ∧ used + offset < capacity := by omega
+
+theorem packetPayloadBounds (n length : Nat)
+    (h : length ≤ 72) (hn : n = length + 18) :
+    18 ≤ n ∧ n ≤ 90 ∧ 16 + length + 1 < n := by omega
+
+-- ISR/main-loop ring arithmetic, under the single-producer/single-consumer
+-- and valid-count assumptions. This is not a proof of hardware ordering.
+theorem ringIndex512 (counter : Nat) : counter % 512 < 512 := by omega
+
+theorem ringProducer (count : Nat) (h : count < 512) : count + 1 ≤ 512 := by omega
+
+theorem ringConsumer (count : Nat) (h : count ≤ 512) (hn : 0 < count) :
+    count - 1 < 512 := by omega
+
+theorem audioCounterAdvance (read write : BitVec 16) :
+    (write + 1) - read = (write - read) + 1 := by
+  exact BitVec.add_sub_comm
+
+theorem audioCounterConsume (read write : BitVec 16) :
+    write - (read + 1) = (write - read) - 1 := by
+  exact (BitVec.sub_sub write read 1).symm
+
+theorem eepromNextSequence (seq : BitVec 32) :
+    (seq + 1) - seq = 1 := by bv_decide
+
+-- Fresh intent is retained if a transport admission fails; expiration
+-- uses original arrival time, not the retry time.
+def dispatchCount (count : Nat) (fresh admitted : Bool) : Nat :=
+  if fresh && !admitted then count else count - 1
+
+theorem blockedIntentRetained (count : Nat) :
+    dispatchCount count true false = count := by rfl
+
+theorem successfulIntentRemoved (count : Nat) (h : count > 0) :
+    dispatchCount count true true < count := by simp [dispatchCount]; omega
+
+theorem blockedIntentExpires (arrival now retry : Nat)
+    (h : arrival + 300 ≤ now) (later : now ≤ retry) :
+    arrival + 300 ≤ retry := by omega
+
 #print axioms tileIndex
 #print axioms rotatedTileIndex
 #print axioms rotatedTileIndex180
@@ -174,5 +230,20 @@ theorem oldSessionRejected (active old : Nat) (allowed : Prop)
 #print axioms invalidNotWritten
 #print axioms acceptedHistoryRejected
 #print axioms oldSessionRejected
+
+#print axioms cobsInitial
+#print axioms cobsWriterStep
+#print axioms cobsWriterFinish
+#print axioms cobsReaderStep
+#print axioms packetPayloadBounds
+#print axioms ringIndex512
+#print axioms ringProducer
+#print axioms ringConsumer
+#print axioms audioCounterAdvance
+#print axioms audioCounterConsume
+#print axioms eepromNextSequence
+#print axioms blockedIntentRetained
+#print axioms successfulIntentRemoved
+#print axioms blockedIntentExpires
 
 end Protogen

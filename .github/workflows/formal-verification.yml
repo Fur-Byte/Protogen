@@ -4,6 +4,7 @@ on:
     paths:
       - 'firmware/**'
       - 'verification/**'
+      - 'scripts/tests/**'
       - '.github/workflows/formal-verification.yml'
   workflow_dispatch:
     inputs:
@@ -20,7 +21,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -33,10 +34,8 @@ jobs:
         run: bash verification/install.sh
       - name: Check production kernels and mathematical models
         run: python3 verification/run.py --tier "${{ inputs.tier || 'fast' }}"
-      - name: Native replay wrapper against history model
-        run: |
-          g++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=undefined -fno-sanitize-recover=all -I firmware/esp32/src verification/tests/replay.cpp -o /tmp/protogen-replay
-          /tmp/protogen-replay | tee build/formal/replay-native.log
+      - name: Sanitized production wrappers and storage fault tests
+        run: bash verification/test-native.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

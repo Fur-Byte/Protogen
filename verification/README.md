@@ -15,6 +15,7 @@ On x86_64 Linux, with GCC, Python 3, curl, dpkg-deb, tar and zstd:
     bash verification/install.sh
     python3 verification/run.py --tier fast
     python3 verification/run.py --tier extended
+    bash verification/test-native.sh
 
 The installer checks pinned release digests and extracts CBMC 6.11.0 and
 Lean 4.36.0 under `~/.local/share/protogen-verification`. Set
@@ -47,13 +48,24 @@ The proof module uses only the pinned Lean standard library.
 
 ## Results and CI
 
-Fast runs cover replay admission, short COBS messages, integer encoding,
-sensor sign extension, display writes, and Lean. Extended runs also explore
-three replay records, larger COBS messages, and arbitrary prior framebuffer
-contents. The pull-request workflow is fast; extended is manual to bound CI
-cost. Each analysis is capped at 180 seconds. The runner records commands'
-outcomes, property counts, counterexamples, source SHA-256 hashes and theorem
-axioms in build/formal/. The JSON output from CBMC is retained in case logs.
+Fast runs cover replay, packet/command fields, CRC bytes, nonce serialization,
+COBS short round trips and full-sized cursor steps, integer encoding, timers,
+sensor sign extension, display, easing, audio and queue indices, EEPROM
+layout, brightness, and Lean. Extended adds three-record replay, larger
+COBS end-to-end cases, and arbitrary prior framebuffer contents. The
+pull-request workflow is fast; extended is manual. Each case is capped at
+180 seconds except the 12-byte COBS round trip (900 seconds, following the
+successful longer retry on the original kernel). The runner records source
+commit, pre/post source hashes, outcome, property count, loop/input bounds,
+time budget, counterexamples and theorem axioms in build/formal/. The CBMC
+JSON output is retained in case logs. Source changes during a run invalidate
+the summary.
+
+The separate native suite compiles the actual wrappers under AddressSanitizer,
+UndefinedBehaviorSanitizer and float-cast-overflow checks. It tests queue
+backpressure, all packet lengths, sensor raw axes, audio samples, easing
+durations and EEPROM/NVS fault paths. Its evidence is regression evidence,
+not symbolic proof; storage mocks do not establish real flash durability.
 
 - VERIFIED: all generated properties and unwinding assertions pass.
 - COUNTEREXAMPLE: a concrete modeled property violation.
@@ -67,8 +79,9 @@ axioms in build/formal/. The JSON output from CBMC is retained in case logs.
 Only VERIFIED and MUTATION_DETECTED are positive results; NOT_RUN is a scope
 marker, not a successful verification. Unexpected outcomes fail CI. The
 negative controls mutate temporary copies of actual production kernels,
-never the firmware tree. Replay-bit loss, a corrupt COBS delimiter and a
-zero display pixel mask must be detected by the harness assertions. Their
+never the firmware tree. Replay-bit loss, corrupt COBS delimiter, zero pixel mask, role-free nonce,
+expired retry, stalled ring counter and overlong action duration must be
+detected by harness assertions. Their
 counterexamples also establish that the corresponding assertion paths
 are reachable. They do not establish coverage of every branch.
 
@@ -90,7 +103,7 @@ wire truncation/unsigned bitmap shifts from errors. The present checks
 enable bounds, pointer, signed-overflow, division and undefined-shift
 checks; COBS additionally checks unsigned arithmetic overflow.
 Uninitialized-state/lifetime and concurrent memory behavior are not
-claimed beyond the modeled initialized local objects.
+claimed beyond the modeled local objects and explicit cursor invariants.
 
 To reproduce a failure, rerun the same tier and inspect the named case log.
 The trace contains the concrete nondeterministic inputs and violated

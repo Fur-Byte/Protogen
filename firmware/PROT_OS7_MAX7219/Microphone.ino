@@ -61,14 +61,14 @@ void microphoneSampleISR() {
   if (audioPriming) audioPriming = false; // Discard the software setup conversion.
   else if (microphoneSampling) {
     const uint16_t write = audioWrite;
-    if (sample < 0 || sample > 1023 || static_cast<uint16_t>(write - audioRead) >= audioBufferSize) {
+    if (sample < 0 || sample > 1023 || protogenAudioCount(write, audioRead) >= audioBufferSize) {
       ++audioDroppedSamples;
 #if PROTOGEN_FLIGHT_RECORDER
       P3Teensy::notifyAudioDrop();
 #endif
     } else {
-      audioBuffer[write & (audioBufferSize - 1)] = static_cast<uint16_t>(sample);
-      audioWrite = static_cast<uint16_t>(write + 1);
+      audioBuffer[protogenAudioIndex(write)] = static_cast<uint16_t>(sample);
+      audioWrite = protogenAudioNext(write);
     }
   }
 #if defined(__IMXRT1062__)
@@ -210,8 +210,8 @@ void microphone() {
   // Bounded work (32 ms of queued audio) keeps controls responsive even after a stall.
   for (uint16_t budget = 0; budget < samples * 2 && audioRead != audioWrite; ++budget) {
     const uint16_t read = audioRead;
-    const uint16_t sample = audioBuffer[read & (audioBufferSize - 1)];
-    audioRead = static_cast<uint16_t>(read + 1);
+    const uint16_t sample = audioBuffer[protogenAudioIndex(read)];
+    audioRead = protogenAudioNext(read);
     processMicrophoneSample(sample, now);
   }
 #if !PROTOGEN_AUDIO_V2

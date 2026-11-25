@@ -1,5 +1,7 @@
 #pragma once
 #include "HelmetProtocol.h"
+#include "WirelessConfig.h"
+#include "TimeCore.h"
 
 namespace Wireless {
 inline HelmetLink::Packet extendHelmetStatus(const HelmetLink::Packet &p, int remainingPercent,
@@ -111,4 +113,14 @@ struct HelmetStatus {
     return true;
   }
 };
+// Match serviceUart admission. Missing or stale Teensy status cannot
+// make an otherwise dormant scheduler deadline immediately overdue.
+inline uint32_t uartServiceIn(const HelmetStatus &status, bool connected,
+                              uint32_t now, uint32_t heartbeatAt, uint32_t helloAt) {
+  if (!connected || !status.available || now - status.at >= FreshStatusMs)
+    return UINT32_MAX;
+  return HelmetLink::u32(status.packet.payload) == status.bridge
+      ? protogenRemaining(now, heartbeatAt, UartHeartbeatMs)
+      : protogenRemaining(now, helloAt, ActivePollMs);
+}
 } // namespace Wireless

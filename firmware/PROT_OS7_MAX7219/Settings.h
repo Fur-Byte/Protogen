@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "BrightnessCore.h"
 
 // Compile-time settings and protected-dock pin assignments.
 // Enable connected hardware with the feature defines in the main sketch.
@@ -18,8 +19,7 @@ static_assert(DockPilotPin != DockVoltagePin && DockPowerEnablePin != DockBuffer
 constexpr int MaxBrightness = 1; // Raise only after assembled-helmet qualification.
 constexpr int Brightness = 1;    // Requested intensity: 0 (dimmest) .. 15.
 constexpr uint8_t effectiveBrightness(unsigned requested) {
-  return requested > static_cast<unsigned>(MaxBrightness) ? static_cast<uint8_t>(MaxBrightness)
-                                                          : static_cast<uint8_t>(requested);
+  return protogenBrightness(requested, requested, MaxBrightness);
 }
 constexpr int StartupExpression = 0; // 0 happy, 1 surprised, 2 angry, 3 vwv, 4 sleepy, 5 wink.
 constexpr uint32_t ButtonDebounceMs = 25;

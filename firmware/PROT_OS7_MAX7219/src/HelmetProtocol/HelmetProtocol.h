@@ -4,25 +4,27 @@
 #include <string.h>
 #include "Cobs.h"
 #include "WireIntegers.h"
+#include "PacketCore.h"
 
 // Little-endian application and UART framing. The ESP32 wireless layer owns
 // radio authentication, encryption, session establishment and replay checks.
 namespace HelmetLink {
 constexpr uint8_t Version = 1;
-constexpr size_t MaxPayload = 72, HeaderBytes = 16, MaxRaw = HeaderBytes + MaxPayload + 2;
+constexpr size_t MaxPayload = ProtogenMaxPayload, HeaderBytes = ProtogenHeaderBytes, MaxRaw = ProtogenMaxRaw;
 constexpr size_t MaxEncoded = MaxRaw + 2;
 constexpr uint32_t FreshMs = 300, LinkTimeoutMs = 2000;
 enum Kind : uint8_t { Command = 1, Status = 2, Ack = 3, Hello = 4, Heartbeat = 5 };
 enum Action : uint8_t { Expression = 1, Boop = 2, Sleep = 3, MicControl = 4 };
 enum Result : uint8_t { Accepted, Duplicate, BadSession, Expired, Invalid, RateLimited, Unavailable };
+static_assert(Version == 1 && Command == 1 && Heartbeat == 5, "Packet core schema mismatch");
+static_assert(Expression == 1 && Boop == 2 && Sleep == 3 && MicControl == 4,
+              "Action core schema mismatch");
 inline uint16_t u16(const uint8_t *p) { return protogenRead16(p); }
 inline uint32_t u32(const uint8_t *p) { return protogenRead32(p); }
 inline void put16(uint8_t *p, uint16_t x) { protogenWrite16(p, x); }
 inline void put32(uint8_t *p, uint32_t x) { protogenWrite32(p, x); }
 inline uint16_t crc16(const uint8_t *p, size_t n) {
-  uint16_t crc = 0xffff;
-  while (n--) { crc ^= uint16_t(*p++) << 8; for (unsigned b=0;b<8;++b) crc = uint16_t((crc << 1) ^ ((crc & 0x8000) ? 0x1021 : 0)); }
-  return crc;
+  return protogenCrc16(p, n);
 }
 struct Packet {
   uint8_t kind = 0, length = 0;
@@ -30,16 +32,14 @@ struct Packet {
   uint8_t payload[MaxPayload] = {};
 };
 inline size_t pack(const Packet &p, uint8_t *out, size_t capacity) {
-  const size_t n = HeaderBytes + p.length + 2;
-  if (p.length > MaxPayload || capacity < n || p.kind < Command || p.kind > Heartbeat) return 0;
+  const size_t n = protogenPacketSize(p.kind, p.length, capacity);
+  if (!n) return 0;
   out[0]=0x50; out[1]=Version; out[2]=p.kind; out[3]=p.length;
   put32(out+4,p.sequence); put32(out+8,p.epoch); put32(out+12,p.ticket);
   memcpy(out+16,p.payload,p.length); put16(out+n-2,crc16(out,n-2)); return n;
 }
 inline bool unpack(const uint8_t *in, size_t n, Packet &p) {
-  if (n < HeaderBytes+2 || n > MaxRaw || in[0]!=0x50 || in[1]!=Version ||
-      in[2]<Command || in[2]>Heartbeat || in[3]>MaxPayload || n!=HeaderBytes+in[3]+2 ||
-      u16(in+n-2)!=crc16(in,n-2)) return false;
+  if (!protogenPacketValid(in, n)) return false;
   p = Packet{}; p.kind=in[2]; p.length=in[3]; p.sequence=u32(in+4);
   p.epoch=u32(in+8); p.ticket=u32(in+12); memcpy(p.payload,in+16,p.length); return true;
 }
@@ -100,11 +100,7 @@ public:
     if(!fresh(p.ticket,now))return fail(Expired);
     const uint8_t action=p.payload[4], value=p.payload[5];
     const uint16_t duration=u16(p.payload+6);
-    if(action<Expression || action>MicControl ||
-       (action==Expression && value>=6) ||
-       ((action==Sleep || action==MicControl) && value>1) ||
-       (action==Boop && (value!=0 || duration<100 || duration>6000)) ||
-       (action!=Boop && duration!=0))return fail(Invalid);
+    if(!protogenActionValid(action,value,duration))return fail(Invalid);
     if(now-periodAt>=1000){periodAt=now;count=0;}
     if(count>=20)return fail(RateLimited);
     ++count;lastSequence=p.sequence;lastTicket=p.ticket;memcpy(lastPayload,p.payload,8);haveSequence=true;return Accepted;

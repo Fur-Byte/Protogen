@@ -1,13 +1,11 @@
 #include "AnimationV2.h"
+#include "EasingCore.h"
 
 #if PROTOGEN_ANIMATION_V2
 #include "../../Configuration.h"
 
 namespace Behavior::Animation {
 namespace {
-constexpr uint32_t Scale = 256;
-
-
 bool affects(const Request &r, Region region) {
   if (region == Region::FullFace) return false;
   if ((region == Region::Mouth) != (r.motion == Motion::MouthAperture)) return false;
@@ -23,17 +21,12 @@ int8_t valueAt(const Request &r, uint32_t elapsed) {
 }
 
 uint16_t ease(Easing curve, uint32_t elapsed, uint16_t duration) {
-  if (elapsed >= duration) return Scale;
-  const uint32_t t = elapsed * Scale / duration;
-  const uint32_t u = Scale - t;
-  switch (curve) {
-    case Easing::In: return t * t / Scale;
-    case Easing::Out: return Scale - u * u / Scale;
-    case Easing::InOut: return t * t * (3 * Scale - 2 * t) / (Scale * Scale);
-    case Easing::Settle: return Scale - u * u * u / (Scale * Scale);
-    case Easing::Linear: return t;
-  }
-  return t;
+  static_assert(static_cast<uint8_t>(Easing::Linear) == 0 &&
+                static_cast<uint8_t>(Easing::In) == 1 &&
+                static_cast<uint8_t>(Easing::Out) == 2 &&
+                static_cast<uint8_t>(Easing::InOut) == 3 &&
+                static_cast<uint8_t>(Easing::Settle) == 4, "Easing core mapping mismatch");
+  return protogenEase(static_cast<uint8_t>(curve), elapsed, duration);
 }
 
 void Table::rebaseOrder() {

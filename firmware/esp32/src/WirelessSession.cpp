@@ -44,10 +44,7 @@ bool applicationValid(const HelmetLink::Packet &p, uint8_t sender) {
         p.ticket && u32(p.payload)) {
       const uint8_t a = p.payload[4], v = p.payload[5];
       const uint16_t d = u16(p.payload + 6);
-      return a >= Expression && a <= MicControl && (a != Expression || v < 6) &&
-             ((a != Sleep && a != MicControl) || v < 2) &&
-             (a != Boop || (v == 0 && d >= 100 && d <= 6000)) &&
-             (a == Boop || d == 0);
+      return protogenActionValid(a, v, d);
     }
     // REQUEST_STATUS is a ticket-free request, never forwarded as an action.
     return p.kind == Status && !p.sequence && !p.epoch && !p.ticket &&
@@ -108,8 +105,8 @@ bool Session::seal(const HelmetLink::Packet &p, Frame &f) {
   header(f, Data, role);
   memcpy(f.bytes + 4, keys.id, 8);
   put64(f.bytes + 12, ++sequence);
-  uint8_t nonce[12] = {0x70, Version, role, 0};
-  put64(nonce + 4, sequence);
+  uint8_t nonce[12];
+  protogenNonce(nonce, Version, role, sequence);
   const bool okay =
       Crypto::gcm(true, role == Paw ? keys.pawKey : keys.helmetKey, nonce,
                   f.bytes, HeaderBytes, plain, sizeof(plain),
@@ -138,8 +135,8 @@ bool Session::open(const uint8_t *b, size_t n, HelmetLink::Packet &p) {
       increment(diagnostics->replayRejects);
     return false;
   }
-  uint8_t nonce[12] = {0x70, Version, sender, 0}, plain[PlainBytes]{};
-  put64(nonce + 4, seq);
+  uint8_t nonce[12], plain[PlainBytes]{};
+  protogenNonce(nonce, Version, sender, seq);
   bool okay = Crypto::gcm(false, sender == Paw ? keys.pawKey : keys.helmetKey,
                           nonce, b, HeaderBytes, b + HeaderBytes,
                           n - HeaderBytes, plain, sizeof(plain));

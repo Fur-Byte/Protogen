@@ -11,6 +11,7 @@
 #include "src/Max72xxPanel/Max72xxPanel.h"
 #include "Icons.h"
 #include "Configuration.h"
+#include "AudioRing.h"
 #include "ConfigStore.h"
 #include "FaceRenderer.h"
 #include "src/BehaviorCore/BehaviorCore.h"
@@ -101,7 +102,7 @@ void cancelBrightnessBoost() {
 }
 
 #ifdef Microphone
-constexpr uint16_t samples = 64, audioBufferSize = 512;
+constexpr uint16_t samples = 64, audioBufferSize = ProtogenAudioRingSize;
 constexpr uint32_t samplingFrequencyHz = 4000UL, samplingPeriodUs = 250;
 static_assert((audioBufferSize & (audioBufferSize - 1)) == 0, "Audio ring must be a power of two.");
 volatile uint16_t audioBuffer[audioBufferSize];

@@ -2,6 +2,7 @@
 #ifndef PROTOGEN_HELMET_PROTOCOL_EFFICIENCY_H
 #define PROTOGEN_HELMET_PROTOCOL_EFFICIENCY_H
 #include <stdint.h>
+#include "TimeCore.h"
 
 // Independent bench switches. Production retains its timing until physical
 // energy, latency, reliability and animation qualification has been recorded.
@@ -45,8 +46,7 @@ static_assert((PROTOGEN_CACHE_FACE == 0 || PROTOGEN_CACHE_FACE == 1) &&
 inline void increment(uint32_t &n) { if (n != UINT32_MAX) ++n; }
 // Relative deadlines avoid zero-time sentinels and survive millis rollover.
 inline uint32_t remaining(uint32_t now, uint32_t at, uint32_t interval) {
-  const uint32_t elapsed = now - at;
-  return elapsed >= interval ? 0 : interval - elapsed;
+  return protogenRemaining(now, at, interval);
 }
 inline void sooner(uint32_t &wait, uint32_t candidate) {
   if (candidate < wait) wait = candidate;

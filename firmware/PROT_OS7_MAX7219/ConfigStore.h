@@ -1,5 +1,6 @@
 #pragma once
 #include "Configuration.h"
+#include "ConfigStorageCore.h"
 #include <EEPROM.h>
 
 // Two alternating records with an explicit byte layout (no struct padding).
@@ -16,6 +17,8 @@ constexpr int PayloadBytes = ConfigPayloadBytes + 2;
 constexpr int CrcOffset = HeaderBytes + PayloadBytes, MarkerOffset = CrcOffset + 4;
 constexpr int RecordBytes = MarkerOffset + 1;
 static_assert(RecordBytes <= SlotBytes, "Configuration record exceeds storage slot.");
+static_assert(RecordVersion == 3 && HeaderBytes == 12 && ConfigPayloadBytes == 34 &&
+              PayloadBytes == 36 && RecordBytes == 53, "Storage core layout mismatch");
 struct Record { uint8_t bytes[RecordBytes] = {}; RuntimeConfig config; uint32_t sequence = 0; bool valid = false; };
 inline uint32_t readNumber(const uint8_t *data, int count) {
   uint32_t value = 0;
@@ -35,15 +38,14 @@ inline uint32_t crc(const uint8_t *data, int count) {
 }
 inline Record readSlot(int slot) {
   Record record;
-  if (EEPROM.length() < SlotBytes * 2) return record;
+  if (slot < 0 || slot > 1 || EEPROM.length() < SlotBytes * 2) return record;
   for (int i = 0; i < RecordBytes; ++i) record.bytes[i] = EEPROM.read(slot * SlotBytes + i);
   const auto *data = record.bytes;
   const uint32_t format = readNumber(data + 4, 2), payload = readNumber(data + 6, 2);
-  const bool legacy1 = format == 1 && payload == 30;
-  const bool legacy2 = format == 2 && payload == ConfigPayloadBytes;
-  const bool current = format == RecordVersion && payload == PayloadBytes;
-  if (memcmp(data, "P8CF", 4) || (!legacy1 && !legacy2 && !current)) return record;
-  const int crcAt = HeaderBytes + static_cast<int>(payload), markerAt = crcAt + 4;
+  const int crcAt = protogenConfigCrcOffset(format, payload);
+  if (memcmp(data, "P8CF", 4) || crcAt < 0) return record;
+  const bool legacy1 = format == 1, current = format == RecordVersion;
+  const int markerAt = crcAt + 4;
   if (data[markerAt] != 0xa5 || readNumber(data + crcAt, 4) != crc(data, crcAt)) return record;
   // The appended boop fields default to Feronium's held reaction when loading v1.
   for (size_t i = 0; i < (legacy1 ? 15 : configFieldCount); ++i)
@@ -56,9 +58,7 @@ inline Record readSlot(int slot) {
   return record;
 }
 inline int newest(const Record &a, const Record &b) {
-  if (!a.valid) return b.valid ? 1 : -1;
-  if (!b.valid) return 0;
-  return static_cast<int32_t>(b.sequence - a.sequence) > 0 ? 1 : 0;
+  return protogenNewestConfig(a.valid, a.sequence, b.valid, b.sequence);
 }
 }
 inline bool loadStoredConfig(RuntimeConfig &value) {

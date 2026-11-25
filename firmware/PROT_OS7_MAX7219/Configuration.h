@@ -17,7 +17,7 @@ struct RuntimeConfig {
   // It is not a SET field or part of the public configuration schema.
   uint16_t brightnessApproval = Settings::effectiveBrightness(Settings::Brightness);
   uint8_t effectiveBrightness() const {
-    return Settings::effectiveBrightness(brightness < brightnessApproval ? brightness : brightnessApproval);
+    return protogenBrightness(brightness, brightnessApproval, Settings::MaxBrightness);
   }
   uint16_t startupExpression = Settings::StartupExpression;
   uint16_t mouthMode = Settings::MouthMode;

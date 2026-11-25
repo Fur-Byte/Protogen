@@ -352,7 +352,8 @@ class SettingsChecks(unittest.TestCase):
                     header.write_text(text)
                     run = subprocess.run(
                         [os.environ.get("CXX", "clang++"), "-std=c++17", "-x", "c++",
-                         "-fsyntax-only", "-include", str(header), "-"],
+                         "-fsyntax-only", "-I" + str(ROOT / "firmware/PROT_OS7_MAX7219"),
+                         "-include", str(header), "-"],
                         input="", capture_output=True, text=True)
                 if name is None:
                     self.assertEqual(run.returncode, 0, run.stderr)
