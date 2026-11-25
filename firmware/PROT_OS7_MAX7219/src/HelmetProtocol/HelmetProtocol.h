@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include "Cobs.h"
+#include "WireIntegers.h"
 
 // Little-endian application and UART framing. The ESP32 wireless layer owns
 // radio authentication, encryption, session establishment and replay checks.
@@ -13,12 +15,10 @@ constexpr uint32_t FreshMs = 300, LinkTimeoutMs = 2000;
 enum Kind : uint8_t { Command = 1, Status = 2, Ack = 3, Hello = 4, Heartbeat = 5 };
 enum Action : uint8_t { Expression = 1, Boop = 2, Sleep = 3, MicControl = 4 };
 enum Result : uint8_t { Accepted, Duplicate, BadSession, Expired, Invalid, RateLimited, Unavailable };
-inline uint16_t u16(const uint8_t *p) { return uint16_t(p[0]) | uint16_t(p[1]) << 8; }
-inline uint32_t u32(const uint8_t *p) {
-  return uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24;
-}
-inline void put16(uint8_t *p, uint16_t x) { p[0] = uint8_t(x); p[1] = uint8_t(x >> 8); }
-inline void put32(uint8_t *p, uint32_t x) { for (unsigned i=0; i<4; ++i) p[i] = uint8_t(x >> (i*8)); }
+inline uint16_t u16(const uint8_t *p) { return protogenRead16(p); }
+inline uint32_t u32(const uint8_t *p) { return protogenRead32(p); }
+inline void put16(uint8_t *p, uint16_t x) { protogenWrite16(p, x); }
+inline void put32(uint8_t *p, uint32_t x) { protogenWrite32(p, x); }
 inline uint16_t crc16(const uint8_t *p, size_t n) {
   uint16_t crc = 0xffff;
   while (n--) { crc ^= uint16_t(*p++) << 8; for (unsigned b=0;b<8;++b) crc = uint16_t((crc << 1) ^ ((crc & 0x8000) ? 0x1021 : 0)); }
@@ -43,37 +43,11 @@ inline bool unpack(const uint8_t *in, size_t n, Packet &p) {
   p = Packet{}; p.kind=in[2]; p.length=in[3]; p.sequence=u32(in+4);
   p.epoch=u32(in+8); p.ticket=u32(in+12); memcpy(p.payload,in+16,p.length); return true;
 }
-inline size_t cobsEncode(const uint8_t *in,size_t n,uint8_t *out,size_t capacity) {
-  // The minimum includes the initial code and delimiter. Additional code
-  // bytes are checked when reserved; avoid overflowing n + overhead.
-  if (!out || (!in && n) || capacity < 2 || n > capacity - 2) return 0;
-  size_t codeAt=0, used=1; uint8_t code=1;
-  for(size_t i=0;i<n;++i) {
-    if(in[i]==0) {
-      out[codeAt]=code;
-      if(used>=capacity)return 0;
-      codeAt=used++; code=1;
-    } else {
-      if(used>=capacity)return 0;
-      out[used++]=in[i];
-      if(++code==0xff) {
-        out[codeAt]=code;
-        if(used>=capacity)return 0;
-        codeAt=used++;code=1;
-      }
-    }
-  }
-  out[codeAt]=code; if(used>=capacity)return 0; out[used++]=0; return used;
+inline size_t cobsEncode(const uint8_t *in, size_t n, uint8_t *out, size_t capacity) {
+  return protogenCobsEncode(in, n, out, capacity);
 }
-inline size_t cobsDecode(const uint8_t *in,size_t n,uint8_t *out,size_t capacity) {
-  if ((!in && n) || !out) return 0;
-  size_t used=0, i=0;
-  while(i<n) {
-    const uint8_t code=in[i++]; if(!code || size_t(code-1)>n-i || size_t(code-1)>capacity-used) return 0;
-    for(unsigned j=1;j<code;++j) { if(!in[i]) return 0; out[used++]=in[i++]; }
-    if(code!=0xff && i<n) {if(used==capacity)return 0;out[used++]=0;}
-  }
-  return used;
+inline size_t cobsDecode(const uint8_t *in, size_t n, uint8_t *out, size_t capacity) {
+  return protogenCobsDecode(in, n, out, capacity);
 }
 class Decoder {
   uint8_t encoded[MaxEncoded] = {}; size_t used=0; uint32_t started=0; bool discard=false;

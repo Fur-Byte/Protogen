@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <math.h>
+#include "SensorMathCore.h"
 
 namespace SensorMath {
 inline uint8_t shtCrc(const uint8_t *bytes, size_t count) {
@@ -33,14 +34,11 @@ constexpr uint16_t ShuntCalibration = 1875;
 constexpr double EnergyJoulesLsb = 16.0 * 3.2 * CurrentLsb;
 
 inline uint64_t bigEndian(const uint8_t *bytes, size_t count) {
-  uint64_t value = 0;
-  for (size_t i = 0; i < count; ++i) value = (value << 8) | bytes[i];
-  return value;
+  return protogenBigEndian(bytes, count);
 }
 
 inline int32_t signedCurrent(const uint8_t bytes[3]) {
-  const auto value = static_cast<int32_t>(bigEndian(bytes, 3) >> 4);
-  return (value & 0x80000) ? value - 0x100000 : value;
+  return protogenSignedCurrent(bytes);
 }
 
 inline bool ntc(int millivolts, float &temperature) {
