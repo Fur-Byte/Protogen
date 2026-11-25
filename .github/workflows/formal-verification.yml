@@ -1,0 +1,46 @@
+name: Formal verification
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - 'verification/**'
+      - '.github/workflows/formal-verification.yml'
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: Verification tier
+        type: choice
+        options: [fast, extended]
+        default: extended
+permissions:
+  contents: read
+concurrency:
+  group: formal-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: ILP32 preprocessor and extraction prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib zstd
+      - name: Pinned verification tools
+        run: bash verification/install.sh
+      - name: Check production kernels and mathematical models
+        run: python3 verification/run.py --tier "${{ inputs.tier || 'fast' }}"
+      - name: Native replay wrapper against history model
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=undefined -fno-sanitize-recover=all -I firmware/esp32/src verification/tests/replay.cpp -o /tmp/protogen-replay
+          /tmp/protogen-replay | tee build/formal/replay-native.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: formal-evidence-${{ github.sha }}
+          path: build/formal/
+          if-no-files-found: error
+          retention-days: 14

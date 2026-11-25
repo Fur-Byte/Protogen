@@ -15,6 +15,7 @@
  ******************************************************************/
 
 #include "Max72xxPanel.h"
+#include "PanelGeometry.h"
 #include "../../Settings.h"
 #include <SPI.h>
 
@@ -116,46 +117,9 @@ void Max72xxPanel::fillScreen(uint16_t color) {
 }
 
 void Max72xxPanel::drawPixel(int16_t x, int16_t y, uint16_t color) {
-  // Clip signed logical coordinates before rotating or narrowing them. In
-  // particular, y=-256 and y=256 must never wrap onto the visible canvas.
-  if (!bitmap || x < 0 || y < 0 || x >= _width || y >= _height) {
-    return;
-  }
-  int16_t tmp;
-  switch (rotation) {
-    case 1:
-      tmp = x; x = WIDTH - 1 - y; y = tmp;
-      break;
-    case 2:
-      x = WIDTH - 1 - x; y = HEIGHT - 1 - y;
-      break;
-    case 3:
-      tmp = x; x = y; y = HEIGHT - 1 - tmp;
-      break;
-  }
-
-  const byte display = matrixPosition[(x / 8) + hDisplays * (y / 8)];
-  x &= 7;
-  y &= 7;
-  switch (matrixRotation[display]) {
-    case 1:
-      tmp = x; x = 7 - y; y = tmp;
-      break;
-    case 2:
-      x = 7 - x; y = 7 - y;
-      break;
-    case 3:
-      tmp = x; x = y; y = 7 - tmp;
-      break;
-  }
-
-  byte &pixel = bitmap[static_cast<uint16_t>(display) * 8 + x];
-  const byte mask = 1u << y;
-  const byte updated = color ? (pixel | mask) : (pixel & ~mask);
-  if (updated != pixel) {
-    pixel = updated;
-    dirtyRows |= 1u << x;
-  }
+  // Clip signed logical coordinates before rotating or narrowing them.
+  protogenDrawPixel(bitmap, matrixPosition, matrixRotation, hDisplays, WIDTH, HEIGHT,
+                    _width, _height, rotation, x, y, color, &dirtyRows);
 }
 
 void Max72xxPanel::write() {
