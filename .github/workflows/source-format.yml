@@ -1,0 +1,38 @@
+name: First-party source formatting
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - 'scripts/**'
+      - 'tools/helmet/**'
+      - 'verification/**'
+      - '.github/workflows/source-format.yml'
+permissions:
+  contents: read
+concurrency:
+  group: source-format-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Check changed source
+        shell: bash
+        run: |
+          needed=$(python3 scripts/check-format.py 'HEAD^1' --list-tools)
+          if [[ -z "$needed" ]]; then exit 0; fi
+          python3 -m venv "$RUNNER_TEMP/style"
+          export PATH="$RUNNER_TEMP/style/bin:$RUNNER_TEMP/style/node_modules/.bin:$PATH"
+          for tool in $needed; do
+            case "$tool" in
+              black) python -m pip install black==25.1.0 ;;
+              clang-format) python -m pip install clang-format==20.1.8 ;;
+              prettier) npm install --prefix "$RUNNER_TEMP/style" --ignore-scripts --no-audit --no-fund prettier@3.6.2 ;;
+            esac
+          done
+          python3 scripts/check-format.py 'HEAD^1'
