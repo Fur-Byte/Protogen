@@ -10,8 +10,11 @@ cxx="${CXX:-g++}"
 sketch=firmware/PROT_OS7_MAX7219
 esp=firmware/esp32/src
 flags=(-std=c++17 -O2 -Wall -Wextra -Werror
-       -fsanitize=address,undefined,float-cast-overflow -fno-sanitize-recover=all
-       -fno-pie -no-pie -I "$esp" -I "$sketch" -I "$sketch/src/HelmetProtocol")
+       -fsanitize=address,undefined,float-cast-overflow -fno-sanitize-recover=all)
+if [[ "$OSTYPE" == linux* ]]; then
+  flags+=(-fno-pie -no-pie)
+fi
+flags+=(-I "$esp" -I "$sketch" -I "$sketch/src/HelmetProtocol")
 "$cxx" "${flags[@]}" verification/tests/replay.cpp -o "$tmp/replay"
 "$tmp/replay" | tee build/formal/replay-native.log
 "$cxx" "${flags[@]}" -DPROTOGEN_ANIMATION_V2=1 verification/tests/assurance.cpp \

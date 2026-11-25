@@ -10,12 +10,16 @@ the experimental wireless protocol.
 
 ## Run locally
 
-On x86_64 Linux, with GCC, Python 3, curl, dpkg-deb, tar and zstd:
+Run the native wrapper and fault tests on macOS or Linux with a C++17 compiler
+that supports the listed sanitizers. Set `CXX` to select the compiler.
+
+    bash verification/test-native.sh
+
+For CBMC and Lean, use x86_64 Linux with GCC, Python 3, curl, dpkg-deb, tar and zstd:
 
     bash verification/install.sh
     python3 verification/run.py --tier fast
     python3 verification/run.py --tier extended
-    bash verification/test-native.sh
 
 The installer checks pinned release digests and extracts CBMC 6.11.0 and
 Lean 4.36.0 under `~/.local/share/protogen-verification`. Set
