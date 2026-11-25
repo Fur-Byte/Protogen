@@ -61,6 +61,11 @@ python3 scripts/helmet-tool.py --port "<port from --list-ports>"
 
 Face Studio opens the device supplied with `--port` for settings and diagnostics. Open the private launcher printed in the terminal, then select **Open USB helmet controls**. Its credential is valid for that Face Studio process. Optional sensors must still be enabled in the sketch when their hardware is connected. Disabled sensors perform no reads.
 
+If Face Studio acknowledges a command and then reports a refresh failure, the helmet
+has already accepted the command. Check the current settings before repeating a write.
+If the USB session reports that it is out of sync, reset the helmet and restart the USB tool
+to establish a fresh session.
+
 ### Save or restore settings
 
 **Apply settings** changes RAM. **Save to helmet** retains the applied settings after power-off. **Load saved** restores the latest valid saved record. **Restore defaults** changes RAM to Settings.h defaults; it does not erase EEPROM. The current expression and sleep state remain session-only; saved `startup_expression` selects the face on the next boot. Saved settings override Settings.h defaults on boot. To retain changed compiled defaults, restore defaults and explicitly save.

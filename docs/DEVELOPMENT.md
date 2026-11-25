@@ -7,8 +7,8 @@ for the board variants and supported connections. The S31 and v4 work is separat
 
 ## Install the pinned tools
 
-Work from the repository root on macOS or Linux. Use Python 3.11 or later and a C++17-capable
-Clang. The full host suite also uses CMake, Ninja, and Node.js. The
+Work from the repository root on macOS or Linux. Use Git, Python 3.11 or later with
+`venv`, Make, and a C++17-capable Clang. The full host suite also uses CMake, Ninja, and Node.js. The
 [toolchain lock](../toolchain.lock.json) records Arduino CLI, Teensy core and library versions,
 and the PlatformIO and ESP-IDF versions used for development builds.
 
@@ -33,22 +33,32 @@ Use the [USB and settings guide](UPGRADE.md#use-the-preview-and-configuration-to
 connecting an installed Teensy. Preview uses the host compiler and the FFT source from
 `ARDUINO_FFT_SRC`. Close serial monitors before connecting Face Studio to the hardware.
 
-## Pick a regression check
+## Find the owner and the regression check
 
-| Changed area | Focused check |
-| --- | --- |
-| Rendering and panel writes | `python3 scripts/check-golden-frames.py` |
-| EEPROM and configuration | `bash scripts/test-config-compatibility.sh` |
-| Wireless and admission | `bash scripts/test-postmerge-wireless.sh` |
-| Face Studio and timeline replay | `node scripts/tests/test-face-studio.js` and `python3 scripts/check-timelines.py` |
-| Recovery packaging | `python3 scripts/tests/test-release-packaging.py` |
+| Entry point | Contract to preserve | Focused check |
+| --- | --- | --- |
+| [Teensy foreground loop](../firmware/PROT_OS7_MAX7219/PROT_OS7_MAX7219.ino) and [BehaviorCore](../firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp) | The loop admits inputs and commits SPI writes. The core computes the pose for the supplied time. | `python3 scripts/check-golden-frames.py` |
+| [ConfigStore](../firmware/PROT_OS7_MAX7219/ConfigStore.h) | EEPROM records and brightness approval must survive interrupted saves and reloads. | `bash scripts/test-config-compatibility.sh` |
+| [C3 application](../firmware/esp32/src/main.cpp), [wireless link](../firmware/esp32/src/WirelessLink.cpp), and [wearer task](../firmware/esp32/src/WearerIO.cpp) | The link checks expiry before dispatch. The wearer task publishes coherent sensor snapshots. | `bash scripts/test-postmerge-wireless.sh` and `bash scripts/test-efficiency.sh` |
+| [Face Studio server](../scripts/helmet-tool.py) and [controls](../tools/helmet/studio.js) | USB commands are serialized. A refresh failure can follow an acknowledged mutation. | `python3 scripts/tests/test-helmet-tool.py` and `node scripts/tests/test-face-studio.js` |
+| [Timeline compiler](../scripts/timelines/compiler.py) and [simulator](../scripts/timelines/simulator.py) | The preview runs the compiled asset in the sketch twin. Equal-time event order matters. | `python3 scripts/check-timelines.py` |
+| [Recovery packager](../scripts/package-release.py) | Each new bundle binds the role images to their build evidence and identifies the separate rollback bundle by digest. | `python3 scripts/tests/test-release-packaging.py` |
 
 `python3 scripts/check-baseline.py` runs the consolidated host suites. For a full target
 matrix, run `python3 scripts/check-build-matrix.py full teensy` or
 `python3 scripts/check-build-matrix.py full esp32` for the affected target. Follow
 [the CI policy](../AGENTS.md) when the PR workflow already provides that evidence.
 
+Changes to shared firmware kernels also have [formal and native assurance checks](../verification/README.md).
+Use the [coverage map](../verification/coverage.md) to find the matching wrapper tests,
+input bounds, and assumptions before changing a kernel. The formal runner has its own
+pinned x86_64 Linux tools.
+
 ## Read the build evidence
+
+For a consolidated host run, `build/baseline-host/manifest.json` lists the command,
+exit code, and log path for each suite. Open the log for the failed suite to find
+the first diagnostic.
 
 For a Teensy build failure, start with `build/current-build.json` and the compile log named
 by its run directory. A prior HEX can remain after a failed attempt. Use its adjacent
