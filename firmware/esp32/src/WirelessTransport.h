@@ -1,5 +1,6 @@
 #pragma once
 #include "WirelessConfig.h"
+#include "IngressCore.h"
 namespace Wireless {
 // Cheap callback admission before consuming the shared bounded receive queue.
 inline bool admitIngress(const uint8_t *bytes, size_t size, bool broadcast,
@@ -25,7 +26,7 @@ struct IngressIdentity {
   bool enabled = false, operational = false;
 };
 inline bool currentIngress(const Received &item, const IngressIdentity &identity) {
-  return identity.enabled && item.ingressGeneration == identity.generation;
+  return protogenCurrentIngress(identity.enabled, item.ingressGeneration, identity.generation);
 }
 class Transport {
 public:

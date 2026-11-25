@@ -24,12 +24,12 @@ SESSION = ESP / "src/WirelessSession.cpp"
 # next case. The rejection must come from the selected assertion or diagnostic.
 MUTATIONS = (
     ("brightness-approval", "config", CONFIG,
-     "brightness < brightnessApproval ? brightness : brightnessApproval", "brightness",
+     "protogenBrightness(brightness, brightnessApproval, Settings::MaxBrightness)",
+     "protogenBrightness(brightness, brightness, Settings::MaxBrightness)",
      "unapproved.effectiveBrightness() == 0"),
-    ("brightness-ceiling", "config", TEENSY / "Settings.h",
-     "return requested > static_cast<unsigned>(MaxBrightness)\n"
-     "      ? static_cast<uint8_t>(MaxBrightness) : static_cast<uint8_t>(requested);",
-     "return static_cast<uint8_t>(requested);", "oversized.effectiveBrightness() == 1"),
+    ("brightness-ceiling", "config", TEENSY / "BrightnessCore.h",
+     "return limit > ceiling ? ceiling : (uint8_t)limit;",
+     "(void)ceiling; return (uint8_t)limit;", "oversized.effectiveBrightness() == 1"),
     ("eeprom-crc", "config", STORE,
      "readNumber(data + crcAt, 4) != crc(data, crcAt)", "false", "sameConfig(actual, expected)"),
     ("eeprom-marker", "config", STORE, "data[markerAt] != 0xa5", "(static_cast<void>(data[markerAt]), false)",

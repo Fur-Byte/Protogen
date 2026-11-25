@@ -140,3 +140,32 @@ A Teensy board, panels, microphone, power instrumentation, oscilloscope,
 photodiode and both wireless roles are required only for their respective
 applicable trials. Their current availability is unconfirmed. Missing
 equipment and unknown installation details remain open in the manifest.
+
+
+## Assurance-expansion follow-up
+
+In addition to the existing trials, include the following interactions
+in the candidate's measured timing and wireless evidence:
+
+- A fresh paw intent held under temporary transport backpressure: measure
+  admission and optical response after the queue becomes available, and
+  confirm the intent is discarded instead if its original freshness
+  deadline expires. Record the queue metrics and sequence/ACK behavior,
+  without recording secret key material.
+- With the experimental event scheduler enabled only for the matching bench
+  image, exercise a connected radio with unavailable or expired Teensy status.
+  Check service intervals and task progress during recovery, and confirm
+  that overdue ineligible UART deadlines cannot cause a persistent zero-tick
+  loop. Measure the response latency with both the baseline and experimental
+  scheduling profile before any change to the approved defaults.
+- Include audio ISR service and dropped-sample counters under concurrent
+  rendering, USB, and radio activity. The formal ring checks assume coherent
+  sample-before-index publication and do not establish the real target's
+  interrupt latency, ordering or stack headroom.
+- Confirm reconnect and session renewal reject retired traffic and stale
+  intents. The checked nonce/counter and generation predicates do not replace
+  physical RF, entropy, recovery or timing qualification.
+
+These are additional observations within the existing seven F3 trials, not
+new pass declarations. Keep all affected gates NOT_RUN until measurements
+from the identified physical assembly have been captured and reviewed.

@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#include "NonceCore.h"
 namespace Wireless {
 constexpr uint8_t Version = 3, Helmet = 1, Paw = 2;
 constexpr size_t PacketBytes = 128, HeaderBytes = 20, PlainBytes = 92,
@@ -53,14 +54,10 @@ enum Type : uint8_t {
   SessionProof = 11
 };
 inline uint64_t get64(const uint8_t *p) {
-  uint64_t v = 0;
-  for (unsigned i = 0; i < 8; ++i)
-    v |= uint64_t(p[i]) << (8 * i);
-  return v;
+  return protogenRead64(p);
 }
 inline void put64(uint8_t *p, uint64_t v) {
-  for (unsigned i = 0; i < 8; ++i)
-    p[i] = uint8_t(v >> (8 * i));
+  protogenWrite64(p, v);
 }
 inline bool due(uint32_t now, uint32_t deadline) {
   return int32_t(now - deadline) >= 0;

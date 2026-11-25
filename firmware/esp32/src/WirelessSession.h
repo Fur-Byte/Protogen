@@ -3,7 +3,11 @@
 #include "ReplayWindow.h"
 #include "SecurityState.h"
 #include "WirelessCrypto.h"
+#include "SessionPolicy.h"
 namespace Wireless {
+static_assert(RekeyRecords == PROTOGEN_RECORD_LIMIT &&
+              MaxSequence == PROTOGEN_SEQUENCE_LIMIT &&
+              SequenceRenewMargin == PROTOGEN_RENEW_MARGIN, "Session policy mismatch");
 struct Material {
   uint8_t pawKey[32]{}, helmetKey[32]{}, id[8]{}, recovery[32]{}, lmk[16]{},
       pmk[16]{}, pawFinished[32]{}, helmetFinished[32]{}, pawCommit[32]{};
@@ -32,8 +36,7 @@ public:
   bool begin(uint8_t ownRole, const Material &material);
   uint64_t recordCount() const { return records; }
   bool needsRekey() const {
-    return records >= RekeyRecords ||
-           sequence >= MaxSequence - SequenceRenewMargin;
+    return protogenNeedsRekey(records, sequence);
   }
   bool seal(const HelmetLink::Packet &p, Frame &out);
   bool open(const uint8_t *bytes, size_t n, HelmetLink::Packet &p);
