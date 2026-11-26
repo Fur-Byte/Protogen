@@ -274,6 +274,12 @@ jobs:
         run: |
           source build/toolchains/environment.sh
           python3 scripts/check-audio-profiles.py --target
+      - name: Opt-in Teensy recovery build and retention layout
+        if: matrix.group != 'auth'
+        shell: bash
+        run: |
+          source build/toolchains/environment.sh
+          python3 scripts/check-recovery-build.py
       - name: P8 supervisor and flight-recorder target combinations
         if: matrix.group != 'auth'
         shell: bash

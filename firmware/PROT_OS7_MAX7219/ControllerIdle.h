@@ -2,6 +2,11 @@
 #include <stdint.h>
 #include <limits.h>
 
+#ifndef PROTOGEN_IDLE_RUN_MODE
+#define PROTOGEN_IDLE_RUN_MODE 0
+#endif
+static_assert(PROTOGEN_IDLE_RUN_MODE == 0 || PROTOGEN_IDLE_RUN_MODE == 1, "Idle run mode must be 0 or 1");
+
 // Shallow WFI only: no clock/register writes and no deep sleep. The pinned
 // Teensy core's 100 kHz external SysTick/reload 99 provides the periodic wake.
 struct ControllerIdle {
@@ -39,6 +44,21 @@ struct ControllerIdle {
     totalWaitUs = UINT64_MAX - totalWaitUs < elapsed ? UINT64_MAX : totalWaitUs + elapsed;
     if (elapsed > WaitBudgetUs && overBudgetWaits != UINT32_MAX) ++overBudgetWaits;
     if (elapsed > maxWaitUs) maxWaitUs = elapsed;
+  }
+  // The observed pinned-core reset value is WAIT (0x79). Do not admit
+  // WAIT/STOP to the existing WFI guard: RT1060 erratum ERR050143 applies
+  // to entry to SoC low-power modes. An opt-in setup selects RUN once,
+  // leaving every other CLPCR field unchanged.
+  static constexpr bool canSelectRun(uint32_t scr, uint32_t clpcr) {
+    return !(scr & (SleepDeep | SleepOnExit)) && clpcr == 0x79u;
+  }
+  void initialize() {
+#if PROTOGEN_IDLE_RUN_MODE && defined(__IMXRT1062__)
+    if (canSelectRun(SCB_SCR, CCM_CLPCR)) {
+      CCM_CLPCR &= ~LowPowerMask;
+      asm volatile("dsb\n\tisb" ::: "memory");
+    }
+#endif
   }
   void wait() {
     SafetyState state;

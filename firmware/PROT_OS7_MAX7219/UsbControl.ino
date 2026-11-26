@@ -383,6 +383,21 @@ void handleUsbCommand(char *line, uint32_t now) {
     if (!out.okay()) replyTooLarge();
   }
 #endif
+#if PROTOGEN_CONTROLLER_RECOVERY
+  else if (strcmp(command, "RECOVERY") == 0) {
+    const auto &r = controllerRecovery;
+    BoundedReply out(usbReply, sizeof(usbReply));
+    out.append("{\"ok\":true,\"armed\":%s,\"locked\":%s,\"cause\":%lu,\"attempts\":%lu,"
+               "\"previous_valid\":%s,\"previous_stage\":%lu,\"previous_uptime_ms\":%lu,"
+               "\"previous_passes\":%lu,\"previous_renders\":%lu,\"previous_drained\":%lu}\n",
+               r.armed ? "true" : "false", r.locked ? "true" : "false",
+               static_cast<unsigned long>(r.cause), static_cast<unsigned long>(r.attempts),
+               r.previousValid ? "true" : "false", static_cast<unsigned long>(r.previous.stage),
+               static_cast<unsigned long>(r.previous.uptime), static_cast<unsigned long>(r.previous.passes),
+               static_cast<unsigned long>(r.previous.renders), static_cast<unsigned long>(r.previous.drained));
+    if (!out.okay()) replyTooLarge();
+  }
+#endif
   else if (strcmp(command, "GET") == 0) replyConfig();
   else if (strcmp(command, "STATUS") == 0) replyStatus();
   else if (strcmp(command, "PERF") == 0) {
@@ -406,6 +421,9 @@ void handleUsbCommand(char *line, uint32_t now) {
   }
   else if (strcmp(command, "FRAME") == 0) replyFrame();
   else if (strcmp(command, "SAVE") == 0) {
+#if PROTOGEN_CONTROLLER_RECOVERY
+    controllerRecovery.saving(millis(), supervisionRenderEpoch, supervision.audio.marker);
+#endif
     pauseMicrophone(); // Flash programming can mask interrupts; restart cleanly afterward.
 #if PROTOGEN_SUPERVISION_OBSERVE
     const uint32_t started = millis();
