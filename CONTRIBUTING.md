@@ -14,10 +14,6 @@ target builds or physical boards.
 - Let the automatic PR workflow run the fast checks. Use a manual full-matrix
   run when build coverage or stress tests are needed. Use ephemeral
   test provisioning and synthetic data in CI.
-- Keep formatting changes scoped to eligible files. The polish drafts use
-  clang-format 20.1.8, Black 25.1.0, and Prettier 3.6.2 for the files in those
-  diffs. Apply the local configuration to named paths. Preserve inherited and
-  vendored files, generated outputs, and frozen evidence.
 - Keep calibration records identifying specific devices, UART and signing keys,
   wireless pairing material, unreviewed captures and provisioned images in
   private operational storage. Use [SECURITY.md](SECURITY.md) for vulnerability
@@ -26,3 +22,17 @@ target builds or physical boards.
   vectors and generated derivatives. Retain required notices and explain
   modifications. See [third-party notices](THIRD_PARTY_NOTICES.md) and
   [publication status](docs/PUBLIC_RELEASE_READINESS.md).
+
+## Check source formatting
+
+Stage new source files, then run `python3 scripts/check-format.py --list-tools` to see
+which formatters your changes use. Put the listed tools on `PATH` and run
+`python3 scripts/check-format.py`. Both commands compare the working tree to its
+common ancestor with `origin/main`. Pass another base branch for a stacked PR.
+
+CI uses Black 25.1.0, clang-format 20.1.8, and Prettier 3.6.2 with the repository
+configurations. The check covers new files and edits to files that were already
+formatted in the selected first-party source directories. Legacy files enter the
+check after a formatting change lands. The [path selection](scripts/check-format.py)
+keeps inherited sketch modules, vendored code, generated metadata, and fixtures outside
+the check. Fix the named files locally and review the diff before committing.
