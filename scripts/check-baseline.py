@@ -68,7 +68,12 @@ def main():
         write_json(manifest, record)
     record["inputs_unchanged"] = source_identity(ROOT) == record["source"]
     write_json(manifest, record)
-    return 0 if record["inputs_unchanged"] and all(r["exit_code"] == 0 for r in record["results"]) else 1
+    failed_logs = [result["log"] for result in record["results"] if result["exit_code"] != 0]
+    for path in failed_logs:
+        print(f"See {path} for the failed suite output.", file=sys.stderr)
+    if not record["inputs_unchanged"]:
+        print("Source inputs changed during the baseline run.", file=sys.stderr)
+    return 1 if failed_logs or not record["inputs_unchanged"] else 0
 
 
 if __name__ == "__main__":
