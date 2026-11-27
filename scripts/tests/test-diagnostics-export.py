@@ -77,6 +77,30 @@ class DiagnosticsGetContract(unittest.TestCase):
                 }
                 self.assertEqual(output.read_bytes(), (json.dumps(expected, indent=2) + '\n').encode())
 
+    def test_reviewed_counters_are_exported_without_other_fields(self):
+        for valid in (True, False):
+            with self.subTest(valid=valid), tempfile.TemporaryDirectory() as folder:
+                serial = Mock()
+                serial.command.side_effect = [
+                    self.reply(),
+                    {'ok': True, 'blink_entropy_fallbacks': 2**32-1 if valid else True,
+                     'future_secret': 123},
+                    {'ok': True, 'idle_waits': 12 if valid else -1,
+                     'idle_total_us': 2**64-1 if valid else 2**64,
+                     'idle_max_us': 42 if valid else '42', 'future_secret': 123},
+                ]
+                output = Path(folder) / 'diagnostics.json'
+                argv = ['export-diagnostics.py', '--port', 'mock', '--output', str(output)]
+                with patch.object(sys, 'argv', argv), patch.object(export, 'SerialTransport', return_value=serial):
+                    self.assertEqual(export.main(), 0)
+                result = json.loads(output.read_text())
+                self.assertEqual(result['status'], dict(ok=True, blink_entropy_fallbacks=2**32-1)
+                                 if valid else dict(ok=True))
+                self.assertEqual(result['performance'], dict(ok=True, idle_waits=12, idle_total_us=2**64-1,
+                                                              idle_max_us=42) if valid else dict(ok=True))
+                self.assertEqual(serial.command.call_args_list, [call('GET'), call('STATUS'), call('PERF')])
+                serial.close.assert_called_once_with()
+
     def test_unexpected_get_fields_fail_closed(self):
         for key, value in [('pairing_key', 'secret'), ('name', 'injected')]:
             with self.subTest(key=key):
