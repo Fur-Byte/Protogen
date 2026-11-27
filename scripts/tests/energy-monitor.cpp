@@ -104,6 +104,37 @@ int main(int argc,char **argv) {
     std::cout<<"PASS: INA fresh conversion, trim/overflow/range/I2C rejection, atomic readings and 10ms transfer bound\n";
     return 0;
   }
+  if (mode == "saturation") {
+    settings.features = Device::EnergyMonitor;
+    settings.usableEnergyMWh = 1000;
+    FakeWearer::stored = UINT32_MAX;
+    unsigned stage = 0;
+    FakeWearer::beforeWait = [&]() {
+      const uint32_t now = nowMs();
+      assert(now < 70000);
+      counter = FakeWearer::us / 1000000 * 16384;
+      const auto state = snapshot();
+      if (state.energySamples >= 2 && stage == 0) {
+        assert(state.usedMWh == double(UINT32_MAX));
+        assert(!state.estimateQualified);
+        assert(state.measuredMWh > 0);
+        if (now >= 61000) {
+          assert(FakeWearer::stored == UINT32_MAX);
+          assert(markFull());
+          stage = 1;
+        }
+      } else if (stage == 1 && state.estimateQualified) {
+        assert(state.usedMWh == 0);
+        assert(state.remainingPercent == 100);
+        stage = 2;
+        throw FakeWearer::Stop{};
+      }
+    };
+    try { task(nullptr); } catch (const FakeWearer::Stop &) {}
+    assert(stage == 2);
+    std::cout << "PASS: saturated checkpoint remains bounded; FULL resets SOC safely\n";
+    return 0;
+  }
   settings.features=mode=="disabled"?0:Device::EnergyMonitor;
   settings.usableEnergyMWh=1000;
   FakeWearer::stopAfter=0;

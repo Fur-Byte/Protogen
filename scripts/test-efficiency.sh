@@ -63,8 +63,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/tests/test-host-build.py"
 
 # Optional existing INA228: actual task validation, freshness and fault recovery.
 for deadlines in 0 1; do
-  "${CXX:-clang++}" "${FLAGS[@]}" -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES="$deadlines" \
+  "${CXX:-clang++}" "${FLAGS[@]}" -fsanitize=float-cast-overflow -DHELMET_RECEIVER -DPROTOGEN_WEARER_DEADLINES="$deadlines" \
     -I"$ROOT/scripts/tests/wearer-stubs" -I"$ROOT/firmware/esp32/src" \
     "$ROOT/scripts/tests/energy-monitor.cpp" -o "$EFF_TEMP/energy-monitor"
-  for mode in direct task bus disabled; do "$EFF_TEMP/energy-monitor" "$mode"; done
+  for mode in direct task bus disabled saturation; do "$EFF_TEMP/energy-monitor" "$mode"; done
 done
