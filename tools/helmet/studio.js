@@ -169,7 +169,8 @@ function renderAudioAndTelemetry({ simulation, status }) {
     !status.microphone_enabled ||
     status.sleeping ||
     !status.visible ||
-    status.boop;
+    status.boop ||
+    Boolean(status.calibrating);
 
   $('envelope').textContent = status.envelope;
   $('gate').textContent = status.audio_gate;

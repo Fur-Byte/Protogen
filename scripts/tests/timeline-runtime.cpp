@@ -124,6 +124,13 @@ void checkReplacement(uint32_t origin) {
 int main() {
   const auto *data = ProtogenAsset::clip;
   static_assert(sizeof(ProtogenAsset::clip) == 336);
+  constexpr uint8_t shortAsset[] = {1};
+  constexpr uint8_t malformed[AssetBytes] = {};
+  static_assert(validAsset(ProtogenAsset::clip));
+  static_assert(!validAsset(shortAsset));
+  static_assert(!validAsset(malformed));
+  static_assert(!validAsset(nullptr, AssetBytes));
+  assert(!validAsset(nullptr, AssetBytes));
   assert(validAsset(data, AssetBytes));
   std::array<uint8_t, AssetBytes> bad;
   std::copy(data, data + AssetBytes, bad.begin());

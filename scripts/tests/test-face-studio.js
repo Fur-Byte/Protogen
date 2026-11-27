@@ -138,11 +138,17 @@ test('audio telemetry and controls reflect firmware capabilities and face state'
   requests.at(-1).reply(active);
   await load;
   assert.equal(element('audio-status').textContent, 'Calibrating…');
+  assert.equal(element('calibrate').disabled, true);
   assert.equal(element('microphone').textContent, 'Mute microphone');
   assert.deepEqual([element('envelope').textContent, element('gate').textContent, element('drops').textContent], [300,42,3]);
   assert.equal(element('level').style.width, '100%');
   assert.equal(element('boop-reading').textContent, 'Boop sensor: 51 / 1023');
   assert.equal(element('footer').textContent, 'USB settings · changes stay local · Paw connected · Faults 2 · SPI 4 MHz');
+
+  const completed = element('load').onclick();
+  requests.at(-1).reply(snapshot(0));
+  await completed;
+  assert.equal(element('calibrate').disabled, false);
 });
 
 test('a successful action draws once and an earlier poll cannot replace it', async () => {

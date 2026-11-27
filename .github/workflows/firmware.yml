@@ -15,6 +15,23 @@ permissions:
 env:
   MATRIX_MODE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && 'full' || 'fast' }}
 jobs:
+  gcc-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CXX: g++
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: GCC portability regression checks
+        shell: bash
+        run: |
+          g++ --version
+          python3 scripts/check-timelines.py --conformance-only
+          make -C scripts/twin CXX=g++ BUILD=../../build/twin-gcc EXTRA_FLAGS=-DPROTOGEN_FLIGHT_RECORDER=1 ../../build/twin-gcc/flight-recorder-unit
+          build/twin-gcc/flight-recorder-unit
+          bash scripts/test-postmerge-rendering.sh
   host-and-c3:
     runs-on: ubuntu-24.04
     timeout-minutes: 120

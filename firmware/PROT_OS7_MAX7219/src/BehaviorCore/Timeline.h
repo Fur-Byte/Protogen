@@ -30,8 +30,10 @@ constexpr Event readEvent(const uint8_t *data, unsigned index) {
            static_cast<Animation::Easing>(p[7]), word(p + 2), signedByte(p[8]), signedByte(p[9])}};
 }
 
-constexpr bool validAsset(const uint8_t *data, size_t bytes) {
-  if (!data || bytes != AssetBytes || word(data) != Version || data[2] > MaxEvents || data[3] > 1 ||
+namespace Detail {
+// Callers must supply a non-null pointer; the length is checked before reading.
+constexpr bool validAssetFields(const uint8_t *data, size_t bytes) {
+  if (bytes != AssetBytes || word(data) != Version || data[2] > MaxEvents || data[3] > 1 ||
       !word(data + 4) || word(data + 4) > 60000 || data[10] > 5 || data[11] > 1 || data[12] > 1 ||
       ((unsigned(data[3]) << 8) | data[13]) > 500 || data[14] || data[15])
     return false;
@@ -51,6 +53,16 @@ constexpr bool validAsset(const uint8_t *data, size_t bytes) {
   for (unsigned i = HeaderBytes + data[2] * EventBytes; i < AssetBytes; ++i)
     if (data[i]) return false;
   return true;
+}
+
+}
+
+template <size_t N> constexpr bool validAsset(const uint8_t (&data)[N]) {
+  return Detail::validAssetFields(data, N);
+}
+
+constexpr bool validAsset(const uint8_t *data, size_t bytes) {
+  return data && Detail::validAssetFields(data, bytes);
 }
 
 enum class State : uint8_t { Idle, Running, Complete, Cancelled };
