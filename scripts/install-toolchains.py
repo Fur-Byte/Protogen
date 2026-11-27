@@ -99,6 +99,8 @@ def main():
         python = str(ROOT / 'build/esp32-venv/bin/python')
         run(python, '-m', 'pip', 'install', 'platformio==' + lock['esp32']['platformio'])
         run(variables['PIO'], 'pkg', 'install', '--project-dir', str(ROOT / 'firmware/esp32'))
+        from esp_source_integrity import verify_esp_sources
+        verify_esp_sources(ROOT / 'build/platformio', lock)
         # Let PlatformIO establish its own venv metadata before adding IDF's
         # constrained core dependencies. A broken prior setup may fail its
         # configuration step; the explicit install below repairs it.

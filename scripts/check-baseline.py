@@ -15,7 +15,7 @@ SHELL_SUITES = (
     "uart-admission", "ingress-peer", "postmerge-wireless", "s31-platform",
     "wireless", "v4", "dtls",
 )
-STANDARD_PYTHON_SUITES = ("host-support", "runner-portability", "board-targets", "scheduler-config")
+STANDARD_PYTHON_SUITES = ("host-support", "runner-portability", "board-targets", "scheduler-config", "esp-source-integrity")
 OPTIMIZED_PYTHON_SUITES = (
     "toolchain-integrity", "tools", "security-builds", "helmet-tool", "pair-paw",
     "efficiency", "host-build",
