@@ -9,6 +9,7 @@ import subprocess
 import re
 import configparser
 import struct
+from esp_tool_integrity import verify_esp_tools
 from build_support import file_sha256, git_identity, source_identity, write_json
 from uart_key import validate_uart_key_directory
 from esp_source_integrity import verify_esp_sources
@@ -62,6 +63,7 @@ def main():
         ini.read(root / "firmware/esp32/platformio.ini")
         if ini["env"]["platform"] != locked["platform"]:
             raise RuntimeError("ESP32 platform differs from the lock")
+        record["tool_package_integrity"] = verify_esp_tools(build / "platformio")
         command = [pio, "run", "--project-dir", str(root / "firmware/esp32"), "-e", "helmet", "-e", "paw"]
         if jobs := os.environ.get("PROTOGEN_PIO_JOBS"):
             command += ["-j", jobs]
@@ -92,6 +94,8 @@ def main():
         record["resolved"] = {"platformio": version, "esp_idf": resolved_idf, "mbedtls": resolved_mbed}
         if resolved_idf != locked["esp_idf"] or resolved_mbed != locked["mbedtls"]:
             raise RuntimeError("Resolved ESP-IDF/Mbed TLS differs from the lock")
+        if verify_esp_tools(build / "platformio") != record["tool_package_integrity"]:
+            raise RuntimeError("ESP tool package contents changed during the run.")
         record["artifacts"] = {}
         record["targets"] = {}
         for index, role in enumerate(("helmet", "paw")):

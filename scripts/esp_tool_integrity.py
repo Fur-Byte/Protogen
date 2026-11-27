@@ -1,0 +1,59 @@
+"""Verify Linux ESP build tool packages against reviewed upstream release trees."""
+
+import json
+import os
+from pathlib import Path
+import platform
+
+from build_support import file_sha256, source_digest
+
+PIN_PATH = Path(__file__).resolve().parent / "requirements/esp-tools-linux-x86_64.json"
+OPTIONAL = {"tool-riscv32-esp-elf-gdb", "tool-xtensa-esp-elf-gdb"}
+
+
+def tool_tree_digest(directory, *, esptool=False):
+    if not directory.is_dir() or directory.is_symlink():
+        raise RuntimeError(f"Missing or symlinked ESP tool package: {directory}")
+    files = {}
+    for path in directory.rglob("*"):
+        relative = path.relative_to(directory)
+        name = relative.as_posix()
+        # PlatformIO installs these Python dependencies separately.
+        # Their package archives have independent locks, not tree pins here.
+        if esptool and relative.parts[0] == "_contrib":
+            continue
+        if path.is_symlink():
+            # Verify the exact upstream link text, not the dereferenced file.
+            files[name] = "symlink:" + os.readlink(path)
+        elif path.is_dir():
+            continue
+        elif not path.is_file():
+            raise RuntimeError(f"Unexpected ESP tool entry: {path}")
+        elif name != ".piopm" and not ("__pycache__" in relative.parts and path.suffix == ".pyc"):
+            files[name] = file_sha256(path)
+    return source_digest(files)
+
+
+def verify_esp_tools(core, pins=None):
+    host = (platform.system(), platform.machine())
+    if host != ("Linux", "x86_64"):
+        return {"host": list(host), "state": "unverified_host"}
+    if pins is None:
+        pins = json.loads(PIN_PATH.read_text())
+    verified, absent = {}, []
+    for name, pin in sorted(pins.items()):
+        directory = Path(core) / "packages" / name
+        if name in OPTIONAL and not directory.exists() and not directory.is_symlink():
+            absent.append(name)
+            continue
+        actual = tool_tree_digest(directory, esptool=name == "tool-esptoolpy")
+        if actual != pin["tree_sha256"]:
+            raise RuntimeError(f"Pinned ESP tool content mismatch: {name}")
+        verified[name] = actual
+    return {
+        "host": list(host),
+        "state": "verified_archive_trees",
+        "trees": verified,
+        "optional_absent": absent,
+        "excluded": ["tool-esptoolpy/_contrib", "generated_python_bytecode", ".piopm"],
+    }
