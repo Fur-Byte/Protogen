@@ -62,6 +62,9 @@ compile_host_fft "$FFT_SRC" "${TEST_TEMP}/arduinoFFT.o"
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \
   -o "$TEST_TEMP/test-controller-idle"
 "$TEST_TEMP/test-controller-idle"
+
+"${CXX:-clang++}" "${FLAGS[@]}" "$ROOT/scripts/tests/recovery-journal.cpp" -o "$TEST_TEMP/test-recovery-journal"
+"$TEST_TEMP/test-recovery-journal"
 "${CXX:-clang++}" "${FLAGS[@]}" -DVisorConnector \
   "$ROOT/scripts/tests/connector-timing.cpp" \
   "$ROOT/firmware/PROT_OS7_MAX7219/src/Max72xxPanel/Max72xxPanel.cpp" "$ROOT/firmware/PROT_OS7_MAX7219/src/BehaviorCore/BehaviorCore.cpp" \

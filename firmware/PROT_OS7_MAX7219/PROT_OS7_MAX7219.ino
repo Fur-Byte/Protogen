@@ -21,6 +21,7 @@
 #include "ControllerIdle.h"
 #include "ResponseTiming.h"
 #include "Supervision.h"
+#include "ControllerRecovery.h"
 #include "src/AudioV2/AudioV2.h"
 #include "src/HelmetProtocol/HelmetProtocol.h"
 
@@ -135,6 +136,14 @@ AudioV2::Settings audioSettings() {
 #endif
 #endif
 
+#if PROTOGEN_CONTROLLER_RECOVERY && !PROTOGEN_SUPERVISION_OBSERVE
+#error "Controller recovery requires supervision observation"
+#endif
+#if PROTOGEN_CONTROLLER_RECOVERY
+static_assert(Recovery::HealthyGapMs == Supervision::ForegroundBudgetMs, "Recovery progress budget");
+Recovery::Controller controllerRecovery;
+#endif
+
 #if PROTOGEN_SUPERVISION_OBSERVE
 Supervision::Observer supervision;
 uint32_t supervisionRenderEpoch = 0;
@@ -149,7 +158,18 @@ void observeProgress(bool visible) {
 }
 #endif
 
+#if PROTOGEN_CONTROLLER_RECOVERY
+void completeRecoveryPass() {
+  const bool progressing = !supervision.render.stale && !supervision.audio.stale;
+  controllerRecovery.completed(millis(), progressing, supervisionRenderEpoch,
+                                supervision.audio.marker);
+}
+#endif
+
 void setup() {
+#if PROTOGEN_CONTROLLER_RECOVERY
+  controllerRecovery.begin();
+#endif
   Serial.begin(115200); // USB is optional; startup never waits for a computer.
   Entropy.Initialize(); // Starts hardware entropy collection without waiting for it.
   loadStoredConfig(config);
@@ -171,6 +191,11 @@ void setup() {
   setupPawLink();
   resetAnimations(millis());
   displayBlanked = true; // Compose the first complete face before enabling panels.
+#if PROTOGEN_CONTROLLER_RECOVERY
+  if (!controllerRecovery.locked) controllerIdle.initialize();
+#else
+  controllerIdle.initialize();
+#endif
 }
 
 void renderFrame(uint32_t now, Face::AudioSnapshot &spectrum);
@@ -221,6 +246,9 @@ void loop() {
 #if PROTOGEN_SUPERVISION_OBSERVE
     observeProgress(false);
 #endif
+#if PROTOGEN_CONTROLLER_RECOVERY
+    completeRecoveryPass();
+#endif
     if (!pending) controllerIdle.wait();
     return;
   }
@@ -256,6 +284,9 @@ void loop() {
   }
 #if PROTOGEN_SUPERVISION_OBSERVE
   observeProgress(true);
+#endif
+#if PROTOGEN_CONTROLLER_RECOVERY
+  completeRecoveryPass();
 #endif
 #if PROTOGEN_FLIGHT_RECORDER
   P3Teensy::finishLoop();
