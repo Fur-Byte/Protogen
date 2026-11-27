@@ -42,6 +42,35 @@ a fail-dark or safe-output guarantee. A new cold start may clear the lockout.
 No reset is requested by the diagnostic reader. The counter cannot establish
 a lifetime limit across cold resets or a bootloader that misreports causes.
 
+### Software-reset crash-loop investigation (2026-11-27)
+
+The pinned Teensy core 1.62.0 exception handler in `cores/teensy4/startup.c`
+can request reset by writing SCB_AIRCR after its USB recovery interval.
+`CrashReport.cpp` describes SRC_SRSR bit 1 as software reset or CPU lockup;
+it does not distinguish intentional restarts from faults. The current policy
+preserves the counter for a trusted exact software cause (2), so repeated
+such resets do not consume the watchdog retry budget. This is not a claim
+that the watchdog can stop a core exception reset loop.
+
+Existing bare-board logs from November 26 recorded cause 3 after a forced
+software reset from a power-on state, with the retention sentinel intact.
+The later recovery candidate demonstrated three watchdog resets (cause 16),
+attempt counts 1, 2, 3 and lockout with USB still available. Neither test
+establishes repeated exact cause 2 after SRC_SRSR is cleared, nor the
+exception handler's physical reset path. No new reset or flash was performed
+during this review.
+
+Before changing the policy, use a separately reviewed bare-board-only image:
+capture raw cause and journal identity on each boot; exercise one intentional
+software restart and a bounded exception-triggered restart; distinguish a
+watchdog reset from a software/lockup reset; repeat no more than three times
+with a physical loader recovery path available. Confirm settings retention,
+USB recovery and no reset storm, then restore the known-good firmware.
+If exact cause 2 is confirmed and no intentional restart exemption can be
+authenticated, consider counting it conservatively with the existing budget.
+Keep watchdog activation opt-in; do not claim fail-dark behavior or universal
+crash-loop recovery from these tests.
+
 ## Idle candidate
 
 `PROTOGEN_IDLE_RUN_MODE=1` selects RUN (LPM=00) only if the observed
