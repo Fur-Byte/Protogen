@@ -116,7 +116,13 @@ compiled ceiling permits. Unrelated SET fields preserve approval, including
 when requested brightness itself is unchanged. SAVE records the requested value
 and **approved effective base** level, excluding any temporary BOOST. GET/STATUS
 add `brightness.approved`; SAVE acknowledges `record_format:3` and the saved
-approval. Face Studio shows approval and sends a brightness field only after a
+approval. The same field is intentionally command-specific: GET/STATUS report
+the current runtime authorization; SAVE reports the approval written into the
+EEPROM record (the effective base level, not a temporary BOOST). SAVE does not
+mutate runtime authorization. After LOAD or reboot, the persisted approval is
+the runtime approval. Consumers must not substitute a SAVE reply for a fresh
+GET/STATUS snapshot. The wire format and brightness ceiling are unchanged.
+Face Studio shows approval and sends a brightness field only after a
 brightness edit or selection of a profile containing it. Profile export still
 retains the requested value; applying such a profile is an explicit request.
 

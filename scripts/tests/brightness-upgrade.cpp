@@ -93,6 +93,23 @@ int main(int argc,char **argv) {
       assert(recovered.effectiveBrightness()<=Settings::MaxBrightness);
     }
   }
+  // SAVE reports persisted base approval; GET/STATUS report live authorization.
+  // A synthetic runtime state models a lower effective level without reapproval.
+  config.brightness = 0;
+  config.brightnessApproval = 1;
+  command("GET");
+  assert(strstr(usbReply, "\"approved\":1"));
+  command("STATUS");
+  assert(strstr(usbReply, "\"approved\":1"));
+  command("SAVE");
+  assert(strstr(usbReply, "\"approved\":0"));
+  assert(config.brightnessApproval == 1);
+  RuntimeConfig persisted;
+  assert(loadStoredConfig(persisted) && persisted.brightnessApproval == 0);
+  command("LOAD");
+  assert(config.brightnessApproval == 0);
+  assert(strstr(usbReply, "\"approved\":0"));
+
   // CRC-valid but impossible approval values cannot become authoritative.
   for(unsigned approval:{16u,65535u}) {
     historical.brightnessApproval=approval;seed(3,0,historical);
