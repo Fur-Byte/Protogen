@@ -171,6 +171,27 @@ class HandlerChecks(unittest.TestCase):
         response_headers = dict(line.split(": ", 1) for line in lines[1:])
         return int(lines[0].split()[1]), response_headers, response_body
 
+    def test_default_http_port_accepts_only_local_authority(self):
+        self.handler = tool.make_handler(self.helmet, 80)
+        for host in ("localhost", "127.0.0.1", "localhost:80", "127.0.0.1:80"):
+            for origin in ("http://" + host, "http://" + host.removesuffix(":80")):
+                self.assertEqual(self.request("GET", "/api/state", {"Host": host, "Origin": origin})[0], 200)
+        for host, origin in (("localhost:81", "http://localhost:81"),
+                             ("localhost", "http://127.0.0.1"),
+                             ("localhost", "https://localhost"),
+                             ("localhost.evil", "http://localhost.evil")):
+            self.assertEqual(self.request("GET", "/api/state", {"Host": host, "Origin": origin})[0], 403)
+
+    def test_json_framing_is_strict_on_both_routes(self):
+        for route in ("/api/action", "/api/timeline/compile", "/api/timeline/seek"):
+            for length in ("+2", "-2", "0_2", "2,2", "2 ", "bad", "0", "9" * 5000):
+                with self.subTest(route=route, length=length[:20]):
+                    self.assertEqual(self.request("POST", route, {"Content-Length": length}, {})[0], 400)
+            for encoding in ("", "chunked"):
+                self.assertEqual(self.request("POST", route, {"Transfer-Encoding": encoding}, {})[0], 400)
+        self.helmet.action.assert_not_called()
+        self.assertEqual(self.request("POST", "/api/action", {"Content-Length": "002"}, {})[0], 200)
+
     def assert_framing_blocked(self, headers):
         self.assertEqual(headers.get("Content-Security-Policy"), "frame-ancestors 'none'")
         self.assertEqual(headers.get("X-Frame-Options"), "DENY")

@@ -221,10 +221,16 @@ def make_handler(helmet, port, usb_token=None):
 
         def allow_request(self):
             hosts = (f"127.0.0.1:{port}", f"localhost:{port}")
+            if port == 80:
+                hosts += ("127.0.0.1", "localhost")
             host = self.headers.get("Host")
             origins = self.headers.get_all("Origin", [])
+            allowed_origins = ["http://" + host] if host in hosts else []
+            if port == 80 and allowed_origins:
+                canonical = host.removesuffix(":80")
+                allowed_origins = ["http://" + canonical, "http://" + canonical + ":80"]
             if (len(self.headers.get_all("Host", [])) != 1 or host not in hosts
-                    or (origins and origins != ["http://" + host])):
+                    or (origins and (len(origins) != 1 or origins[0] not in allowed_origins))):
                 self.respond(403, {"error": "Local access only"})
                 return False
             if not helmet.transport.simulation and self.path.startswith("/api/"):
@@ -256,6 +262,26 @@ def make_handler(helmet, port, usb_token=None):
             except (OSError, RuntimeError, ValueError) as error:
                 self.respond(503, {"error": str(error)})
 
+        def json_body(self, maximum):
+            lengths = self.headers.get_all("Content-Length", [])
+            if (len(lengths) != 1 or self.headers.get_all("Transfer-Encoding", [])
+                    or self.headers.get("Content-Type") != "application/json"):
+                raise ValueError("Expected fixed-length application/json")
+            value = lengths[0]
+            if not value.isascii() or not value.isdecimal():
+                raise ValueError("Invalid Content-Length")
+            # Bound conversion even for a long string of digits.
+            digits = value.lstrip("0")
+            if not digits or len(digits) > len(str(maximum)):
+                raise ValueError("Request exceeds size limit")
+            length = int(digits)
+            if length > maximum:
+                raise ValueError("Request exceeds size limit")
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                raise ValueError("Incomplete request")
+            return raw
+
         def do_POST(self):
             if not self.allow_request():
                 return
@@ -268,16 +294,7 @@ def make_handler(helmet, port, usb_token=None):
             if self.path != "/api/action":
                 self.respond(404, {"error": "Not found"}); return
             try:
-                if (len(self.headers.get_all("Content-Length", [])) != 1 or self.headers.get("Transfer-Encoding")
-                        or self.headers.get("Content-Type") != "application/json"):
-                    raise ValueError("Expected a small JSON request")
-                length = int(self.headers["Content-Length"])
-                if not 0 < length <= 4096:
-                    raise ValueError("Expected a small JSON request")
-                raw = self.rfile.read(length)
-                if len(raw) != length:
-                    raise ValueError("Incomplete request")
-                payload = json.loads(raw)
+                payload = json.loads(self.json_body(4096))
                 if not isinstance(payload, dict):
                     raise ValueError("Expected an object")
                 self.respond(200, helmet.action(payload))
@@ -285,15 +302,10 @@ def make_handler(helmet, port, usb_token=None):
                 self.respond(400, {"error": str(error)})
         def timeline_request(self):
             try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if (len(self.headers.get_all("Content-Length", [])) != 1 or self.headers.get("Transfer-Encoding")
-                        or self.headers.get("Content-Type") != "application/json"):
-                    raise TimelineError("$", "expected fixed-length application/json")
-                if not 0 < length <= TIMELINE_MAX_BYTES:
-                    raise TimelineError("$", "request exceeds the timeline size limit")
-                raw = self.rfile.read(length)
-                if len(raw) != length:
-                    raise TimelineError("$", "incomplete request")
+                try:
+                    raw = self.json_body(TIMELINE_MAX_BYTES)
+                except ValueError as error:
+                    raise TimelineError("$", str(error)) from error
                 request = load_json(raw)
                 seeking = self.path == "/api/timeline/seek"
                 raw_import = not seeking and type(request) is dict and "document_json" in request
