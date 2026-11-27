@@ -1,4 +1,5 @@
 #include "FlightInstrumentation.h"
+#include <atomic>
 #include <cassert>
 #include <thread>
 #include <iostream>

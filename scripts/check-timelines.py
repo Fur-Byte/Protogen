@@ -185,7 +185,9 @@ def http_round_trip():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--deep", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--deep", action="store_true")
+    mode.add_argument("--conformance-only", action="store_true")
     args = parser.parse_args()
     OUT.mkdir(parents=True,exist_ok=True)
     source = load_json(SAMPLE.read_bytes())
@@ -194,6 +196,9 @@ def main():
     compile_us = (time.monotonic()-started)*1e6
     with tempfile.TemporaryDirectory(prefix="protogen-timeline-test-") as folder:
         numbers = conformance(asset,Path(folder))
+    if args.conformance_only:
+        print(f"PASS: timeline conformance {numbers}")
+        return
     f = frozen()
     model, timing = compare_seek(asset, [0,5000,1000,5000,16,224,16,5201], 0, ())
     by_time = {frame["at_ms"]:frame for frame in model["frames"]}

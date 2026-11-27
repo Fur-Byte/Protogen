@@ -26,7 +26,7 @@ int main(int argc,char **argv) {
       }
       // Every actual emitted eye frame must belong to the last visible source
       // or newest target at its current closure, never an obsolete hidden mid.
-      for(uint32_t t=0;t<duration+20;t+=4) {
+      for(uint32_t t=0;t<uint32_t(duration)+20u;t+=4) {
         run(4);Face::Pose p=displayedPose;p.expression=emitted;Face::Frame old;Face::compose(old,p,Face::AudioSnapshot{});
         p.expression=dst;Face::Frame target;Face::compose(target,p,Face::AudioSnapshot{});
         assert(eyesEqual(displayedFrame,old)||eyesEqual(displayedFrame,target));

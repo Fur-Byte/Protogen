@@ -130,7 +130,7 @@ class Compiled:
             "namespace ProtogenAsset {\ninline constexpr uint8_t clip[] = {\n    "
             + ",\n    ".join(lines)
             + "\n};\n"
-            'static_assert(Behavior::Timeline::validAsset(clip, sizeof(clip)), "Invalid timeline asset");\n'
+            'static_assert(Behavior::Timeline::validAsset(clip), "Invalid timeline asset");\n'
             "}\n"
         )
 
