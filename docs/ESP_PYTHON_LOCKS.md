@@ -28,3 +28,24 @@ and demonstrate an offline build of both C3 roles without package mutations.
 Other Python ABIs/host platforms need separate wheel verification. Hash
 locking release artifacts is not a guarantee of source-code safety or
 bit-for-bit deterministic wheels from source distributions.
+
+## Default installation candidate
+
+On Linux x86-64 with CPython 3.13, the normal installer now selects the
+locked provisioning path. It downloads the exact pinned release artifacts
+and verifies them before extraction or installation. Instead of invoking
+PlatformIO package postinstall hooks, it creates the SDK package tree from
+the independently verified archives, creates the locked Python environments,
+and prepares the upstream IDF venv metadata and esptool dependency directory.
+The build wrapper disables pip index access and requires hashes when it sees
+the locked-install evidence. This is artifact identity evidence, not a
+guarantee that an installed Python environment was never modified.
+
+Use a fresh checkout/build directory on the qualified host. Existing
+environments are deliberately not overwritten. An interrupted run requires
+a fresh build directory rather than trusting partially installed packages.
+For other Python ABIs or operating systems, the installer emits a warning
+and uses the previous unqualified Python dependency resolution path.
+
+The isolated helper also accepts an independently prepared local wheelhouse
+and archive directory for offline provisioning.
