@@ -37,6 +37,13 @@ int main() {
     assert(bootAttempts(Watchdog | PowerOn, true, attempts) == RetryLimit);
     assert(bootAttempts(0, true, attempts) == RetryLimit);
   }
+  // Explicitly document the current watchdog-only retry scope: a trusted
+  // software reset does not consume a retry; an ambiguous reset locks out.
+  uint32_t softwareAttempts = 0;
+  for (unsigned i = 0; i < RetryLimit; ++i)
+    softwareAttempts = bootAttempts(Software, true, softwareAttempts);
+  assert(softwareAttempts == 0);
+  assert(bootAttempts(Software | PowerOn, true, softwareAttempts) == RetryLimit);
   HealthyWindow window;
   const uint32_t start = UINT32_MAX - 10000;
   for (uint32_t elapsed = 0; elapsed < HealthyMs; elapsed += 100)
