@@ -23,8 +23,13 @@ the compiler, and release packaging rejects missing or mismatched evidence.
 
 The installer additionally checks cached core/library archives if present.
 This is not an end-to-end authenticated toolchain or reproducible build:
-compiler executable trees, PlatformIO packages, ESP-IDF and Python
-transitive dependencies still need independent content pins. Update hashes
+the Linux x86-64 Teensy compiler and supporting tool trees are independently
+content-pinned (including resolved archive hardlinks); other host installed
+tool trees, PlatformIO packages, ESP-IDF and Python transitive dependencies
+still need independent pins. The installer checks available cached Teensy
+tool archives against PJRC's pinned checksums on supported Linux/macOS hosts.
+Build evidence explicitly records unverified hosts rather than asserting
+compiler integrity on them. Update hashes
 only by reviewing and verifying upstream release artifacts, not by accepting
 the contents of a failing local installation. Existing manifests without
 the new content evidence require a fresh build before packaging.

@@ -36,6 +36,9 @@ class ToolchainIntegrity(unittest.TestCase):
 
             lock['source_integrity']['platform']['tree_sha256'] = fixture_tree(
                 core, 'platform.txt', b'synthetic platform')
+            for name, pin in lock['source_integrity']['tools'].items():
+                directory = data / 'packages' / vendor / 'tools' / name / pin['version']
+                pin['linux_x86_64_tree_sha256'] = fixture_tree(directory, 'tool', b'synthetic tool')
             records = []
             for name, version in lock['libraries'].items():
                 directory = root / 'build/toolchains/user/libraries' / name
