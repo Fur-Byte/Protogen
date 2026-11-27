@@ -42,7 +42,8 @@ def conformance(asset, temporary):
                "-DPROTOGEN_ANIMATION_V2=1", "-DPROTOGEN_ANIMATION_TIMELINES=1",
                "-I"+str(temporary), "-I"+str(SKETCH), "-I"+str(sources)]
     subprocess.run([*command, str(ROOT / "scripts/tests/timeline-runtime.cpp"),
-                    str(sources/"AnimationV2.cpp"), str(sources/"Timeline.cpp"), "-o", str(target)], check=True)
+                    str(sources/"AnimationV2.cpp"), str(sources/"Timeline.cpp"),
+                    str(sources/"BehaviorCore.cpp"), "-o", str(target)], check=True)
     lines = subprocess.check_output([str(target)], text=True).splitlines()
     for line in lines[1:]:
         curve, first, last, time, value = map(int, line.split())

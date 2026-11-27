@@ -153,7 +153,11 @@ void Core::requestSettle(uint32_t now) {
   animations.cancel(settleTrack);
   settleTrack = {};
   settleRequestedAt = now;
+#if PROTOGEN_ANIMATION_TIMELINES
+  settlePending = timeline.progress().state != Timeline::State::Running;
+#else
   settlePending = true;
+#endif
 }
 
 void Core::advanceMotion(uint32_t now) {

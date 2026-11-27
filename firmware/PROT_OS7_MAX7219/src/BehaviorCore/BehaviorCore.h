@@ -57,7 +57,12 @@ struct Core {
 #if PROTOGEN_ANIMATION_TIMELINES
   Timeline::Player timeline;
   bool startTimeline(const uint8_t *data, size_t size, uint32_t now) {
-    return timeline.start(animations, data, size, now);
+    if (!timeline.start(animations, data, size, now)) return false;
+    // Authored timelines own capacity ahead of optional ambient motion.
+    animations.cancel(settleTrack);
+    settleTrack = {};
+    settlePending = false;
+    return true;
   }
   void cancelTimeline() { timeline.cancel(animations); }
   void serviceTimeline(uint32_t now) { timeline.advance(animations, now); }
