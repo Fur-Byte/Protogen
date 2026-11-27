@@ -78,11 +78,14 @@ class PackagingTests(unittest.TestCase):
         selected = {name: {"version": version} for name, version in lock["libraries"].items()}
         selected.update({name: {"version": version} for name, version in lock["bundled_libraries"].items()})
         selected["Entropy"] = {"source_sha256": lock["bundled_source_libraries"]["Entropy"]}
+        for name, pin in lock["source_integrity"]["libraries"].items():
+            selected[name]["tree_sha256"] = pin["tree_sha256"]
         command = ["arduino-cli", "compile", "--build-property", "build.flags.defs=-D__IMXRT1062__ -Werror",
                    "--fqbn", lock["fqbn"], "--clean", "snapshot/PROT_OS7_MAX7219"]
         toolchain = {name: lock[name] for name in ("arduino_cli", "platform", "libraries", "bundled_libraries",
-                                                  "bundled_source_libraries", "fqbn")}
+                                                  "bundled_source_libraries", "source_integrity", "fqbn")}
         toolchain["cli"] = "arduino-cli"
+        toolchain["platform_tree_sha256"] = lock["source_integrity"]["platform"]["tree_sha256"]
         teensy = dict(base, schema=1, kind="build", fqbn=lock["fqbn"], toolchain=toolchain,
                       results=[dict(fqbn=lock["fqbn"], features=list(features), exit_code=0, warnings=0, command=command,
                                     configured_source_sha256=files[SKETCH], selected_libraries=selected)],
@@ -364,6 +367,16 @@ class PackagingTests(unittest.TestCase):
     def test_toolchain_conflict(self):
         self.edit_manifest(ESP, lambda record: record["resolved"].update(platformio="PlatformIO Core, version 0.0.0"))
         self.rejected(r"(?i)toolchain")
+
+    def test_teensy_source_content_evidence_required(self):
+        self.edit_manifest(TEENSY, lambda record: record["toolchain"].pop("platform_tree_sha256"))
+        self.rejected(r"(?i)toolchain content")
+
+    def test_selected_library_content_evidence_required(self):
+        self.edit_manifest(TEENSY, lambda record:
+                           record["results"][0]["selected_libraries"]["Adafruit GFX Library"].update(
+                               tree_sha256="0" * 64))
+        self.rejected(r"(?i)toolchain content")
 
     def test_platformio_override(self):
         self.edit_manifest(ESP, lambda record: record.update(platformio_overrides=["PLATFORMIO_BUILD_FLAGS"]))

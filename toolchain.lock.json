@@ -5,6 +5,18 @@
   "fqbn": "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std",
   "platform": {"id": "teensy:avr", "version": "1.62.0", "index_url": "https://www.pjrc.com/teensy/package_teensy_index.json"},
   "libraries": {"arduinoFFT": "2.0.4", "Adafruit GFX Library": "1.12.6", "Adafruit BusIO": "1.17.4"},
+  "source_integrity": {
+    "platform": {
+      "archive_sha256": "472d0a66708e366bf447c7870032edc549a496d671d651d51e2d3c3f28baffb9",
+      "tree_sha256": "0a3315f2d593792e686e83621e1774151bf7883ecceba55fca28ff2f45ae90c3"
+    },
+    "libraries": {
+      "arduinoFFT": {"archive_sha256": "7f798ad9b9d76aff8b365e5cd2a67d709dec564e75e9bd3bf813f66ba5b83dff", "tree_sha256": "7aa02e647feb1ef4c9fd19ddec3405f5f01229d6cdd94c4e5a3468daf2e26044"},
+      "Adafruit GFX Library": {"archive_sha256": "7d4dc7a7522716d2c88a3b1b9b13521d33cfeeae9ebffa42c2dba0559696a997", "tree_sha256": "99517c213dc62edb447e0442a07f3e15827aee88736260fa40bcc2b206a5715c"},
+      "Adafruit BusIO": {"archive_sha256": "c7bab1b6c6eee64b50964c8e149b795719a01f1d9dfcdcef170b35daa696349b", "tree_sha256": "c639197d28c4cdf7478f5fb161774f95bdc36e88832958167345f5f6f04fdce8"},
+      "ADC": {"tree_sha256": "b3ebb36d99aa8cdd03e7b3c5200fe6aaeb03a2a9107c6b1fefac471866dd5f10"}
+    }
+  },
   "bundled_libraries": {"ADC": "9.1"},
   "bundled_source_libraries": {
     "Entropy": {

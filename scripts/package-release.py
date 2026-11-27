@@ -102,7 +102,7 @@ def source_commit(teensy, esp, lock_bytes, expected=None):
 
 def locked_toolchains(teensy, esp, selected, lock):
     toolchain = teensy["toolchain"]
-    pins = ("arduino_cli", "platform", "libraries", "bundled_libraries", "bundled_source_libraries", "fqbn")
+    pins = ("arduino_cli", "platform", "libraries", "bundled_libraries", "bundled_source_libraries", "source_integrity", "fqbn")
     valid(all(toolchain[key] == lock[key] for key in pins)
           and teensy["fqbn"] == selected["fqbn"] == lock["fqbn"] == FQBN,
           "Teensy toolchain or FQBN differs from the lock")
@@ -112,6 +112,11 @@ def locked_toolchains(teensy, esp, selected, lock):
           and all(libraries.get(name, {}).get("source_sha256") == files
                   for name, files in lock["bundled_source_libraries"].items()),
           "Teensy toolchain selected libraries differ from the lock")
+    integrity = lock["source_integrity"]
+    valid(toolchain.get("platform_tree_sha256") == integrity["platform"]["tree_sha256"]
+          and all(libraries.get(name, {}).get("tree_sha256") == integrity["libraries"][name]["tree_sha256"]
+                  for name in expected),
+          "Teensy toolchain content evidence differs from the lock")
     radio = lock["esp32"]
     resolved = esp["resolved"]
     valid(all(esp[key] == radio[key] for key in ("platform", "esp_idf", "mbedtls"))

@@ -146,13 +146,30 @@ class FeatureChecks(unittest.TestCase):
         shutil.copy2(ROOT / "toolchain.lock.json", root / "toolchain.lock.json")
 
     def compiler(self, root, output, status):
-        locked = json.loads((ROOT / "toolchain.lock.json").read_text())
+        from build_support import dependency_tree_digest
+        lock_path = root / "toolchain.lock.json"
+        locked = json.loads(lock_path.read_text())
+        data = root / "fake-data"
+        vendor, architecture = locked["platform"]["id"].split(":")
+        core = data / "packages" / vendor / "hardware" / architecture / locked["platform"]["version"]
+        core.mkdir(parents=True, exist_ok=True)
+        (core / "platform.txt").write_text("synthetic core")
+        locked["source_integrity"]["platform"]["tree_sha256"] = dependency_tree_digest(core)
+        records = []
+        for name, version in locked["libraries"].items():
+            directory = root / "fake-libraries" / name
+            directory.mkdir(parents=True, exist_ok=True)
+            (directory / "library.properties").write_text(f"name={name}\nversion={version}\n")
+            locked["source_integrity"]["libraries"][name]["tree_sha256"] = dependency_tree_digest(directory)
+            records.append({"library": {"name": name, "version": version, "install_dir": str(directory)}})
+        lock_path.write_text(json.dumps(locked))
         compiler = root / "fake-cli"
         compiler.write_text(
             "#!/bin/sh\ncase \"$1\" in\n" +
             "version) printf '%s\\n' '" + json.dumps({"VersionString": locked["arduino_cli"]}) + "'; exit 0;;\n" +
             "core) printf '%s\\n' '" + json.dumps({"platforms": [{"id": locked["platform"]["id"], "installed_version": locked["platform"]["version"]}]}) + "'; exit 0;;\n" +
-            "lib) printf '%s\\n' '" + json.dumps({"installed_libraries": [{"library": {"name": name, "version": version}} for name, version in locked["libraries"].items()]}) + "'; exit 0;;\n" +
+            "lib) printf '%s\\n' '" + json.dumps({"installed_libraries": records}) + "'; exit 0;;\n" +
+            "config) printf '%s\\n' '" + json.dumps({"config": {"directories": {"data": str(data)}}}) + "'; exit 0;;\n" +
             "compile) case \"$*\" in *--show-properties=expanded*) printf '%s\\n' 'build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160'; exit 0;; esac;;\n" +
             "esac\nprintf '%s\\n' '" + output + "'\nexit " + str(status) + "\n")
         compiler.chmod(0o755)

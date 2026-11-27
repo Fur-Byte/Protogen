@@ -139,13 +139,33 @@ def cli_json(cli, *args):
         raise RuntimeError("Toolchain inspection returned invalid JSON") from error
 
 
+def dependency_tree_digest(directory, *, platform_metadata=False):
+    """Hash exact relative file names and contents; ignore only CLI platform metadata."""
+    directory = Path(directory)
+    if not directory.is_dir() or directory.is_symlink():
+        raise RuntimeError(f"Missing or symlinked dependency: {directory}")
+    files = {}
+    for path in sorted(directory.rglob("*")):
+        relative = path.relative_to(directory).as_posix()
+        if path.is_symlink():
+            raise RuntimeError(f"Unexpected dependency symlink: {path}")
+        if platform_metadata and relative == "installed.json":
+            continue
+        if path.is_file():
+            files[relative] = file_sha256(path)
+        elif not path.is_dir():
+            raise RuntimeError(f"Unexpected dependency entry: {path}")
+    return source_digest(files)
+
+
 def check_toolchain(root, cli):
     locked = json.loads((root / "toolchain.lock.json").read_text())
     version = cli_json(cli, "version").get("VersionString")
     platforms = cli_json(cli, "core", "list").get("platforms", [])
     installed = {p["id"]: p.get("installed_version") for p in platforms}
     libraries = cli_json(cli, "lib", "list").get("installed_libraries", [])
-    available = {p["library"]["name"]: p["library"].get("version") for p in libraries}
+    library_records = {p["library"]["name"]: p["library"] for p in libraries}
+    available = {name: record.get("version") for name, record in library_records.items()}
     expected = locked["platform"]
     problems = []
     if version != locked["arduino_cli"]:
@@ -159,7 +179,19 @@ def check_toolchain(root, cli):
         problems.append("Lock FQBN does not match the build target")
     if problems:
         raise RuntimeError("Pinned toolchain mismatch. Install the versions in toolchain.lock.json:\n" + "\n".join(problems))
+    integrity = locked["source_integrity"]
+    data = Path(cli_json(cli, "config", "dump")["config"]["directories"]["data"])
+    vendor, architecture = expected["id"].split(":")
+    core = data / "packages" / vendor / "hardware" / architecture / expected["version"]
+    core_digest = dependency_tree_digest(core, platform_metadata=True)
+    if core_digest != integrity["platform"]["tree_sha256"]:
+        raise RuntimeError("Pinned Teensy platform content mismatch")
+    for name in locked["libraries"]:
+        actual = dependency_tree_digest(library_records[name]["install_dir"])
+        if actual != integrity["libraries"][name]["tree_sha256"]:
+            raise RuntimeError(f"Pinned library content mismatch: {name}")
     return {"cli": str(cli), "arduino_cli": version, "platform": expected,
+            "platform_tree_sha256": core_digest, "source_integrity": integrity,
             "libraries": locked["libraries"], "bundled_libraries": locked["bundled_libraries"],
             "bundled_source_libraries": locked.get("bundled_source_libraries", {}), "fqbn": FQBN}
 
@@ -234,6 +266,20 @@ def _inspect_libraries(objects, toolchain, features):
     expected = locked_library_versions(toolchain, features)
     problems = [name for name, version in expected.items() if resolved.get(name, {}).get("version") != version]
     problems += [name for name, files in bundled.items() if resolved.get(name, {}).get("source_sha256") != files]
+    pins = toolchain.get("source_integrity", {}).get("libraries", {})
+    for name in expected.keys() & pins.keys():
+        if name not in resolved:
+            continue
+        directory = Path(resolved[name]["path"])
+        if not (directory / "library.properties").is_file() and directory.name == "src":
+            directory = directory.parent
+        try:
+            actual = dependency_tree_digest(directory)
+        except (OSError, RuntimeError):
+            actual = None
+        resolved[name]["tree_sha256"] = actual
+        if actual != pins[name]["tree_sha256"] and name not in problems:
+            problems.append(name)
     return resolved, problems
 
 
