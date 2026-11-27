@@ -1,0 +1,74 @@
+{
+  "tool-cmake": {
+    "version": "3.30.2",
+    "archive": "tool-cmake-linux_x86_64-3.30.2.tar.gz",
+    "archive_sha256": "e68b0febb0f2cedc2efb8fb88dcb6959f091afaef9530ae06efbbc7967ffa07b",
+    "tree_sha256": "a142653728289fe0b466a98b1dda680bb7e9c9fe201101f54d7a1aa605796618",
+    "files": 3409,
+    "symlinks": 0
+  },
+  "tool-esp-rom-elfs": {
+    "version": "0.0.1+20241011",
+    "archive": "tool-esp-rom-elfs-0.0.1+20241011.tar.gz",
+    "archive_sha256": "61785e3b655b5aa6e2e1249bb20f804b0a80f6e1f63f94091f4e4681b85a5ddc",
+    "tree_sha256": "aae97d8a3508470eaa2c89e7b68f2aeb5c27c3a77e4a21aa4197da6b9843eb4d",
+    "files": 13,
+    "symlinks": 0
+  },
+  "tool-esptoolpy": {
+    "version": "2.41100.260830",
+    "archive": "tool-esptoolpy-2.41100.260830.tar.gz",
+    "archive_sha256": "0de9971e2949c874387af768e71c4a71c13b63e0242ea931a34ba0a654b56382",
+    "tree_sha256": "fc5e19bd12e50fa92ff8fb3a9ee95056aa8ff48b5af60ee9367d5b77843ed43f",
+    "files": 199,
+    "symlinks": 0
+  },
+  "tool-ninja": {
+    "version": "1.7.1",
+    "archive": "tool-ninja-linux_x86_64-1.7.1.tar.gz",
+    "archive_sha256": "500717adb5039bd51ca298aef036e356b14957808105a1e000691e3fc57c223d",
+    "tree_sha256": "a32330370265ee41c36097a2a2e6f10bc7072e73874b5acd1429963450d1708f",
+    "files": 2,
+    "symlinks": 0
+  },
+  "tool-riscv32-esp-elf-gdb": {
+    "version": "12.1.0+20221002",
+    "archive": "tool-riscv32-esp-elf-gdb-linux_x86_64-12.1.0+20221002.tar.gz",
+    "archive_sha256": "868fa224bc2367d15e6fb6dae295493a3ee181467dd08dd0da8fc2c5c95a5042",
+    "tree_sha256": "8c930cf4f96158f515f98c2bb75e9bcfdc45837c0c66eb06b57bda38f9af00e2",
+    "files": 64,
+    "symlinks": 0
+  },
+  "tool-scons": {
+    "version": "4.40801.0",
+    "archive": "tool-scons-4.40801.0.tar.gz",
+    "archive_sha256": "289b1abf389b730ab5a1018ed9fc84e22d301e0d16c64548eb9db5bf8ba59d06",
+    "tree_sha256": "56a58907c6ee9f82f439a0d585c4cbb35680c51f6b795d78829195c6b4a52a6f",
+    "files": 214,
+    "symlinks": 0
+  },
+  "tool-xtensa-esp-elf-gdb": {
+    "version": "12.1.0+20221002",
+    "archive": "tool-xtensa-esp-elf-gdb-linux_x86_64-12.1.0+20221002.tar.gz",
+    "archive_sha256": "a142ebefd60d825ce608f1f711971a4a6e76dea78e5ea89eb625cba4df126676",
+    "tree_sha256": "1a7344716a3f592ac2ec1f0b93a68a7bd2aeb9c2fcae9de324f37fd852e9c246",
+    "files": 69,
+    "symlinks": 0
+  },
+  "toolchain-esp32ulp": {
+    "version": "1.23800.240113",
+    "archive": "toolchain-esp32ulp-linux_x86_64-1.23800.240113.tar.gz",
+    "archive_sha256": "d3acc7280c1792e9bd1775c9c1eecf9b04e6171c3ff5108f8b09ad9bf54c03f9",
+    "tree_sha256": "9cd5c553ddf7555b0c7453dd503e99025fae177423adde2413db1049fa41cc85",
+    "files": 177,
+    "symlinks": 0
+  },
+  "toolchain-riscv32-esp": {
+    "version": "15.2.0+20251204",
+    "archive": "toolchain-riscv32-esp-linux_x86_64-15.2.0+20251204.tar.gz",
+    "archive_sha256": "5f375f61908aaa3bfd7aaa6dade8169e5e3869b13a579b4555f6a7dd71a67c1c",
+    "tree_sha256": "974cce91bc8e4860bb1507d1bae7eb2a2e5defd9a057931b55861fbd671d2f23",
+    "files": 4253,
+    "symlinks": 3
+  }
+}
