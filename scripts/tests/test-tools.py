@@ -155,6 +155,11 @@ class FeatureChecks(unittest.TestCase):
         core.mkdir(parents=True, exist_ok=True)
         (core / "platform.txt").write_text("synthetic core")
         locked["source_integrity"]["platform"]["tree_sha256"] = dependency_tree_digest(core)
+        for name, pin in locked["source_integrity"]["tools"].items():
+            directory = data / "packages" / vendor / "tools" / name / pin["version"]
+            directory.mkdir(parents=True, exist_ok=True)
+            (directory / "tool").write_text("synthetic tool")
+            pin["linux_x86_64_tree_sha256"] = dependency_tree_digest(directory)
         records = []
         for name, version in locked["libraries"].items():
             directory = root / "fake-libraries" / name
@@ -164,13 +169,17 @@ class FeatureChecks(unittest.TestCase):
             records.append({"library": {"name": name, "version": version, "install_dir": str(directory)}})
         lock_path.write_text(json.dumps(locked))
         compiler = root / "fake-cli"
+        props = "build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160\n"
+        for key, tool in (("compiler.path", "teensy-compile"), ("teensytools.path", "teensy-tools")):
+            version = locked["source_integrity"]["tools"][tool]["version"]
+            props += f"{key}={data / 'packages' / vendor / 'tools' / tool / version}/\n"
         compiler.write_text(
             "#!/bin/sh\ncase \"$1\" in\n" +
             "version) printf '%s\\n' '" + json.dumps({"VersionString": locked["arduino_cli"]}) + "'; exit 0;;\n" +
             "core) printf '%s\\n' '" + json.dumps({"platforms": [{"id": locked["platform"]["id"], "installed_version": locked["platform"]["version"]}]}) + "'; exit 0;;\n" +
             "lib) printf '%s\\n' '" + json.dumps({"installed_libraries": records}) + "'; exit 0;;\n" +
             "config) printf '%s\\n' '" + json.dumps({"config": {"directories": {"data": str(data)}}}) + "'; exit 0;;\n" +
-            "compile) case \"$*\" in *--show-properties=expanded*) printf '%s\\n' 'build.flags.defs=-D__IMXRT1062__ -DTEENSYDUINO=160'; exit 0;; esac;;\n" +
+            "compile) case \"$*\" in *--show-properties=expanded*) printf '%s\\n' '" + props + "'; exit 0;; esac;;\n" +
             "esac\nprintf '%s\\n' '" + output + "'\nexit " + str(status) + "\n")
         compiler.chmod(0o755)
         return compiler

@@ -10,6 +10,29 @@
       "archive_sha256": "472d0a66708e366bf447c7870032edc549a496d671d651d51e2d3c3f28baffb9",
       "tree_sha256": "0a3315f2d593792e686e83621e1774151bf7883ecceba55fca28ff2f45ae90c3"
     },
+    "tools": {
+      "teensy-tools": {
+        "version": "1.62.0",
+        "archives": {
+          "teensy-tools-1.62.0-linux64.tar.zst": "04f1ef8a458cf6cfeaa638d9daa244846df01510de36d02a203754cf80e5fc39",
+          "teensy-tools-1.62.0-linuxaarch64.tar.zst": "e5ed04726c6a05404ef3a94981853b59ae0e977172604a99adeee86a297f3fca",
+          "teensy-tools-1.62.0-linuxarm.tar.zst": "27443c78b7e32e903994a3b6055b229133554e254b29982b9765ce6d12fbe57d",
+          "teensy-tools-1.62.0-macos.tar.zst": "6c9fa71003dbd97f5bd5572b9b83d6bacdd75801e7c20a36a9afdf3e928b77e2"
+        },
+        "linux_x86_64_tree_sha256": "c22d3f5f1d618cb2ee435d856859820ae90142a74ce3db637b65065154ed33c4"
+      },
+      "teensy-compile": {
+        "version": "15.2.1",
+        "archives": {
+          "teensy-compile-15.2.1-linux_aarch64.tar.zst": "c309866198938bf80216e33e9f040c1e77a2cdb52a618f15d2dbcba1ac5964b2",
+          "teensy-compile-15.2.1-linux_armhf.tar.zst": "5379bb12c3e3d7d821eb85b8cc2ed5c00eb79e94295afbe562f9030b78cc5fa5",
+          "teensy-compile-15.2.1-linux_x86_64.tar.zst": "aebbfa9a5d0666f43478446459382aa150b1a42a565b16ccd3367a0570fee650",
+          "teensy-compile-15.2.1-macos_arm64.tar.zst": "3bf44f5bedeb145cc1b0b601afdd05a808139e7b14424dc52c8f58befa698b56",
+          "teensy-compile-15.2.1-macos_x86_64.tar.zst": "4edf059d9f1c32fdbb16145d2cc733f200acfb53807461070e4ffbb1c7d2321d"
+        },
+        "linux_x86_64_tree_sha256": "9849a07216c0db357b9732c44ff449be9a70e9c1ec1122d642d630fdb26438be"
+      }
+    },
     "libraries": {
       "arduinoFFT": {"archive_sha256": "7f798ad9b9d76aff8b365e5cd2a67d709dec564e75e9bd3bf813f66ba5b83dff", "tree_sha256": "7aa02e647feb1ef4c9fd19ddec3405f5f01229d6cdd94c4e5a3468daf2e26044"},
       "Adafruit GFX Library": {"archive_sha256": "7d4dc7a7522716d2c88a3b1b9b13521d33cfeeae9ebffa42c2dba0559696a997", "tree_sha256": "99517c213dc62edb447e0442a07f3e15827aee88736260fa40bcc2b206a5715c"},

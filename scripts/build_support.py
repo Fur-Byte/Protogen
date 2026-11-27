@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
@@ -158,6 +159,22 @@ def dependency_tree_digest(directory, *, platform_metadata=False):
     return source_digest(files)
 
 
+def verify_compiler_tools(data, vendor, pins):
+    """Verify installed tool trees on the independently characterized CI host."""
+    host = (platform.system(), platform.machine())
+    if host != ("Linux", "x86_64"):
+        return {"host": list(host), "state": "unverified_host"}
+    verified, paths = {}, {}
+    for name, pin in pins.items():
+        directory = data / "packages" / vendor / "tools" / name / pin["version"]
+        actual = dependency_tree_digest(directory, platform_metadata=True)
+        if actual != pin["linux_x86_64_tree_sha256"]:
+            raise RuntimeError(f"Pinned compiler tool content mismatch: {name}")
+        verified[name] = actual
+        paths[name] = str(directory.resolve())
+    return {"host": list(host), "state": "verified", "trees": verified, "paths": paths}
+
+
 def check_toolchain(root, cli):
     locked = json.loads((root / "toolchain.lock.json").read_text())
     version = cli_json(cli, "version").get("VersionString")
@@ -190,7 +207,9 @@ def check_toolchain(root, cli):
         actual = dependency_tree_digest(library_records[name]["install_dir"])
         if actual != integrity["libraries"][name]["tree_sha256"]:
             raise RuntimeError(f"Pinned library content mismatch: {name}")
+    tools = verify_compiler_tools(data, vendor, integrity["tools"])
     return {"cli": str(cli), "arduino_cli": version, "platform": expected,
+            "compiler_tool_integrity": tools,
             "platform_tree_sha256": core_digest, "source_integrity": integrity,
             "libraries": locked["libraries"], "bundled_libraries": locked["bundled_libraries"],
             "bundled_source_libraries": locked.get("bundled_source_libraries", {}), "fqbn": FQBN}
@@ -342,8 +361,14 @@ class BuildRun:
         properties = subprocess.run(
             [cli, "compile", "--fqbn", fqbn, "--show-properties=expanded", str(sketch)],
             capture_output=True, text=True, check=True)
-        definitions = next((line.partition("=")[2] for line in properties.stdout.splitlines()
-                            if line.startswith("build.flags.defs=")), None)
+        expanded = dict(line.split("=", 1) for line in properties.stdout.splitlines() if "=" in line)
+        integrity = self.record.get("toolchain", {}).get("compiler_tool_integrity", {})
+        if integrity.get("state") == "verified":
+            for key, tool in (("compiler.path", "teensy-compile"), ("teensytools.path", "teensy-tools")):
+                selected = expanded.get(key)
+                if not selected or Path(selected).resolve() != Path(integrity["paths"][tool]):
+                    raise RuntimeError(f"Selected {key} differs from verified tool path")
+        definitions = expanded.get("build.flags.defs")
         if not definitions:
             raise RuntimeError("Teensy board compiler definitions are missing")
 

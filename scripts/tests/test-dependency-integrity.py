@@ -6,9 +6,10 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from build_support import _inspect_libraries, dependency_tree_digest
+from build_support import _inspect_libraries, dependency_tree_digest, verify_compiler_tools
 
 
 class DependencyIntegrity(unittest.TestCase):
@@ -33,6 +34,24 @@ class DependencyIntegrity(unittest.TestCase):
             self.assertEqual(_inspect_libraries(root, lock, ["Microphone"])[1], [])
             source.write_text("// altered")
             self.assertEqual(_inspect_libraries(root, lock, ["Microphone"])[1], ["arduinoFFT"])
+
+    def test_compiler_tree_tampering_and_host_scope(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tool = root / "packages/teensy/tools/compiler/1"
+            tool.mkdir(parents=True)
+            executable = tool / "compiler"
+            executable.write_bytes(b"original")
+            pins = {"compiler": {"version": "1", "linux_x86_64_tree_sha256": dependency_tree_digest(tool)}}
+            with patch("build_support.platform.system", return_value="Linux"), patch(
+                "build_support.platform.machine", return_value="x86_64"
+            ):
+                self.assertEqual(verify_compiler_tools(root, "teensy", pins)["state"], "verified")
+                executable.write_bytes(b"modified")
+                with self.assertRaisesRegex(RuntimeError, "compiler tool content mismatch"):
+                    verify_compiler_tools(root, "teensy", pins)
+            with patch("build_support.platform.system", return_value="Darwin"):
+                self.assertEqual(verify_compiler_tools(root, "teensy", pins)["state"], "unverified_host")
 
     def test_tree_identity_covers_names_and_contents(self):
         with tempfile.TemporaryDirectory() as folder:

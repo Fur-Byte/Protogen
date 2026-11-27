@@ -84,6 +84,8 @@ def main():
         **{ "libraries/" + name.replace(" ", "_") + "-" + version + ".zip":
              pins["libraries"][name]["archive_sha256"] for name, version in lock["libraries"].items()},
     }
+    for pin in pins["tools"].values():
+        archives.update({f"packages/{name}": digest for name, digest in pin["archives"].items()})
     for relative, expected_hash in archives.items():
         cached = folder / "downloads" / relative
         if cached.is_file() and hashlib.sha256(cached.read_bytes()).hexdigest() != expected_hash:
