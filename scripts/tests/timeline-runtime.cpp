@@ -1,4 +1,5 @@
 #include "TimelineAsset.h"
+#include "BehaviorCore.h"
 #include <array>
 #include <algorithm>
 #include <cassert>
@@ -121,7 +122,48 @@ void checkReplacement(uint32_t origin) {
 }
 }
 
+void checkAmbientCapacity() {
+  using Behavior::Core;
+  Core core;
+  RuntimeConfig config;
+  uint8_t clip[AssetBytes]{};
+  clip[0] = Version;
+  clip[2] = Capacity;
+  clip[4] = 100;
+  for (unsigned i = 0; i < Capacity; ++i) {
+    auto *event = clip + HeaderBytes + i * EventBytes;
+    event[2] = 100;
+    event[4] = static_cast<uint8_t>(Region::LeftEye);
+    event[5] = static_cast<uint8_t>(Motion::Gaze);
+    event[6] = 3;
+    event[8] = event[9] = 1;
+  }
+  assert(validAsset(clip));
+  core.requestSettle(0);
+  core.poseAt(0, config, false, 0, false);
+  assert(core.animations.count() == 1);
+  assert(!core.startTimeline(clip, 1, 1));
+  assert(core.animations.count() == 1);
+  assert(core.startTimeline(clip, sizeof(clip), 1));
+  core.requestSettle(1);
+  core.poseAt(1, config, false, 0, false);
+  core.serviceTimeline(1);
+  assert(core.timeline.progress().started == Capacity);
+  assert(core.timeline.progress().rejected == 0);
+  core.cancelTimeline();
+  core.requestSettle(2);
+  core.poseAt(2, config, false, 0, false);
+  assert(core.animations.count() == 1 && core.settleTrack);
+  // A pending (not yet admitted) settle also cannot take a future slot.
+  core.requestSettle(3);
+  assert(core.startTimeline(clip, sizeof(clip), 3));
+  core.poseAt(3, config, false, 0, false);
+  core.serviceTimeline(3);
+  assert(core.timeline.progress().started == Capacity);
+}
+
 int main() {
+  checkAmbientCapacity();
   const auto *data = ProtogenAsset::clip;
   static_assert(sizeof(ProtogenAsset::clip) == 336);
   constexpr uint8_t shortAsset[] = {1};
