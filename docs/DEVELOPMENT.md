@@ -12,6 +12,23 @@ Work from the repository root on macOS or Linux. Use Git, Python 3.11 or later w
 [toolchain lock](../toolchain.lock.json) records Arduino CLI, Teensy core and library versions,
 and the PlatformIO and ESP-IDF versions used for development builds.
 
+The lock also records SHA-256 source-content identities for the Teensy core,
+arduinoFFT, Adafruit GFX, Adafruit BusIO and bundled ADC. These pins were
+derived from the official PJRC and Arduino Library Manager release archives
+after matching their hashes to the freshly retrieved package indexes on
+2026-11-27. The tree identity hashes a sorted JSON map of relative file paths
+to SHA-256 contents; only the Arduino CLI-generated core `installed.json`
+is excluded. Build evidence also checks the libraries actually selected by
+the compiler, and release packaging rejects missing or mismatched evidence.
+
+The installer additionally checks cached core/library archives if present.
+This is not an end-to-end authenticated toolchain or reproducible build:
+compiler executable trees, PlatformIO packages, ESP-IDF and Python
+transitive dependencies still need independent content pins. Update hashes
+only by reviewing and verifying upstream release artifacts, not by accepting
+the contents of a failing local installation. Existing manifests without
+the new content evidence require a fresh build before packaging.
+
 ```sh
 python3 scripts/install-toolchains.py
 source build/toolchains/environment.sh

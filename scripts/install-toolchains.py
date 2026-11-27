@@ -77,6 +77,21 @@ def main():
     run(str(cli), 'core', 'install', lock['platform']['id'] + '@' + lock['platform']['version'])
     for name, version in lock['libraries'].items():
         run(str(cli), 'lib', 'install', name + '@' + version)
+    # A cached archive is not a trust anchor; compare it to the committed pin.
+    pins = lock["source_integrity"]
+    archives = {
+        "packages/teensy-package-" + lock["platform"]["version"] + ".tar.zst": pins["platform"]["archive_sha256"],
+        **{ "libraries/" + name.replace(" ", "_") + "-" + version + ".zip":
+             pins["libraries"][name]["archive_sha256"] for name, version in lock["libraries"].items()},
+    }
+    for relative, expected_hash in archives.items():
+        cached = folder / "downloads" / relative
+        if cached.is_file() and hashlib.sha256(cached.read_bytes()).hexdigest() != expected_hash:
+            raise RuntimeError("Pinned dependency archive mismatch: " + relative)
+    # Check installed content before any firmware compilation.
+    from build_support import check_toolchain
+    os.environ.update(variables)
+    check_toolchain(ROOT, str(cli))
     if not args.teensy_only:
         run('python3', '-m', 'venv', str(ROOT / 'build/esp32-venv'))
         python = str(ROOT / 'build/esp32-venv/bin/python')
