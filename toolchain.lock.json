@@ -2,6 +2,16 @@
   "arduino_cli": "1.5.1",
   "arduino_cli_checksums_sha256": "1deac1e8d8eff69ef1b0cb8c5d4be2a3a81224b103eaf3403b77ff470c7f4ec6",
   "esp32": {"platformio": "6.1.19", "platform": "espressif32@7.1.3", "esp_idf": "6.1.0", "mbedtls": "4.1.0", "boards": ["esp32-c3-devkitm-1", "seeed_xiao_esp32c3"]},
+  "esp32_source_integrity": {
+    "platforms/espressif32": {
+      "archive_sha256": "aebc20fac5c17c6cf1d39a87cd33a8a7bbf63d5a4195876d45a62238609da6b0",
+      "tree_sha256": "3f73c7e9f4301917e0bca254dc5715a4845665c214b30d1402a36a232a7489b0"
+    },
+    "packages/framework-espidf": {
+      "archive_sha256": "dabc3f2d16cc28c61d92fa378bb249da5dd4bc601c3564318a930bce3ddb63e7",
+      "tree_sha256": "2ee4f47f7cb99f116a4f4ff9ecd57b4a61f8944e18f5aad778eb1d8f77138500"
+    }
+  },
   "fqbn": "teensy:avr:teensy40:usb=serial,speed=600,opt=o2std",
   "platform": {"id": "teensy:avr", "version": "1.62.0", "index_url": "https://www.pjrc.com/teensy/package_teensy_index.json"},
   "libraries": {"arduinoFFT": "2.0.4", "Adafruit GFX Library": "1.12.6", "Adafruit BusIO": "1.17.4"},

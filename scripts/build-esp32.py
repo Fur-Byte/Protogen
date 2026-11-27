@@ -11,6 +11,7 @@ import configparser
 import struct
 from build_support import file_sha256, git_identity, source_identity, write_json
 from uart_key import validate_uart_key_directory
+from esp_source_integrity import verify_esp_sources
 
 
 def main():
@@ -19,7 +20,8 @@ def main():
     build.mkdir(exist_ok=True)
     pio = os.environ.get("PIO", str(build / "esp32-venv/bin/pio"))
     env = dict(os.environ, PLATFORMIO_CORE_DIR=str(build / "platformio"), IDF_COMPONENT_MANAGER="0")
-    locked = json.loads((root / "toolchain.lock.json").read_text())["esp32"]
+    lock = json.loads((root / "toolchain.lock.json").read_text())
+    locked = lock["esp32"]
     git = git_identity(root)
     # Local overrides remain available to developers. Record names only so
     # release packaging can reject these builds without exporting values.
@@ -50,6 +52,7 @@ def main():
             record["uart_auth"] = True
         else:
             record["uart_auth"] = False
+        record["source_integrity"] = verify_esp_sources(build / "platformio", lock)
         version = subprocess.run(
             [pio, "--version"], env=env, capture_output=True, text=True, check=True
         ).stdout.strip()
@@ -159,6 +162,8 @@ def main():
                 path = build / "esp32" / role / name
                 if path.is_file():
                     record["artifacts"][str(path.relative_to(root))] = file_sha256(path)
+        if verify_esp_sources(build / "platformio", lock) != record["source_integrity"]:
+            raise RuntimeError("ESP dependency sources changed during the run.")
         if source_identity(root) != record["source"] or git_identity(root) != git:
             raise RuntimeError("Sources changed during the run.")
         record["state"] = "success" if run.returncode == 0 and record["warnings"] == 0 else "failed"

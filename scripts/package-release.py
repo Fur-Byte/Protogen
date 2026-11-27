@@ -123,6 +123,10 @@ def locked_toolchains(teensy, esp, selected, lock):
           and all(resolved[key] == radio[key] for key in ("esp_idf", "mbedtls"))
           and resolved["platformio"].rsplit(" ", 1)[-1] == radio["platformio"],
           "ESP32 toolchain differs from the lock")
+    if "esp32_source_integrity" in lock:
+        valid(esp.get("source_integrity") == {
+            name: pin["tree_sha256"] for name, pin in lock["esp32_source_integrity"].items()},
+            "ESP32 source content evidence differs from the lock")
 
 
 def teensy_authentication(command):

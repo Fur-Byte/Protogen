@@ -96,6 +96,9 @@ class PackagingTests(unittest.TestCase):
                                  platformio="PlatformIO Core, version " + esp_lock["platformio"]),
                    uart_auth=False, platformio_overrides=[], exit_code=0, warnings=0, targets={}, artifacts={},
                    command=["pio", "run", "--project-dir", "firmware/esp32", "-e", "helmet", "-e", "paw"])
+        esp["source_integrity"] = {
+            name: pin["tree_sha256"] for name, pin in lock.get("esp32_source_integrity", {}).items()
+        }
         for role, (board, console) in ROLES.items():
             for name in ("firmware.bin", "firmware.elf", "bootloader.bin", "partitions.bin"):
                 key = f"build/esp32/{role}/{name}"
@@ -377,6 +380,10 @@ class PackagingTests(unittest.TestCase):
                            record["results"][0]["selected_libraries"]["Adafruit GFX Library"].update(
                                tree_sha256="0" * 64))
         self.rejected(r"(?i)toolchain content")
+
+    def test_esp_source_content_evidence_required(self):
+        self.edit_manifest(ESP, lambda record: record.pop("source_integrity"))
+        self.rejected(r"(?i)ESP32 source content")
 
     def test_platformio_override(self):
         self.edit_manifest(ESP, lambda record: record.update(platformio_overrides=["PLATFORMIO_BUILD_FLAGS"]))
