@@ -506,7 +506,13 @@ void task(void *) {
               const uint64_t delta = (count - lastCounter) & 0xffffffffffULL;
               const double joules = delta * SensorMath::EnergyJoulesLsb;
               if (joules <= 50.0 * elapsed / 1000.0 + 2.0) {
-                if (!full) status.usedMWh += joules / 3.6;
+                if (!full) {
+                  // The persistent checkpoint is uint32_t mWh. Saturate
+                  // before any narrowing; the independent measured total
+                  // still accounts for every accepted interval.
+                  const double used = status.usedMWh + joules / 3.6;
+                  status.usedMWh = used > UINT32_MAX ? double(UINT32_MAX) : used;
+                }
                 status.measuredMWh += joules / 3.6;
                 Efficiency::increment(status.measuredIntervals);
               } else
