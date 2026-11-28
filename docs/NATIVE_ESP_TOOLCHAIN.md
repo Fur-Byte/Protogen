@@ -92,3 +92,32 @@ an explicit empty external exclusion file, disables synchronization, and
 does not emit VEX assertions. This prevents reliance on ambient caches or
 external vulnerability data during the build. Independently review current
 vulnerability information separately before release.
+
+## Opt-in official ESP-IDF 6.1.1 candidate
+
+The `native-official` profile uses the official v6.1.1 release ZIP (including
+submodules), CMake 4.0.3, Ninja 1.12.1 and ROM ELF release 20260528. The existing
+locked RISC-V GCC 15.2.0 and Python locks are retained. Archive and installed
+tree hashes are checked; bundled Git metadata is removed before build and
+the exact release version marker is pinned. Linux x86-64 CPython 3.13 only.
+
+```sh
+python3 scripts/protogen.py setup --backend native-official
+python3 scripts/protogen.py build all --backend native-official --output build/official-a --reproducible
+```
+
+The default reference backend and the 6.1.0 native backend remain unchanged.
+CI builds the official candidate twice per role, checks three binary artifacts
+per role, generates inventory-only SPDX, and compares the resolved C3 settings
+with the old reference using a closed list of permitted changes and role size
+ceilings. The new cross-signed X.509 callback defaults are explicitly disabled
+to preserve the existing PSK transport settings. Constant-time RSA prime
+generation remains at its SDK default (the firmware does not generate RSA keys);
+the new SD poll and UHCI placement defaults are recorded. Reproducible build
+timestamp changes are intentional. No production authorization follows.
+
+S31 remains isolated research, not an additional selectable firmware target.
+Stable SDK support and improved PMP/PMA implementation do not resolve the
+remaining peripheral access protection TODO (IDF-14620), board pin mapping,
+runtime crypto-worker qualification or physical tests. Do not flash the
+isolated S31 images. This profile does not activate v4.

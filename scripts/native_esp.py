@@ -15,6 +15,7 @@ import sys
 from build_support import file_sha256, git_identity, source_identity, write_json
 from esp_source_integrity import package_source_digest
 from esp_tool_integrity import PIN_PATH, verify_esp_tools
+import official_esp
 from uart_key import validate_uart_key_directory, validate_uart_key_flags
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,7 +56,9 @@ def sdk_version_marker(core: Path, version: str, *, initialize: bool = False) ->
         raise RuntimeError("Native ESP-IDF version marker differs from lock")
 
 
-def verify_sdk(core: Path) -> dict:
+def verify_sdk(core: Path, profile: str = "reference") -> dict:
+    if profile == "official":
+        return official_esp.verify(core)
     lock = json.loads((ROOT / "toolchain.lock.json").read_text())
     expected = lock["esp32_source_integrity"][FRAMEWORK]["tree_sha256"]
     # Reuse the reference SDK only if its known generated PlatformIO files are
@@ -175,14 +178,17 @@ def setup(args: argparse.Namespace) -> None:
     if args.wheelhouse is None:
         installer.download_python(wheelhouse, ("idf",))
     lock = json.loads((ROOT / "toolchain.lock.json").read_text())
-    installer.install_packages(
-        core,
-        archives,
-        lock,
-        locations={FRAMEWORK, *("packages/" + name for name in TOOLS)},
-        content_addressed=args.archives is None,
-    )
-    sdk_version_marker(core, lock["esp32"]["esp_idf"], initialize=True)
+    if args.sdk_profile == "official":
+        official_esp.install(core, archives, installer, lock, args.archives is None)
+    else:
+        installer.install_packages(
+            core,
+            archives,
+            lock,
+            locations={FRAMEWORK, *("packages/" + name for name in TOOLS)},
+            content_addressed=args.archives is None,
+        )
+        sdk_version_marker(core, lock["esp32"]["esp_idf"], initialize=True)
     subprocess.run(
         [
             sys.executable,
@@ -201,7 +207,8 @@ def setup(args: argparse.Namespace) -> None:
         output / "native-setup.json",
         {
             "state": "success",
-            "sdk": verify_sdk(core),
+            "sdk": verify_sdk(core, args.sdk_profile),
+            "sdk_profile": args.sdk_profile,
             "python": verify_python(python, env),
             "sdk_root": str(core),
             "production_qualified": False,
@@ -254,7 +261,7 @@ def build(args: argparse.Namespace) -> None:
     # Resolve the venv directory, not its Python symlink (which points at the system interpreter).
     python = args.python_root.resolve() / "idf/bin/python"
     env = native_environment(core, python)
-    sdk = verify_sdk(core)
+    sdk = verify_sdk(core, args.sdk_profile)
     python_record = verify_python(python, env)
     source = source_identity(ROOT)
     git = git_identity(ROOT)
@@ -270,6 +277,7 @@ def build(args: argparse.Namespace) -> None:
         "state": "running",
         "backend": "native-esp-idf-candidate",
         "role": role,
+        "sdk_profile": args.sdk_profile,
         "sdk": sdk,
         "python": python_record,
         "source": source,
@@ -301,15 +309,26 @@ def build(args: argparse.Namespace) -> None:
             private = validate_uart_key_directory(args.uart_key_dir)
             validate_uart_key_flags([], [private, project / "src", project / "include"])
             command.append(f"-DPROTOGEN_NATIVE_UART_DIR={private}")
+        defaults = []
+        if args.sdk_profile == "official":
+            # Preserve the existing PSK-only transport's certificate settings.
+            defaults += [
+                "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY=n",
+                "CONFIG_MBEDTLS_X509_TRUSTED_CERT_CALLBACK=n",
+            ]
         if args.reproducible:
             if git["working_tree_dirty"] or not git["git_head"]:
                 raise RuntimeError("Reproducibility requires a clean committed source")
-            extra = output / "reproducible.defaults"
-            extra.write_text("CONFIG_APP_REPRODUCIBLE_BUILD=y\n")
-            command.append(f"-DPROTOGEN_NATIVE_EXTRA_DEFAULTS={extra}")
+            defaults.append("CONFIG_APP_REPRODUCIBLE_BUILD=y")
             env["SOURCE_DATE_EPOCH"] = subprocess.check_output(
                 ["git", "show", "-s", "--format=%ct", git["git_head"]], cwd=ROOT, text=True
             ).strip()
+        if defaults:
+            extra = output / (
+                "candidate.defaults" if args.sdk_profile == "official" else "reproducible.defaults"
+            )
+            extra.write_text("\n".join(defaults) + "\n")
+            command.append(f"-DPROTOGEN_NATIVE_EXTRA_DEFAULTS={extra}")
         for label, invocation in (
             ("configure", command),
             ("compile", [str(cmake), "--build", str(output), "-j", str(args.jobs)]),
@@ -318,6 +337,8 @@ def build(args: argparse.Namespace) -> None:
                 subprocess.run(invocation, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         description = json.loads((output / "project_description.json").read_text())
         version = json.loads((ROOT / "toolchain.lock.json").read_text())["esp32"]["esp_idf"]
+        if args.sdk_profile == "official":
+            version = official_esp.pins()["release"]
         if description.get("git_revision") != version:
             raise RuntimeError("Native SDK project description does not identify the pinned release")
         sdkconfig = json.loads((output / "config/sdkconfig.json").read_text())
@@ -347,6 +368,10 @@ def build(args: argparse.Namespace) -> None:
             "PROTOGEN_PRODUCTION": False,
             "ESP_CONSOLE_UART_DEFAULT" if role == "helmet" else "ESP_CONSOLE_USB_SERIAL_JTAG": True,
         }
+        if args.sdk_profile == "official":
+            required.update(
+                MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY=False, MBEDTLS_X509_TRUSTED_CERT_CALLBACK=False
+            )
         if any(sdkconfig.get(key) != value for key, value in required.items()):
             raise RuntimeError("Resolved native SDK security or role configuration differs")
         symbols = subprocess.check_output(
@@ -387,7 +412,7 @@ def build(args: argparse.Namespace) -> None:
             manifest["reference"] = compare_configuration(args.reference.resolve(), output)
         manifest["reproducible_requested"] = args.reproducible
         manifest["warnings"] = len(re.findall(r"warning:", (output / "compile.log").read_text(), re.I))
-        if verify_sdk(core) != sdk or verify_python(python, env) != python_record:
+        if verify_sdk(core, args.sdk_profile) != sdk or verify_python(python, env) != python_record:
             raise RuntimeError("Native dependencies changed during build")
         if source_identity(ROOT) != source or git_identity(ROOT) != git:
             raise RuntimeError("Source changed during build")
@@ -428,6 +453,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sdk-root", type=Path, default=ROOT / "build/native-sdk")
     parser.add_argument("--python-root", type=Path, default=ROOT / "build/native-python")
+    parser.add_argument("--sdk-profile", choices=("reference", "official"), default="reference")
     sub = parser.add_subparsers(dest="command", required=True)
     provision = sub.add_parser("setup")
     provision.add_argument("--wheelhouse", type=Path)
