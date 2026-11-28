@@ -40,6 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wheelhouse", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--native-only", action="store_true", help="Install only the native IDF environment")
     args = parser.parse_args()
     if (platform.system(), platform.machine(), sys.implementation.name, sys.version_info[:2]) != (
         "Linux",
@@ -50,14 +51,14 @@ def main():
         parser.error("Only Linux x86-64 CPython 3.13 is currently qualified")
     source = args.wheelhouse.resolve()
     output = args.output.resolve()
-    groups = ("platformio", "idf", "esptool-contrib")
+    groups = ("idf",) if args.native_only else ("platformio", "idf", "esptool-contrib")
     if any(not (source / group).is_dir() for group in groups):
         parser.error("Wheelhouse must contain platformio, idf and esptool-contrib directories")
     if args.output.exists() or args.output.is_symlink():
         parser.error("Output must be a new directory; existing environments are never modified")
     output.mkdir(parents=True)
     locks = ROOT / "scripts/requirements"
-    for group in ("platformio", "idf"):
+    for group in ("idf",) if args.native_only else ("platformio", "idf"):
         target = output / group
         venv.EnvBuilder(with_pip=True).create(target)
         python = target / "bin/python"
@@ -68,21 +69,37 @@ def main():
         flags = ("--only-binary=:all:",) if group == "platformio" else ()
         pip_install(python, source / group, locks / (group + SUFFIX), *flags)
         subprocess.run([str(python), "-m", "pip", "check"], check=True)
-    python = output / "platformio/bin/python"
-    pip_install(
-        python,
-        source / "esptool-contrib",
-        locks / ("esptool-contrib" + SUFFIX),
-        "--only-binary=:all:",
-        "--target",
-        str(output / "esptool-contrib"),
-    )
+        subprocess.run(
+            [str(python), str(ROOT / "scripts/check-esp-python-compatibility.py"), group], check=True
+        )
+    if not args.native_only:
+        python = output / "platformio/bin/python"
+        pip_install(
+            python,
+            source / "esptool-contrib",
+            locks / ("esptool-contrib" + SUFFIX),
+            "--only-binary=:all:",
+            "--target",
+            str(output / "esptool-contrib"),
+        )
+        subprocess.run(
+            [
+                str(python),
+                str(ROOT / "scripts/check-esp-python-compatibility.py"),
+                "esptool-contrib",
+                "--target",
+                str(output / "esptool-contrib"),
+            ],
+            check=True,
+        )
     report = {
         "state": "success",
         "python": platform.python_version(),
+        "groups": list(groups),
         "locks": {
             path.name: hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(locks.glob("*" + SUFFIX))
+            if path.name == "idf-build" + SUFFIX or any(path.name == group + SUFFIX for group in groups)
         },
     }
     (output / "verified-install.json").write_text(json.dumps(report, indent=2) + "\n")

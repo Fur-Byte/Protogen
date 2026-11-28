@@ -48,6 +48,7 @@ def main():
               for name in OPTIMIZED_PYTHON_SUITES]
     tests += [("esp-tool-integrity", [sys.executable, "scripts/tests/test-esp-tool-integrity.py"])]
     tests += [("locked-esp-installer", [sys.executable, "scripts/tests/test-locked-esp-installer.py"])]
+    tests += [("native-esp", [sys.executable, "scripts/tests/test-native-esp.py"])]
     tests += [("face-studio", ["node", "scripts/tests/test-face-studio.js"]),
               ("v4-vectors", [sys.executable, "scripts/tests/v4/make_vectors.py", "--check"])]
     manifest = output / "manifest.json"

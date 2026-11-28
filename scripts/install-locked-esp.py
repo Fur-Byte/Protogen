@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -45,45 +46,70 @@ def fetch(url, destination, digest):
             temporary.unlink(missing_ok=True)
 
 
-def download_python(wheelhouse):
-    for group in ("platformio", "idf", "esptool-contrib"):
+def parse_locked_requirement(line):
+    parts = line.split()
+    if not parts or not re.fullmatch(r"[A-Za-z0-9_.-]+==[A-Za-z0-9_.+!-]+", parts[0]):
+        raise RuntimeError("Expected one exact pinned requirement")
+    if len(parts) < 2 or any(not re.fullmatch(r"--hash=sha256:[0-9a-f]{64}", x) for x in parts[1:]):
+        raise RuntimeError("Expected SHA-256 artifact pins")
+    name, version = parts[0].split("==")
+    return name, version, {x.split(":")[1] for x in parts[1:]}
+
+
+def download_python(wheelhouse, groups=("platformio", "idf", "esptool-contrib")):
+    # Fetch only immutable, non-yanked artifacts explicitly authorized by the
+    # lock. Pip selects the compatible wheel offline; do not execute arbitrary
+    # source distributions during discovery.
+    for group in groups:
         for line in (LOCKS / (group + SUFFIX)).read_text().splitlines():
-            if not line or line.startswith("#"):
+            if not line.strip() or line.lstrip().startswith("#"):
                 continue
-            requirement, digest = line.split(" --hash=sha256:")
-            name, version = requirement.split("==")
+            name, version, digests = parse_locked_requirement(line)
             with urllib.request.urlopen(
                 f"https://pypi.org/pypi/{name}/{version}/json", timeout=30
             ) as response:
                 release = json.load(response)
             matches = [
-                item for item in release["urls"] if item["digests"]["sha256"] == digest and not item["yanked"]
+                item
+                for item in release["urls"]
+                if item["digests"]["sha256"] in digests
+                and not item["yanked"]
+                and (
+                    item["filename"].endswith(".whl")
+                    or (group == "idf" and name == "esptool" and item["filename"].endswith(".tar.gz"))
+                )
             ]
-            if len(matches) != 1:
-                raise RuntimeError(f"Missing pinned PyPI release artifact: {requirement}")
-            artifact = matches[0]
-            if Path(artifact["filename"]).name != artifact["filename"]:
-                raise RuntimeError("Invalid artifact filename")
-            fetch(artifact["url"], wheelhouse / group / artifact["filename"], digest)
+            if not matches:
+                raise RuntimeError(f"Missing pinned PyPI release artifact: {name}=={version}")
+            for artifact in matches:
+                if Path(artifact["filename"]).name != artifact["filename"]:
+                    raise RuntimeError("Invalid artifact filename")
+                fetch(
+                    artifact["url"], wheelhouse / group / artifact["filename"], artifact["digests"]["sha256"]
+                )
 
 
-def install_packages(core, archives, lock):
+def install_packages(core, archives, lock, *, locations=None, content_addressed=False):
     manifest = json.loads((LOCKS / "esp-packages-linux-x86_64.json").read_text())
     tools = json.loads((LOCKS / "esp-tools-linux-x86_64.json").read_text())
     for location, item in manifest.items():
+        if locations is not None and location not in locations:
+            continue
         name = Path(location).name
         pin = tools[name] if name in tools else lock["esp32_source_integrity"][location]
         if item["sha256"] != pin["archive_sha256"]:
             raise RuntimeError(f"Conflicting package pins: {name}")
-        archive = archives / Path(item["url"]).name
+        cache = archives / item["sha256"] if content_addressed else archives
+        archive = cache / Path(item["url"]).name
         fetch(item["url"], archive, item["sha256"])
         target = core / location
         target.mkdir(parents=True)
         with tarfile.open(archive) as source:
             source.extractall(target, filter="data")
         (target / ".piopm").write_text(json.dumps(item["metadata"]))
-    verify_esp_sources(core, lock)
-    verify_esp_tools(core)
+    if locations is None:
+        verify_esp_sources(core, lock)
+        verify_esp_tools(core)
 
 
 def main():

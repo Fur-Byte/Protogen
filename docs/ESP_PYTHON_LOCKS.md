@@ -49,3 +49,33 @@ and uses the previous unqualified Python dependency resolution path.
 
 The isolated helper also accepts an independently prepared local wheelhouse
 and archive directory for offline provisioning.
+
+## Compatible modern dependency updates
+
+The default qualified development lock uses PlatformIO 6.2.0 (its
+Starlette requirement is now <2), Starlette 1.10.0, urllib3 2.8.0,
+and IDF-environment cryptography 48.0.1. The legacy package postinstall
+contract still specifies cryptography ~=46.0.0; keep the separate esptool
+contrib lock at 46.0.7 until that vendor constraint changes. Do not confuse
+the two Python environments. Espressif's reviewed constraint was <49.
+The installer accepts multiple SHA-256 pins, downloads only matching,
+non-yanked wheels (plus the explicitly locked esptool source archive),
+and pip chooses a compatible artifact offline. The main C3 CI job uses
+Python 3.13 to exercise the actual locked installation, rather than its
+legacy unqualified fallback. Automated updates must pass that job.
+
+The reviewed parent compatibility ranges are recorded separately in
+`esp-compatibility.json` and checked inside each installed environment,
+including the esptool contrib directory. These are the relevant constraints
+for this change, not a replacement for the full upstream SDK support matrix.
+Do not auto-merge version updates that pass only source tests: actual locked
+provisioning, pip metadata consistency, parent compatibility and target
+compilation are required.
+
+PlatformIO 6.2.0 also changed its core SCons requirement to ~4.41101.0
+(SCons 4.11.1). A CI build compiled both roles successfully but rejected
+the changed tool tree because PlatformIO had replaced the old 4.40801.0
+package. The registry archive and extracted tree for 4.41101.0 are now
+independently hash-pinned. Setup checks the parent's version requirement;
+the locked build checks actual SCons resolution with auto-install disabled
+before invoking the compiler, and still verifies package trees afterward.

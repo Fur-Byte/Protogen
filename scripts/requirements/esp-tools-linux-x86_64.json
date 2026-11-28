@@ -40,11 +40,11 @@
     "symlinks": 0
   },
   "tool-scons": {
-    "version": "4.40801.0",
-    "archive": "tool-scons-4.40801.0.tar.gz",
-    "archive_sha256": "289b1abf389b730ab5a1018ed9fc84e22d301e0d16c64548eb9db5bf8ba59d06",
-    "tree_sha256": "56a58907c6ee9f82f439a0d585c4cbb35680c51f6b795d78829195c6b4a52a6f",
-    "files": 214,
+    "version": "4.41101.0",
+    "archive": "tool-scons-4.41101.0.tar.gz",
+    "archive_sha256": "e405de1fcd3307fa80d624f0290c7cd30fbb47f67e135a9f56d7e46b6b895311",
+    "tree_sha256": "efaae94dae0a68fafeab5d5cc250d1786260c8118c66ea31d76503755a6cd220",
+    "files": 221,
     "symlinks": 0
   },
   "tool-xtensa-esp-elf-gdb": {

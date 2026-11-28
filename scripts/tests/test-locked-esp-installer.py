@@ -33,6 +33,16 @@ class LockedEspInstaller(unittest.TestCase):
                 installer.fetch("https://example.invalid/artifact", destination, digest)
             self.assertEqual(destination.read_bytes(), b"changed")
 
+    def test_multiple_exact_hashes(self):
+        first, second = "a" * 64, "b" * 64
+        self.assertEqual(
+            installer.parse_locked_requirement(f"pkg==1.0 --hash=sha256:{first} --hash=sha256:{second}"),
+            ("pkg", "1.0", {first, second}),
+        )
+        for line in ("pkg>=1.0", "pkg==1.0", "pkg==1.0 --hash=md5:abc", "pkg==1.0 --index-url=x"):
+            with self.assertRaises(RuntimeError):
+                installer.parse_locked_requirement(line)
+
     def test_download_mismatch_is_not_published(self):
         with tempfile.TemporaryDirectory() as folder:
             destination = Path(folder) / "artifact"
