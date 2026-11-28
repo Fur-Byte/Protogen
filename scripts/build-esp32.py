@@ -21,6 +21,9 @@ def main():
     build.mkdir(exist_ok=True)
     pio = os.environ.get("PIO", str(build / "esp32-venv/bin/pio"))
     env = dict(os.environ, PLATFORMIO_CORE_DIR=str(build / "platformio"), IDF_COMPONENT_MANAGER="0")
+    locked_python = build / "locked-python/verified-install.json"
+    if locked_python.is_file():
+        env.update(PIP_NO_INDEX="1", PIP_REQUIRE_HASHES="1", PIP_NO_CACHE_DIR="1")
     lock = json.loads((root / "toolchain.lock.json").read_text())
     locked = lock["esp32"]
     git = git_identity(root)
@@ -39,6 +42,7 @@ def main():
         "source": source_identity(root),
         **git,
         "platformio_overrides": overrides,
+        "python_artifact_lock_candidate": locked_python.is_file(),
         "platform": locked["platform"],
         "esp_idf": locked["esp_idf"],
         "mbedtls": locked["mbedtls"],

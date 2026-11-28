@@ -8,6 +8,7 @@ from pathlib import Path
 import platform
 import shlex
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.request
@@ -94,7 +95,16 @@ def main():
     from build_support import check_toolchain
     os.environ.update(variables)
     check_toolchain(ROOT, str(cli))
-    if not args.teensy_only:
+    if not args.teensy_only and (platform.system(), platform.machine(), sys.implementation.name,
+                                 sys.version_info[:2]) == ('Linux', 'x86_64', 'cpython', (3, 13)):
+        run(sys.executable, str(ROOT / 'scripts/install-locked-esp.py'))
+        sdk_python = ROOT / 'build/platformio/penv' / ('.espidf-' + lock['esp32']['esp_idf']) / 'bin/python'
+        for executable, filename in ((sdk_python, 'idf-python-dependencies.txt'),
+                                     (ROOT / 'build/esp32-venv/bin/python', 'python-dependencies.txt')):
+            (folder / filename).write_text(subprocess.check_output(
+                [str(executable), '-m', 'pip', 'freeze'], env=env, text=True))
+    elif not args.teensy_only:
+        print('Warning: this host does not yet have qualified Python artifact locks.')
         run('python3', '-m', 'venv', str(ROOT / 'build/esp32-venv'))
         python = str(ROOT / 'build/esp32-venv/bin/python')
         run(python, '-m', 'pip', 'install', 'platformio==' + lock['esp32']['platformio'])
