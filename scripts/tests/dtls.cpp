@@ -30,7 +30,8 @@ bool handshake(SecureSession &client,SecureSession &server) {
     for(auto s:{&client,&server})if(!s->ready()) {
       const int r=s->step();if(r && !SecureSession::pending(r))return false;
     }
-    if(client.ready() && server.ready())return true;now+=5;
+    if(client.ready() && server.ready())return true;
+    now+=5;
   }
   return false;
 }
