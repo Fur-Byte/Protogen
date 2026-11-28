@@ -158,6 +158,66 @@ jobs:
                   raise SystemExit('Unreviewed native binary size increase')
 
           PY
+  official:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: [reference]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Official SDK and locked tools
+        shell: bash
+        run: |
+          mkdir -p build
+          python3 scripts/protogen.py setup --backend native-official 2>&1 | tee build/official-setup.log
+      - name: Build both roles twice and compare binary hashes
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: ''
+        run: |
+          for label in a b; do
+            python3 scripts/protogen.py build all --backend native-official --output "build/official-$label" --reproducible
+          done
+          for role in helmet paw; do
+            for file in protogen_wireless.bin bootloader/bootloader.bin partition_table/partition-table.bin; do
+              cmp "build/official-a/$role/$file" "build/official-b/$role/$file"
+              sha256sum "build/official-a/$role/$file"
+            done
+          done
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: reference-candidate
+          path: build/reference
+      - name: Review exact cross-release configuration changes
+        run: python3 scripts/compare-official-esp.py build/reference/esp32 build/official-a
+      - name: Official failure diagnostics
+        if: failure()
+        run: |
+          for log in build/official-*/*/*.log; do
+            test -f "$log" || continue
+            echo "::group::$log"
+            tail -80 "$log"
+            echo "::endgroup::"
+          done
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: official-candidate
+          if-no-files-found: error
+          path: |
+            build/official-setup.log
+            build/official-*/*/manifest.json
+            build/official-*/*/config/sdkconfig.json
+            build/official-*/*/sbom.spdx.json
+            build/official-*/*/sbom-external-exclusions.json
+            build/official-*/*/size.json
+            build/official-*/*/*.log
   attest:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.attest
     needs: [compare]

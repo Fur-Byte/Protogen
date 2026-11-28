@@ -23,6 +23,7 @@ def doctor() -> int:
         "host": sys.platform,
         "git": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "native_setup": (ROOT / "build/native-python/native-setup.json").is_file(),
+        "native_official_setup": (ROOT / "build/native-official-python/native-setup.json").is_file(),
         "reference_setup": (ROOT / "build/toolchains/environment.sh").is_file(),
         "production_qualified": False,
     }
@@ -34,13 +35,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     setup = commands.add_parser("setup")
-    setup.add_argument("--backend", choices=("reference", "native"), default="reference")
+    setup.add_argument("--backend", choices=("reference", "native", "native-official"), default="reference")
     setup.add_argument("--wheelhouse", type=Path)
     setup.add_argument("--archives", type=Path)
     commands.add_parser("doctor")
     build = commands.add_parser("build")
     build.add_argument("role", choices=("teensy", "helmet", "paw", "all"))
-    build.add_argument("--backend", choices=("reference", "native"), default="reference")
+    build.add_argument("--backend", choices=("reference", "native", "native-official"), default="reference")
     build.add_argument("--output", type=Path)
     build.add_argument("--jobs", type=int, choices=range(1, 33), default=4)
     build.add_argument("--reproducible", action="store_true")
@@ -64,6 +65,19 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == "doctor":
         return doctor()
+
+    def native_args():
+        if args.backend == "native-official":
+            return [
+                "--sdk-profile",
+                "official",
+                "--sdk-root",
+                str(ROOT / "build/native-official-sdk"),
+                "--python-root",
+                str(ROOT / "build/native-official-python"),
+            ]
+        return []
+
     if args.command == "setup":
         if args.backend == "reference":
             if args.wheelhouse or args.archives:
@@ -75,11 +89,11 @@ def main() -> int:
             if value
             for item in (flag, str(value.absolute()))
         ]
-        return run("scripts/native_esp.py", "setup", *extra)
+        return run("scripts/native_esp.py", *native_args(), "setup", *extra)
     if args.command == "build":
         if args.backend == "reference":
             if args.output or args.reproducible or args.reference:
-                parser.error("Native build options require --backend native")
+                parser.error("Native build options require a native backend")
             if args.role in ("teensy", "all"):
                 if result := run("scripts/build.py"):
                     return result
@@ -99,7 +113,7 @@ def main() -> int:
             if args.reference:
                 ref = args.reference.absolute() / role if args.role == "all" else args.reference.absolute()
                 extra += ["--reference", str(ref)]
-            if result := run("scripts/native_esp.py", "build", role, *extra):
+            if result := run("scripts/native_esp.py", *native_args(), "build", role, *extra):
                 return result
         return 0
     if args.command == "test":

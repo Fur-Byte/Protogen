@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Native backend admission and parity checks without a target SDK download."""
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import native_esp
+import official_esp
 
 
 class NativeEspTests(unittest.TestCase):
@@ -94,6 +96,46 @@ class NativeEspTests(unittest.TestCase):
             self.assertIn("--no-sync-excluded-cves", command)
             self.assertEqual(command[command.index("--vex-format") + 1], "none")
             self.assertEqual(Path(env["SBOM_EXCLUDED_CVES_FILE"]).read_text(), "{}\n")
+
+    def test_official_profile_rejects_unknown_changes_and_partition_drift(self):
+        spec = importlib.util.spec_from_file_location(
+            "compare_official", Path(native_esp.ROOT) / "scripts/compare-official-esp.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            before = {key: values[0] for key, values in module.EXPECTED.items() if values[0] is not None}
+            after = {key: values[1] for key, values in module.EXPECTED.items() if values[1] is not None}
+            self.fixture(root / "reference", before, "partitions.bin")
+            self.fixture(root / "candidate", after, "partition_table/partition-table.bin")
+            (root / "candidate/protogen_wireless.bin").write_bytes(b"firmware")
+            self.assertTrue(
+                module.compare(root / "reference", root / "candidate", "helmet")["reviewed_candidate"]
+            )
+            after["FREERTOS_HZ"] = 100
+            (root / "candidate/config/sdkconfig.json").write_text(json.dumps(after))
+            with self.assertRaisesRegex(RuntimeError, "Unreviewed"):
+                module.compare(root / "reference", root / "candidate", "helmet")
+
+    def test_official_tree_rejects_external_links_and_git_metadata(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            package = root / "packages/framework-espidf"
+            package.mkdir(parents=True)
+            lock = {
+                "release": "v6.1.1",
+                "commit": "test",
+                "packages": {"framework-espidf": {"tree_sha256": ""}},
+            }
+            with patch.object(official_esp, "pins", return_value=lock):
+                (package / "link").symlink_to("/etc/passwd")
+                with self.assertRaisesRegex(RuntimeError, "External link"):
+                    official_esp.verify(root)
+                (package / "link").unlink()
+                (package / ".git").mkdir()
+                with self.assertRaisesRegex(RuntimeError, "Git metadata"):
+                    official_esp.verify(root)
 
     def test_unqualified_host_rejected(self):
         with patch("native_esp.platform.system", return_value="Darwin"):
