@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 import platform
+import subprocess
+import shutil
 
 from build_support import file_sha256, source_digest
 
@@ -32,6 +34,32 @@ def tool_tree_digest(directory, *, esptool=False):
         elif name != ".piopm" and not ("__pycache__" in relative.parts and path.suffix == ".pyc"):
             files[name] = file_sha256(path)
     return source_digest(files)
+
+
+def verify_locked_scons_selection(pio, core, env):
+    """Resolve the parent tool's actual SCons choice without allowing installation."""
+    executable = shutil.which(str(pio), path=env.get("PATH"))
+    if not executable:
+        raise RuntimeError("Locked PlatformIO executable is unavailable")
+    python = Path(executable).resolve().with_name("python")
+    result = subprocess.run(
+        [
+            str(python),
+            "-c",
+            "import json; from platformio.package.manager.core import get_core_package_dir; "
+            "print(json.dumps(get_core_package_dir('tool-scons', auto_install=False)))",
+        ],
+        env=dict(env, PLATFORMIO_CORE_DIR=str(Path(core).resolve())),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    selected = json.loads(result.stdout)
+    if not selected or Path(selected).resolve() != (Path(core) / "packages/tool-scons").resolve():
+        raise RuntimeError(
+            "Locked SCons does not satisfy PlatformIO core; refusing runtime package installation"
+        )
+    return selected
 
 
 def verify_esp_tools(core, pins=None):

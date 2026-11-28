@@ -71,3 +71,11 @@ for this change, not a replacement for the full upstream SDK support matrix.
 Do not auto-merge version updates that pass only source tests: actual locked
 provisioning, pip metadata consistency, parent compatibility and target
 compilation are required.
+
+PlatformIO 6.2.0 also changed its core SCons requirement to ~4.41101.0
+(SCons 4.11.1). A CI build compiled both roles successfully but rejected
+the changed tool tree because PlatformIO had replaced the old 4.40801.0
+package. The registry archive and extracted tree for 4.41101.0 are now
+independently hash-pinned. Setup checks the parent's version requirement;
+the locked build checks actual SCons resolution with auto-install disabled
+before invoking the compiler, and still verifies package trees afterward.

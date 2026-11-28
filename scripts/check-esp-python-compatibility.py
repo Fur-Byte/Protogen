@@ -29,6 +29,18 @@ def main():
     for name, constraint in constraints.items():
         if name not in actual or not SpecifierSet(constraint).contains(actual[name], prereleases=False):
             parser.exit(1, f"{args.group}: {name} does not satisfy reviewed constraint {constraint}\n")
+    if args.group == "platformio":
+        from platformio.dependencies import get_core_dependencies
+        from platformio.package.meta import PackageSpec
+        from semantic_version import Version
+
+        tools = json.loads((ROOT / "scripts/requirements/esp-tools-linux-x86_64.json").read_text())
+        version = tools["tool-scons"]["version"]
+        spec = PackageSpec(
+            owner="platformio", name="tool-scons", requirements=get_core_dependencies()["tool-scons"]
+        )
+        if not spec.requirements.match(Version(version)):
+            parser.exit(1, "Locked SCons version does not satisfy PlatformIO core\n")
     print(f"{args.group}: reviewed compatibility constraints satisfied")
 
 

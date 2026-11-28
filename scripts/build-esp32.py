@@ -9,7 +9,7 @@ import subprocess
 import re
 import configparser
 import struct
-from esp_tool_integrity import verify_esp_tools
+from esp_tool_integrity import verify_esp_tools, verify_locked_scons_selection
 from build_support import file_sha256, git_identity, source_identity, write_json
 from uart_key import validate_uart_key_directory
 from esp_source_integrity import verify_esp_sources
@@ -68,6 +68,8 @@ def main():
         if ini["env"]["platform"] != locked["platform"]:
             raise RuntimeError("ESP32 platform differs from the lock")
         record["tool_package_integrity"] = verify_esp_tools(build / "platformio")
+        if locked_python.is_file():
+            verify_locked_scons_selection(pio, build / "platformio", env)
         command = [pio, "run", "--project-dir", str(root / "firmware/esp32"), "-e", "helmet", "-e", "paw"]
         if jobs := os.environ.get("PROTOGEN_PIO_JOBS"):
             command += ["-j", jobs]
