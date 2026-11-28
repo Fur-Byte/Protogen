@@ -50,7 +50,22 @@ class DependencyIntegrity(unittest.TestCase):
                 executable.write_bytes(b"modified")
                 with self.assertRaisesRegex(RuntimeError, "compiler tool content mismatch"):
                     verify_compiler_tools(root, "teensy", pins)
-            with patch("build_support.platform.system", return_value="Darwin"):
+            executable.write_bytes(b"original")
+            pins["compiler"]["other_host_tree_sha256"] = {
+                key: dependency_tree_digest(tool)
+                for key in ("Linux/aarch64", "Linux/armv7l", "Darwin/arm64", "Darwin/x86_64")
+            }
+            for system, machine in (
+                ("Linux", "aarch64"),
+                ("Linux", "armv7l"),
+                ("Darwin", "arm64"),
+                ("Darwin", "x86_64"),
+            ):
+                with patch("build_support.platform.system", return_value=system), patch(
+                    "build_support.platform.machine", return_value=machine
+                ):
+                    self.assertEqual(verify_compiler_tools(root, "teensy", pins)["state"], "verified")
+            with patch("build_support.platform.system", return_value="FreeBSD"):
                 self.assertEqual(verify_compiler_tools(root, "teensy", pins)["state"], "unverified_host")
 
     def test_tree_identity_covers_names_and_contents(self):

@@ -160,6 +160,8 @@ class FeatureChecks(unittest.TestCase):
             directory.mkdir(parents=True, exist_ok=True)
             (directory / "tool").write_text("synthetic tool")
             pin["linux_x86_64_tree_sha256"] = dependency_tree_digest(directory)
+            pin["other_host_tree_sha256"] = {host: pin["linux_x86_64_tree_sha256"]
+                                                 for host in pin["other_host_tree_sha256"]}
         records = []
         for name, version in locked["libraries"].items():
             directory = root / "fake-libraries" / name

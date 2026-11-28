@@ -29,7 +29,13 @@
           "teensy-tools-1.62.0-linuxarm.tar.zst": "27443c78b7e32e903994a3b6055b229133554e254b29982b9765ce6d12fbe57d",
           "teensy-tools-1.62.0-macos.tar.zst": "6c9fa71003dbd97f5bd5572b9b83d6bacdd75801e7c20a36a9afdf3e928b77e2"
         },
-        "linux_x86_64_tree_sha256": "c22d3f5f1d618cb2ee435d856859820ae90142a74ce3db637b65065154ed33c4"
+        "linux_x86_64_tree_sha256": "c22d3f5f1d618cb2ee435d856859820ae90142a74ce3db637b65065154ed33c4",
+        "other_host_tree_sha256": {
+          "Linux/aarch64": "d8f926a073f71bd15720b7eddcd8b1480beb00640dfcdcf5cdf7293500157c0e",
+          "Linux/armv7l": "39eb6dc376b692babd83c11ee31d6360b7c9ff44eb53387056d2e1bffded234b",
+          "Darwin/arm64": "5046d4336f96d09bdea9b135f535bbb2647f20b93dc4988e1e507ebcb4c4767b",
+          "Darwin/x86_64": "5046d4336f96d09bdea9b135f535bbb2647f20b93dc4988e1e507ebcb4c4767b"
+        }
       },
       "teensy-compile": {
         "version": "15.2.1",
@@ -40,7 +46,13 @@
           "teensy-compile-15.2.1-macos_arm64.tar.zst": "3bf44f5bedeb145cc1b0b601afdd05a808139e7b14424dc52c8f58befa698b56",
           "teensy-compile-15.2.1-macos_x86_64.tar.zst": "4edf059d9f1c32fdbb16145d2cc733f200acfb53807461070e4ffbb1c7d2321d"
         },
-        "linux_x86_64_tree_sha256": "9849a07216c0db357b9732c44ff449be9a70e9c1ec1122d642d630fdb26438be"
+        "linux_x86_64_tree_sha256": "9849a07216c0db357b9732c44ff449be9a70e9c1ec1122d642d630fdb26438be",
+        "other_host_tree_sha256": {
+          "Linux/aarch64": "b3ddec606ef16fc26477196931f4821685ee0eaa5d4316c119367fa75343bfd5",
+          "Linux/armv7l": "d4215fa7828b341291b07a4ab8595f0bc4829bf167cbe15c967709f5a4fa0ed9",
+          "Darwin/arm64": "05f487c12ecdc3180680691dc01b63c7d7d540cbe621fdcc79e3f98ff1694e20",
+          "Darwin/x86_64": "94ecec59e72c5ec24a5fdd6e996353a4cb217d554024e95c343f539e987ae961"
+        }
       }
     },
     "libraries": {

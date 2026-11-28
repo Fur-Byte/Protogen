@@ -160,15 +160,18 @@ def dependency_tree_digest(directory, *, platform_metadata=False):
 
 
 def verify_compiler_tools(data, vendor, pins):
-    """Verify installed tool trees on the independently characterized CI host."""
+    """Verify installed tool trees against the host's reviewed release archives."""
     host = (platform.system(), platform.machine())
-    if host != ("Linux", "x86_64"):
+    key = "/".join(host)
+    if key not in ("Linux/x86_64", "Linux/aarch64", "Linux/armv7l", "Darwin/arm64", "Darwin/x86_64"):
         return {"host": list(host), "state": "unverified_host"}
     verified, paths = {}, {}
     for name, pin in pins.items():
+        expected = (pin["linux_x86_64_tree_sha256"] if key == "Linux/x86_64"
+                    else pin["other_host_tree_sha256"][key])
         directory = data / "packages" / vendor / "tools" / name / pin["version"]
         actual = dependency_tree_digest(directory, platform_metadata=True)
-        if actual != pin["linux_x86_64_tree_sha256"]:
+        if actual != expected:
             raise RuntimeError(f"Pinned compiler tool content mismatch: {name}")
         verified[name] = actual
         paths[name] = str(directory.resolve())
