@@ -13,6 +13,8 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+import urllib.error
+from urllib.parse import urlsplit
 
 from esp_source_integrity import verify_esp_sources
 from esp_tool_integrity import verify_esp_tools
@@ -36,17 +38,20 @@ def fetch(url, destination, digest):
     with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as stream:
         temporary = Path(stream.name)
         try:
-            with urllib.request.urlopen(
-                urllib.request.Request(
-                    url,
-                    headers={
-                        "User-Agent": "Protogen-locked-installer/1.0",
-                        "Accept": "application/octet-stream",
-                    },
-                ),
-                timeout=120,
-            ) as response:
-                shutil.copyfileobj(response, stream)
+            request = urllib.request.Request(url)
+            # The registry download endpoint negotiates downloads for the
+            # pinned PlatformIO client. Other hosts retain urllib's default.
+            if urlsplit(url).hostname == "dl.registry.platformio.org":
+                version = json.loads((ROOT / "toolchain.lock.json").read_text())["esp32"]["platformio"]
+                request.add_header("User-Agent", f"PlatformIO/{version}")
+                request.add_header("Accept", "application/octet-stream")
+            try:
+                with urllib.request.urlopen(request, timeout=120) as response:
+                    shutil.copyfileobj(response, stream)
+            except urllib.error.URLError as error:
+                raise RuntimeError(
+                    f"Cannot download pinned artifact {destination.name} from {urlsplit(url).hostname}: {error.reason}"
+                ) from error
             stream.flush()
             if sha(temporary) != digest:
                 raise RuntimeError(f"Downloaded artifact differs from pin: {destination.name}")
