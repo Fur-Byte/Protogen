@@ -83,6 +83,7 @@ jobs:
             build/native-ci/*/partition_table/partition-table.bin
             build/native-ci/*/config/sdkconfig.json
             build/native-ci/*/sbom.spdx.json
+            build/native-ci/*/sbom-external-exclusions.json
             build/native-ci/*/size.json
             build/native-ci/*/*.log
   reference:

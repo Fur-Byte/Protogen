@@ -44,11 +44,22 @@ def require_host() -> None:
         raise RuntimeError("Native candidate is currently qualified for Linux x86-64 CPython 3.13 only")
 
 
+def sdk_version_marker(core: Path, version: str, *, initialize: bool = False) -> None:
+    """An extracted SDK must not inherit the enclosing project's Git version."""
+    path = core / FRAMEWORK / "version.txt"
+    expected = version.encode()
+    if initialize and not path.exists() and not path.is_symlink():
+        with path.open("xb") as stream:
+            stream.write(expected)
+    if path.is_symlink() or not path.is_file() or path.read_bytes() != expected:
+        raise RuntimeError("Native ESP-IDF version marker differs from lock")
+
+
 def verify_sdk(core: Path) -> dict:
     lock = json.loads((ROOT / "toolchain.lock.json").read_text())
     expected = lock["esp32_source_integrity"][FRAMEWORK]["tree_sha256"]
     # Reuse the reference SDK only if its known generated PlatformIO files are
-    # exact. Fresh native provisioning has none of these files.
+    # exact. Fresh native provisioning writes only the SDK version marker.
     generated = {
         "version.txt": lock["esp32"]["esp_idf"].encode(),
         "components/__pio_env/CMakeLists.txt": (
@@ -61,6 +72,7 @@ def verify_sdk(core: Path) -> dict:
     actual = package_source_digest(core / FRAMEWORK, generated)
     if actual != expected:
         raise RuntimeError("Native ESP-IDF source differs from pin")
+    sdk_version_marker(core, lock["esp32"]["esp_idf"])
     pins = json.loads(PIN_PATH.read_text())
     tools = verify_esp_tools(core, {name: pins[name] for name in TOOLS})
     if tools["state"] != "verified_archive_trees" or set(tools["trees"]) != set(TOOLS):
@@ -170,6 +182,7 @@ def setup(args: argparse.Namespace) -> None:
         locations={FRAMEWORK, *("packages/" + name for name in TOOLS)},
         content_addressed=args.archives is None,
     )
+    sdk_version_marker(core, lock["esp32"]["esp_idf"], initialize=True)
     subprocess.run(
         [
             sys.executable,
@@ -212,6 +225,27 @@ def compare_configuration(reference: Path, native: Path) -> dict:
         "partition_table_identical": partition,
         "equivalent_configuration": not differences and partition,
     }
+
+
+def sbom_command(python: Path, output: Path, env: dict[str, str]) -> tuple[list[str], dict[str, str]]:
+    """Generate an inventory without downloading or trusting cached CVE exclusions."""
+    exclusions = output / "sbom-external-exclusions.json"
+    exclusions.write_text("{}\n")
+    return [
+        str(python.parent / "esp-idf-sbom"),
+        "--no-color",
+        "create",
+        "--format",
+        "spdx-json-ld@3.0.1",
+        "--rem-unused",
+        "--no-guess",
+        "--no-sync-excluded-cves",
+        "--vex-format",
+        "none",
+        "-o",
+        str(output / "sbom.spdx.json"),
+        str(output / "project_description.json"),
+    ], dict(env, SBOM_EXCLUDED_CVES_FILE=str(exclusions))
 
 
 def build(args: argparse.Namespace) -> None:
@@ -282,6 +316,10 @@ def build(args: argparse.Namespace) -> None:
         ):
             with (output / (label + ".log")).open("w") as log:
                 subprocess.run(invocation, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+        description = json.loads((output / "project_description.json").read_text())
+        version = json.loads((ROOT / "toolchain.lock.json").read_text())["esp32"]["esp_idf"]
+        if description.get("git_revision") != version:
+            raise RuntimeError("Native SDK project description does not identify the pinned release")
         sdkconfig = json.loads((output / "config/sdkconfig.json").read_text())
         # Production is never inferred from a successful development build.
         required = {
@@ -355,25 +393,9 @@ def build(args: argparse.Namespace) -> None:
             raise RuntimeError("Source changed during build")
         # Generate SPDX 3.0.1 through the pinned vendor SBOM tool.
         sbom = output / "sbom.spdx.json"
+        command, sbom_env = sbom_command(python, output, env)
         with (output / "sbom.log").open("w") as log:
-            subprocess.run(
-                [
-                    str(python.parent / "esp-idf-sbom"),
-                    "--no-color",
-                    "create",
-                    "--format",
-                    "spdx-json-ld@3.0.1",
-                    "--rem-unused",
-                    "--no-guess",
-                    "-o",
-                    str(sbom),
-                    str(output / "project_description.json"),
-                ],
-                env=env,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                check=True,
-            )
+            subprocess.run(command, env=sbom_env, stdout=log, stderr=subprocess.STDOUT, check=True)
         json.loads(sbom.read_text())
         manifest["sbom_limitations"] = [
             line for line in (output / "sbom.log").read_text().splitlines() if line.startswith("WARNING:")
@@ -382,6 +404,10 @@ def build(args: argparse.Namespace) -> None:
             re.findall(r"(?m)^CMake Warning", (output / "configure.log").read_text())
         )
         manifest["artifacts"]["sbom.spdx.json"] = file_sha256(sbom)
+        manifest["artifacts"]["sbom-external-exclusions.json"] = file_sha256(
+            output / "sbom-external-exclusions.json"
+        )
+        manifest["sbom_vulnerability_assessment"] = "not_performed"
         manifest["state"] = (
             "success"
             if not manifest["warnings"]

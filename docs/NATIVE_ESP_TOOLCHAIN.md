@@ -81,3 +81,14 @@ and 687,952/687,856 bytes (paw). These were development builds without UART
 authentication, not physical qualification. The comparison CI additionally
 rejects an unreviewed binary size increase above the larger of 4 KiB or 1%;
 this is a review threshold, not a performance guarantee.
+
+Fresh extracted SDKs must identify ESP-IDF 6.1.0, not the enclosing
+Protogen Git checkout. Native setup writes the exact locked SDK version
+marker; the build checks it against the generated project description.
+The SBOM is an inventory, not a vulnerability assessment. The pinned
+SBOM tool normally synchronizes external CVE exclusions if its cache is
+empty, which failed under the CI offline proxy. Native generation supplies
+an explicit empty external exclusion file, disables synchronization, and
+does not emit VEX assertions. This prevents reliance on ambient caches or
+external vulnerability data during the build. Independently review current
+vulnerability information separately before release.
