@@ -56,11 +56,11 @@ def parse_locked_requirement(line):
     return name, version, {x.split(":")[1] for x in parts[1:]}
 
 
-def download_python(wheelhouse):
+def download_python(wheelhouse, groups=("platformio", "idf", "esptool-contrib")):
     # Fetch only immutable, non-yanked artifacts explicitly authorized by the
     # lock. Pip selects the compatible wheel offline; do not execute arbitrary
     # source distributions during discovery.
-    for group in ("platformio", "idf", "esptool-contrib"):
+    for group in groups:
         for line in (LOCKS / (group + SUFFIX)).read_text().splitlines():
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
@@ -89,23 +89,27 @@ def download_python(wheelhouse):
                 )
 
 
-def install_packages(core, archives, lock):
+def install_packages(core, archives, lock, *, locations=None, content_addressed=False):
     manifest = json.loads((LOCKS / "esp-packages-linux-x86_64.json").read_text())
     tools = json.loads((LOCKS / "esp-tools-linux-x86_64.json").read_text())
     for location, item in manifest.items():
+        if locations is not None and location not in locations:
+            continue
         name = Path(location).name
         pin = tools[name] if name in tools else lock["esp32_source_integrity"][location]
         if item["sha256"] != pin["archive_sha256"]:
             raise RuntimeError(f"Conflicting package pins: {name}")
-        archive = archives / Path(item["url"]).name
+        cache = archives / item["sha256"] if content_addressed else archives
+        archive = cache / Path(item["url"]).name
         fetch(item["url"], archive, item["sha256"])
         target = core / location
         target.mkdir(parents=True)
         with tarfile.open(archive) as source:
             source.extractall(target, filter="data")
         (target / ".piopm").write_text(json.dumps(item["metadata"]))
-    verify_esp_sources(core, lock)
-    verify_esp_tools(core)
+    if locations is None:
+        verify_esp_sources(core, lock)
+        verify_esp_tools(core)
 
 
 def main():

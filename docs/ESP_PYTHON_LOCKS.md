@@ -63,3 +63,11 @@ non-yanked wheels (plus the explicitly locked esptool source archive),
 and pip chooses a compatible artifact offline. The main C3 CI job uses
 Python 3.13 to exercise the actual locked installation, rather than its
 legacy unqualified fallback. Automated updates must pass that job.
+
+The reviewed parent compatibility ranges are recorded separately in
+`esp-compatibility.json` and checked inside each installed environment,
+including the esptool contrib directory. These are the relevant constraints
+for this change, not a replacement for the full upstream SDK support matrix.
+Do not auto-merge version updates that pass only source tests: actual locked
+provisioning, pip metadata consistency, parent compatibility and target
+compilation are required.

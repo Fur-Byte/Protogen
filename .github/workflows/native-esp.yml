@@ -1,0 +1,154 @@
+name: Native ESP-IDF candidate
+on:
+  pull_request:
+    paths:
+      - 'firmware/esp32/**'
+      - 'firmware/PROT_OS7_MAX7219/src/HelmetProtocol/**'
+      - 'scripts/**'
+      - 'toolchain.lock.json'
+      - '.github/workflows/native-esp.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reproducibility:
+        description: Compare two fresh output-directory builds
+        type: boolean
+        default: false
+      attest:
+        description: Attest candidate binaries (not a production release)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: native-esp-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Native-only dependency installation
+        run: |
+          python3 scripts/protogen.py setup --backend native
+          test ! -e build/esp32-venv
+          test ! -e build/native-sdk/platforms/espressif32
+          test ! -e build/native-python/platformio
+      - name: Native candidate build and SPDX inventory
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: ''
+        run: python3 scripts/protogen.py build all --backend native --output build/native-ci
+      - name: Fresh-output reproducibility experiment
+        if: github.event_name == 'workflow_dispatch' && inputs.reproducibility
+        run: |
+          for label in a b; do
+            python3 scripts/protogen.py build all --backend native --output "build/repro-$label" --reproducible
+          done
+          for role in helmet paw; do
+            for file in protogen_wireless.bin bootloader/bootloader.bin partition_table/partition-table.bin; do
+              cmp "build/repro-a/$role/$file" "build/repro-b/$role/$file"
+            done
+          done
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: native-candidate
+          if-no-files-found: error
+          path: |
+            build/native-ci/*/manifest.json
+            build/native-ci/*/protogen_wireless.bin
+            build/native-ci/*/bootloader/bootloader.bin
+            build/native-ci/*/partition_table/partition-table.bin
+            build/native-ci/*/config/sdkconfig.json
+            build/native-ci/*/sbom.spdx.json
+            build/native-ci/*/size.json
+            build/native-ci/*/*.log
+  reference:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Reference locked installation and build
+        run: |
+          python3 scripts/install-locked-esp.py
+          python3 scripts/build-esp32.py
+        env:
+          PLATFORMIO_SETTING_ENABLE_TELEMETRY: 'no'
+          PROTOGEN_PIO_JOBS: '4'
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: reference-candidate
+          if-no-files-found: error
+          path: |
+            build/esp32/*/config/sdkconfig.json
+            build/esp32/*/partitions.bin
+            build/esp32/*/firmware.bin
+  compare:
+    runs-on: ubuntu-24.04
+    needs: [native, reference]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: native-candidate
+          path: build/native
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: reference-candidate
+          path: build/reference
+      - name: Require exact SDK configuration and partition parity
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from native_esp import compare_configuration
+          for role in ('helmet', 'paw'):
+              result = compare_configuration(Path('build/reference') / role, Path('build/native') / role)
+              print(role, json.dumps(result))
+              if not result['equivalent_configuration']:
+                  raise SystemExit(1)
+              prior = (Path('build/reference') / role / 'firmware.bin').stat().st_size
+              candidate = (Path('build/native') / role / 'protogen_wireless.bin').stat().st_size
+              print(f'{role}: reference={prior} native={candidate}')
+              if candidate > prior + max(4096, prior // 100):
+                  raise SystemExit('Unreviewed native binary size increase')
+
+          PY
+  attest:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.attest
+    needs: [compare]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: native-candidate
+          path: build/native
+      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: |
+            build/native/*/protogen_wireless.bin
+            build/native/*/bootloader/bootloader.bin
+            build/native/*/partition_table/partition-table.bin
+            build/native/*/manifest.json
+            build/native/*/sbom.spdx.json
