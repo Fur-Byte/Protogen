@@ -36,8 +36,10 @@ jobs:
         with:
           python-version: '3.13'
       - name: Native-only dependency installation
+        shell: bash
         run: |
-          python3 scripts/protogen.py setup --backend native
+          mkdir -p build
+          python3 scripts/protogen.py setup --backend native 2>&1 | tee build/native-setup.log
           test ! -e build/esp32-venv
           test ! -e build/native-sdk/platforms/espressif32
           test ! -e build/native-python/platformio
@@ -59,11 +61,22 @@ jobs:
               cmp "build/repro-a/$role/$file" "build/repro-b/$role/$file"
             done
           done
+      - name: Native failure diagnostics
+        if: failure()
+        run: |
+          for log in build/native-ci/*/*.log; do
+            test -f "$log" || continue
+            echo "::group::$log"
+            tail -80 "$log"
+            echo "::endgroup::"
+          done
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
         with:
           name: native-candidate
           if-no-files-found: error
           path: |
+            build/native-setup.log
             build/native-ci/*/manifest.json
             build/native-ci/*/protogen_wireless.bin
             build/native-ci/*/bootloader/bootloader.bin
@@ -83,13 +96,23 @@ jobs:
         with:
           python-version: '3.13'
       - name: Reference locked installation and build
+        shell: bash
         run: |
-          python3 scripts/install-locked-esp.py
+          mkdir -p build
+          python3 scripts/install-locked-esp.py 2>&1 | tee build/reference-setup.log
           python3 scripts/build-esp32.py
         env:
           PLATFORMIO_SETTING_ENABLE_TELEMETRY: 'no'
           PROTOGEN_PIO_JOBS: '4'
+      - name: Reference failure diagnostics
+        if: failure()
+        run: |
+          if test -f build/esp32-build.json; then
+            python3 -c 'import json; d=json.load(open("build/esp32-build.json")); print({k:d.get(k) for k in ("state","error","exit_code","warnings")})'
+          fi
+          if test -f build/esp32-build.log; then tail -100 build/esp32-build.log; fi
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
         with:
           name: reference-candidate
           if-no-files-found: error
@@ -97,6 +120,9 @@ jobs:
             build/esp32/*/config/sdkconfig.json
             build/esp32/*/partitions.bin
             build/esp32/*/firmware.bin
+            build/reference-setup.log
+            build/esp32-build.json
+            build/esp32-build.log
   compare:
     runs-on: ubuntu-24.04
     needs: [native, reference]
@@ -120,12 +146,12 @@ jobs:
           sys.path.insert(0, 'scripts')
           from native_esp import compare_configuration
           for role in ('helmet', 'paw'):
-              result = compare_configuration(Path('build/reference') / role, Path('build/native') / role)
+              result = compare_configuration(Path('build/reference/esp32') / role, Path('build/native/native-ci') / role)
               print(role, json.dumps(result))
               if not result['equivalent_configuration']:
                   raise SystemExit(1)
-              prior = (Path('build/reference') / role / 'firmware.bin').stat().st_size
-              candidate = (Path('build/native') / role / 'protogen_wireless.bin').stat().st_size
+              prior = (Path('build/reference/esp32') / role / 'firmware.bin').stat().st_size
+              candidate = (Path('build/native/native-ci') / role / 'protogen_wireless.bin').stat().st_size
               print(f'{role}: reference={prior} native={candidate}')
               if candidate > prior + max(4096, prior // 100):
                   raise SystemExit('Unreviewed native binary size increase')
@@ -147,8 +173,8 @@ jobs:
       - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: |
-            build/native/*/protogen_wireless.bin
-            build/native/*/bootloader/bootloader.bin
-            build/native/*/partition_table/partition-table.bin
-            build/native/*/manifest.json
-            build/native/*/sbom.spdx.json
+            build/native/native-ci/*/protogen_wireless.bin
+            build/native/native-ci/*/bootloader/bootloader.bin
+            build/native/native-ci/*/partition_table/partition-table.bin
+            build/native/native-ci/*/manifest.json
+            build/native/native-ci/*/sbom.spdx.json
