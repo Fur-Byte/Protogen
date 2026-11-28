@@ -5,12 +5,5 @@
   "idf": {
     "cryptography": ">=2.1.4,<49,<=48.0.1",
     "urllib3": "<=2.8.0"
-  },
-  "esptool-contrib": {
-    "bitstring": "~=4.3.1",
-    "cryptography": "~=46.0.0",
-    "ecdsa": "~=0.19.1",
-    "intelhex": "~=2.3.0",
-    "reedsolo": "~=1.7.0"
   }
 }

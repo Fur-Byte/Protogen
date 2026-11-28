@@ -36,7 +36,16 @@ def fetch(url, destination, digest):
     with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as stream:
         temporary = Path(stream.name)
         try:
-            with urllib.request.urlopen(url, timeout=120) as response:
+            with urllib.request.urlopen(
+                urllib.request.Request(
+                    url,
+                    headers={
+                        "User-Agent": "Protogen-locked-installer/1.0",
+                        "Accept": "application/octet-stream",
+                    },
+                ),
+                timeout=120,
+            ) as response:
                 shutil.copyfileobj(response, stream)
             stream.flush()
             if sha(temporary) != digest:
@@ -56,7 +65,7 @@ def parse_locked_requirement(line):
     return name, version, {x.split(":")[1] for x in parts[1:]}
 
 
-def download_python(wheelhouse, groups=("platformio", "idf", "esptool-contrib")):
+def download_python(wheelhouse, groups=("platformio", "idf")):
     # Fetch only immutable, non-yanked artifacts explicitly authorized by the
     # lock. Pip selects the compatible wheel offline; do not execute arbitrary
     # source distributions during discovery.
@@ -164,7 +173,6 @@ def main():
             }
         )
     )
-    shutil.copytree(output / "esptool-contrib", core / "packages/tool-esptoolpy/_contrib")
     verify_esp_sources(core, lock)
     verify_esp_tools(core)
     print("Pinned ESP packages and Python environments installed without upstream postinstall hooks")

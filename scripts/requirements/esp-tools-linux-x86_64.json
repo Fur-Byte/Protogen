@@ -15,12 +15,12 @@
     "files": 13,
     "symlinks": 0
   },
-  "tool-esptoolpy": {
-    "version": "2.41100.260830",
-    "archive": "tool-esptoolpy-2.41100.260830.tar.gz",
-    "archive_sha256": "0de9971e2949c874387af768e71c4a71c13b63e0242ea931a34ba0a654b56382",
-    "tree_sha256": "fc5e19bd12e50fa92ff8fb3a9ee95056aa8ff48b5af60ee9367d5b77843ed43f",
-    "files": 199,
+  "tool-esptool": {
+    "version": "2.50400.0",
+    "archive": "tool-esptool-linux_x86_64-2.50400.0.tar.gz",
+    "archive_sha256": "e00eb7ceea0e42310258fa2e92cb33f509b5ed223a2dab5ca27c0e0af807952e",
+    "tree_sha256": "247f8744e0db5a7786f18cce91cda72a9508fd469fe477dbc8a96472772703da",
+    "files": 7,
     "symlinks": 0
   },
   "tool-ninja": {
