@@ -126,7 +126,7 @@ def main():
         constraints = download('https://dl.espressif.com/dl/esp-idf/espidf.constraints.v' + branch + '.txt',
                                folder / 'downloads/idf-constraints.txt')
         requirements = ROOT / 'build/platformio/packages/framework-espidf/tools/requirements/requirements.core.txt'
-        run(sdk_python, '-m', 'pip', 'install', '-c', str(constraints), '-r', str(requirements), 'urllib3<2')
+        run(sdk_python, '-m', 'pip', 'install', '-c', str(constraints), '-r', str(requirements), 'urllib3==2.8.0')
         (folder / 'idf-python-dependencies.txt').write_text(
             subprocess.check_output([sdk_python, '-m', 'pip', 'freeze'], env=env, text=True))
         freeze = subprocess.check_output([python, '-m', 'pip', 'freeze'], env=env, text=True)

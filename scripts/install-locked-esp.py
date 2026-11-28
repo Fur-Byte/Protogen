@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -45,26 +46,47 @@ def fetch(url, destination, digest):
             temporary.unlink(missing_ok=True)
 
 
+def parse_locked_requirement(line):
+    parts = line.split()
+    if not parts or not re.fullmatch(r"[A-Za-z0-9_.-]+==[A-Za-z0-9_.+!-]+", parts[0]):
+        raise RuntimeError("Expected one exact pinned requirement")
+    if len(parts) < 2 or any(not re.fullmatch(r"--hash=sha256:[0-9a-f]{64}", x) for x in parts[1:]):
+        raise RuntimeError("Expected SHA-256 artifact pins")
+    name, version = parts[0].split("==")
+    return name, version, {x.split(":")[1] for x in parts[1:]}
+
+
 def download_python(wheelhouse):
+    # Fetch only immutable, non-yanked artifacts explicitly authorized by the
+    # lock. Pip selects the compatible wheel offline; do not execute arbitrary
+    # source distributions during discovery.
     for group in ("platformio", "idf", "esptool-contrib"):
         for line in (LOCKS / (group + SUFFIX)).read_text().splitlines():
-            if not line or line.startswith("#"):
+            if not line.strip() or line.lstrip().startswith("#"):
                 continue
-            requirement, digest = line.split(" --hash=sha256:")
-            name, version = requirement.split("==")
+            name, version, digests = parse_locked_requirement(line)
             with urllib.request.urlopen(
                 f"https://pypi.org/pypi/{name}/{version}/json", timeout=30
             ) as response:
                 release = json.load(response)
             matches = [
-                item for item in release["urls"] if item["digests"]["sha256"] == digest and not item["yanked"]
+                item
+                for item in release["urls"]
+                if item["digests"]["sha256"] in digests
+                and not item["yanked"]
+                and (
+                    item["filename"].endswith(".whl")
+                    or (group == "idf" and name == "esptool" and item["filename"].endswith(".tar.gz"))
+                )
             ]
-            if len(matches) != 1:
-                raise RuntimeError(f"Missing pinned PyPI release artifact: {requirement}")
-            artifact = matches[0]
-            if Path(artifact["filename"]).name != artifact["filename"]:
-                raise RuntimeError("Invalid artifact filename")
-            fetch(artifact["url"], wheelhouse / group / artifact["filename"], digest)
+            if not matches:
+                raise RuntimeError(f"Missing pinned PyPI release artifact: {name}=={version}")
+            for artifact in matches:
+                if Path(artifact["filename"]).name != artifact["filename"]:
+                    raise RuntimeError("Invalid artifact filename")
+                fetch(
+                    artifact["url"], wheelhouse / group / artifact["filename"], artifact["digests"]["sha256"]
+                )
 
 
 def install_packages(core, archives, lock):
