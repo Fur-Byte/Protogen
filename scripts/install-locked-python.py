@@ -51,9 +51,9 @@ def main():
         parser.error("Only Linux x86-64 CPython 3.13 is currently qualified")
     source = args.wheelhouse.resolve()
     output = args.output.resolve()
-    groups = ("idf",) if args.native_only else ("platformio", "idf", "esptool-contrib")
+    groups = ("idf",) if args.native_only else ("platformio", "idf")
     if any(not (source / group).is_dir() for group in groups):
-        parser.error("Wheelhouse must contain platformio, idf and esptool-contrib directories")
+        parser.error("Wheelhouse must contain the requested Python group directories")
     if args.output.exists() or args.output.is_symlink():
         parser.error("Output must be a new directory; existing environments are never modified")
     output.mkdir(parents=True)
@@ -71,26 +71,6 @@ def main():
         subprocess.run([str(python), "-m", "pip", "check"], check=True)
         subprocess.run(
             [str(python), str(ROOT / "scripts/check-esp-python-compatibility.py"), group], check=True
-        )
-    if not args.native_only:
-        python = output / "platformio/bin/python"
-        pip_install(
-            python,
-            source / "esptool-contrib",
-            locks / ("esptool-contrib" + SUFFIX),
-            "--only-binary=:all:",
-            "--target",
-            str(output / "esptool-contrib"),
-        )
-        subprocess.run(
-            [
-                str(python),
-                str(ROOT / "scripts/check-esp-python-compatibility.py"),
-                "esptool-contrib",
-                "--target",
-                str(output / "esptool-contrib"),
-            ],
-            check=True,
         )
     report = {
         "state": "success",

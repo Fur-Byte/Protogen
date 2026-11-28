@@ -42,13 +42,12 @@ class ToolIntegrity(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             (root / "original.py").write_text("original")
-            original = tool_tree_digest(root, esptool=True)
+            original = tool_tree_digest(root)
             (root / "_contrib").mkdir()
             (root / "_contrib" / "installed.py").write_text("generated")
-            self.assertEqual(original, tool_tree_digest(root, esptool=True))
             self.assertNotEqual(original, tool_tree_digest(root))
             (root / "extra.py").write_text("changed")
-            self.assertNotEqual(original, tool_tree_digest(root, esptool=True))
+            self.assertNotEqual(original, tool_tree_digest(root))
 
     def test_locked_scons_resolution_must_match_pin_without_install(self):
         with tempfile.TemporaryDirectory() as folder:

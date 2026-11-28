@@ -13,17 +13,13 @@ PIN_PATH = Path(__file__).resolve().parent / "requirements/esp-tools-linux-x86_6
 OPTIONAL = {"tool-riscv32-esp-elf-gdb", "tool-xtensa-esp-elf-gdb"}
 
 
-def tool_tree_digest(directory, *, esptool=False):
+def tool_tree_digest(directory):
     if not directory.is_dir() or directory.is_symlink():
         raise RuntimeError(f"Missing or symlinked ESP tool package: {directory}")
     files = {}
     for path in directory.rglob("*"):
         relative = path.relative_to(directory)
         name = relative.as_posix()
-        # PlatformIO installs these Python dependencies separately.
-        # Their package archives have independent locks, not tree pins here.
-        if esptool and relative.parts[0] == "_contrib":
-            continue
         if path.is_symlink():
             # Verify the exact upstream link text, not the dereferenced file.
             files[name] = "symlink:" + os.readlink(path)
@@ -74,7 +70,7 @@ def verify_esp_tools(core, pins=None):
         if name in OPTIONAL and not directory.exists() and not directory.is_symlink():
             absent.append(name)
             continue
-        actual = tool_tree_digest(directory, esptool=name == "tool-esptoolpy")
+        actual = tool_tree_digest(directory)
         if actual != pin["tree_sha256"]:
             raise RuntimeError(f"Pinned ESP tool content mismatch: {name}")
         verified[name] = actual
@@ -83,5 +79,5 @@ def verify_esp_tools(core, pins=None):
         "state": "verified_archive_trees",
         "trees": verified,
         "optional_absent": absent,
-        "excluded": ["tool-esptoolpy/_contrib", "generated_python_bytecode", ".piopm"],
+        "excluded": ["generated_python_bytecode", ".piopm"],
     }

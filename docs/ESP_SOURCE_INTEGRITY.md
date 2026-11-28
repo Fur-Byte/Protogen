@@ -30,3 +30,8 @@ source pins alone.
 Refresh pins only from independently checked release archives, never by
 accepting arbitrary local tree changes. Full hardware and production
 qualification remain separate.
+
+
+On 2026-11-28 the reference platform pin was advanced to espressif32
+8.0.0 from a verified registry archive. The ESP-IDF 6.1.0 framework
+source pin is unchanged. The old 7.1.3 numbers above are historical.

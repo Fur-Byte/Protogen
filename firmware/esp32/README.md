@@ -21,7 +21,7 @@ connection, IP interface or custom raw-frame disguise. See
 
 ## Build and tests
 
-Pinned: PlatformIO 6.2.0, espressif32@7.1.3, ESP-IDF 6.1.0, Mbed TLS 4.1.0.
+Pinned: PlatformIO 6.2.0, espressif32@8.0.0, ESP-IDF 6.1.0, Mbed TLS 4.1.0.
 
 ```sh
 python3 scripts/install-toolchains.py
